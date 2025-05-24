@@ -639,16 +639,28 @@ export function DataTableTrends() {
         setLoading(true)
       }
       
-      const response = await fetch('/api/trends')
+      console.log('Fetching trends from API...')
+      const response = await fetch('/api/trends', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      console.log('Response status:', response.status)
       const result = await response.json()
+      console.log('Response data:', result)
 
       if (!response.ok || !result.success) {
-        console.error('Error fetching trends:', result.error)
+        console.error('Error fetching trends:', result.error || 'Unknown error')
+        toast.error('Failed to load trends: ' + (result.error || 'Unknown error'))
       } else {
         setData(result.trends || [])
+        console.log('Loaded trends:', result.trends?.length || 0)
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Network error:', error)
+      toast.error('Failed to connect to server')
     } finally {
       setLoading(false)
       setInitialLoad(false)
@@ -884,7 +896,9 @@ export function DataTableTrends() {
             </Button>
           </div>
         </div>
-        <TabsContent value="trends" className="relative flex flex-col gap-4 overflow-auto mt-0">
+        
+        {/* Trend Signals tab */}
+        <TabsContent value="trends" className="flex flex-col gap-4 mt-0">
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
@@ -1009,21 +1023,21 @@ export function DataTableTrends() {
         </TabsContent>
         
         {/* Catalog Matches tab content placeholder */}
-        <TabsContent value="catalog" className="relative flex flex-col gap-4 overflow-auto mt-0">
+        <TabsContent value="catalog" className="flex flex-col gap-4 mt-0">
           <div className="flex items-center justify-center py-10">
             <div className="text-muted-foreground">Catalog matches feature coming soon...</div>
           </div>
         </TabsContent>
         
         {/* Inventory Actions tab content placeholder */}
-        <TabsContent value="inventory" className="relative flex flex-col gap-4 overflow-auto mt-0">
+        <TabsContent value="inventory" className="flex flex-col gap-4 mt-0">
           <div className="flex items-center justify-center py-10">
             <div className="text-muted-foreground">Inventory actions feature coming soon...</div>
           </div>
         </TabsContent>
         
-        {/* Trend Forecasts tab content - same table structure as trends */}
-        <TabsContent value="forecast" className="relative flex flex-col gap-4 overflow-auto mt-0">
+        {/* Trend Forecasts tab - same structure as trends */}
+        <TabsContent value="forecast" className="flex flex-col gap-4 mt-0">
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
