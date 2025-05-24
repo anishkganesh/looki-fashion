@@ -897,269 +897,272 @@ export function DataTableTrends() {
           </div>
         </div>
         
-        {/* Trend Signals tab */}
-        <TabsContent value="trends" className="flex flex-col gap-4 mt-0">
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody className="font-sans">
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+        {/* All tabs must have identical wrapper structure */}
+        <div className="w-full">
+          {/* Trend Signals tab */}
+          <TabsContent value="trends" className="flex flex-col gap-4 m-0 p-0">
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        )
+                      })}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No trends found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-between px-4">
-            <div className="flex-1 text-sm text-muted-foreground">
-              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
-              {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length)} of {filteredData.length} trends
-            </div>
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                  Rows per page
-                </Label>
-                <Select
-                  value={`${table.getState().pagination.pageSize}`}
-                  onValueChange={(value) => {
-                    table.setPageSize(Number(value))
-                  }}
-                >
-                  <SelectTrigger className="w-20" id="rows-per-page">
-                    <SelectValue placeholder={table.getState().pagination.pageSize} />
-                  </SelectTrigger>
-                  <SelectContent side="top">
-                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex w-fit items-center justify-center text-sm font-medium">
-                Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.setPageIndex(0)}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  <ChevronsLeftIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to first page</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to previous page</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                >
-                  <ChevronRightIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to next page</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                  disabled={!table.getCanNextPage()}
-                >
-                  <ChevronsRightIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to last page</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Catalog Matches tab content placeholder */}
-        <TabsContent value="catalog" className="flex flex-col gap-4 mt-0">
-          <div className="flex items-center justify-center py-10">
-            <div className="text-muted-foreground">Catalog matches feature coming soon...</div>
-          </div>
-        </TabsContent>
-        
-        {/* Inventory Actions tab content placeholder */}
-        <TabsContent value="inventory" className="flex flex-col gap-4 mt-0">
-          <div className="flex items-center justify-center py-10">
-            <div className="text-muted-foreground">Inventory actions feature coming soon...</div>
-          </div>
-        </TabsContent>
-        
-        {/* Trend Forecasts tab - same structure as trends */}
-        <TabsContent value="forecast" className="flex flex-col gap-4 mt-0">
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody className="font-sans">
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+                  ))}
+                </TableHeader>
+                <TableBody className="font-sans">
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        No trends found.
+                      </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No forecast trends found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-between px-4">
-            <div className="flex-1 text-sm text-muted-foreground">
-              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
-              {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length)} of {filteredData.length} forecast trends
+                  )}
+                </TableBody>
+              </Table>
             </div>
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="rows-per-page-forecast" className="text-sm font-medium">
-                  Rows per page
-                </Label>
-                <Select
-                  value={`${table.getState().pagination.pageSize}`}
-                  onValueChange={(value) => {
-                    table.setPageSize(Number(value))
-                  }}
-                >
-                  <SelectTrigger className="w-20" id="rows-per-page-forecast">
-                    <SelectValue placeholder={table.getState().pagination.pageSize} />
-                  </SelectTrigger>
-                  <SelectContent side="top">
-                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex items-center justify-between px-4">
+              <div className="flex-1 text-sm text-muted-foreground">
+                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
+                {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length)} of {filteredData.length} trends
               </div>
-              <div className="flex w-fit items-center justify-center text-sm font-medium">
-                Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.setPageIndex(0)}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  <ChevronsLeftIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to first page</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to previous page</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                >
-                  <ChevronRightIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to next page</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                  disabled={!table.getCanNextPage()}
-                >
-                  <ChevronsRightIcon className="h-4 w-4" />
-                  <span className="sr-only">Go to last page</span>
-                </Button>
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                    Rows per page
+                  </Label>
+                  <Select
+                    value={`${table.getState().pagination.pageSize}`}
+                    onValueChange={(value) => {
+                      table.setPageSize(Number(value))
+                    }}
+                  >
+                    <SelectTrigger className="w-20" id="rows-per-page">
+                      <SelectValue placeholder={table.getState().pagination.pageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.setPageIndex(0)}
+                    disabled={!table.getCanPreviousPage()}
+                  >
+                    <ChevronsLeftIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to first page</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to previous page</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  >
+                    <ChevronRightIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to next page</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                    disabled={!table.getCanNextPage()}
+                  >
+                    <ChevronsRightIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to last page</span>
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
+          
+          {/* Catalog Matches tab content placeholder */}
+          <TabsContent value="catalog" className="flex flex-col gap-4 m-0 p-0">
+            <div className="flex items-center justify-center py-10 rounded-lg border">
+              <div className="text-muted-foreground">Catalog matches feature coming soon...</div>
+            </div>
+          </TabsContent>
+          
+          {/* Inventory Actions tab content placeholder */}
+          <TabsContent value="inventory" className="flex flex-col gap-4 m-0 p-0">
+            <div className="flex items-center justify-center py-10 rounded-lg border">
+              <div className="text-muted-foreground">Inventory actions feature coming soon...</div>
+            </div>
+          </TabsContent>
+          
+          {/* Trend Forecasts tab - same structure as trends */}
+          <TabsContent value="forecast" className="flex flex-col gap-4 m-0 p-0">
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        )
+                      })}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody className="font-sans">
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        No forecast trends found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex items-center justify-between px-4">
+              <div className="flex-1 text-sm text-muted-foreground">
+                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
+                {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length)} of {filteredData.length} forecast trends
+              </div>
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="rows-per-page-forecast" className="text-sm font-medium">
+                    Rows per page
+                  </Label>
+                  <Select
+                    value={`${table.getState().pagination.pageSize}`}
+                    onValueChange={(value) => {
+                      table.setPageSize(Number(value))
+                    }}
+                  >
+                    <SelectTrigger className="w-20" id="rows-per-page-forecast">
+                      <SelectValue placeholder={table.getState().pagination.pageSize} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
+                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.setPageIndex(0)}
+                    disabled={!table.getCanPreviousPage()}
+                  >
+                    <ChevronsLeftIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to first page</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to previous page</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  >
+                    <ChevronRightIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to next page</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                    disabled={!table.getCanNextPage()}
+                  >
+                    <ChevronsRightIcon className="h-4 w-4" />
+                    <span className="sr-only">Go to last page</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </div>
       </Tabs>
       
       <TrendDetailSheet 
