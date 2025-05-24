@@ -1,0 +1,884 @@
+[
+  {
+    "id": 1,
+    "header": "Boho Revival Trend",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "89",
+    "limit": "65",
+    "reviewer": "Emma Chen"
+  },
+  {
+    "id": 2,
+    "header": "Y2K Aesthetic",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "95",
+    "limit": "72",
+    "reviewer": "Marcus Kim"
+  },
+  {
+    "id": 3,
+    "header": "Sustainable Fashion",
+    "type": "Trend Category",
+    "status": "Done",
+    "target": "82",
+    "limit": "68",
+    "reviewer": "Emma Chen"
+  },
+  {
+    "id": 4,
+    "header": "Oversized Silhouettes",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "77",
+    "limit": "63",
+    "reviewer": "Aisha Patel"
+  },
+  {
+    "id": 5,
+    "header": "Dopamine Dressing",
+    "type": "Trend Category",
+    "status": "In Process",
+    "target": "91",
+    "limit": "76",
+    "reviewer": "Aisha Patel"
+  },
+  {
+    "id": 6,
+    "header": "Coastal Grandmother",
+    "type": "Trend Signal",
+    "status": "In Process",
+    "target": "68",
+    "limit": "59",
+    "reviewer": "Aisha Patel"
+  },
+  {
+    "id": 7,
+    "header": "Platform Shoes Revival",
+    "type": "Product Match",
+    "status": "In Process",
+    "target": "72",
+    "limit": "63",
+    "reviewer": "Marcus Kim"
+  },
+  {
+    "id": 8,
+    "header": "Cottagecore Aesthetics",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "85",
+    "limit": "71",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 9,
+    "header": "Statement Collar Trend",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "79",
+    "limit": "64",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 10,
+    "header": "Monochromatic Outfits",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "88",
+    "limit": "75",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 11,
+    "header": "Gender-Fluid Fashion",
+    "type": "Trend Category",
+    "status": "Done",
+    "target": "93",
+    "limit": "81",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 12,
+    "header": "Crochet & Knit Textures",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "76",
+    "limit": "67",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 13,
+    "header": "Vintage Inspired Denim",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "83",
+    "limit": "69",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 14,
+    "header": "Maximalist Accessories",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "87",
+    "limit": "74",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 15,
+    "header": "Pastel Color Palette",
+    "type": "Trend Category",
+    "status": "Done",
+    "target": "81",
+    "limit": "68",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 16,
+    "header": "Upcycled Fashion",
+    "type": "Trend Signal",
+    "status": "In Process",
+    "target": "90",
+    "limit": "77",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 17,
+    "header": "Athleisure Evolution",
+    "type": "Trend Category",
+    "status": "Done",
+    "target": "86",
+    "limit": "73",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 18,
+    "header": "Digital Fashion NFTs",
+    "type": "Emerging Trend",
+    "status": "Done",
+    "target": "65",
+    "limit": "54",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 19,
+    "header": "Barbiecore Pink",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "94",
+    "limit": "83",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 20,
+    "header": "Western Influences",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "78",
+    "limit": "66",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 21,
+    "header": "Chunky Loafers",
+    "type": "Product Match",
+    "status": "In Process",
+    "target": "89",
+    "limit": "78",
+    "reviewer": "Sofia Martinez"
+  },
+  {
+    "id": 22,
+    "header": "Quiet Luxury",
+    "type": "Trend Category",
+    "status": "Done",
+    "target": "92",
+    "limit": "80",
+    "reviewer": "Leo Washington"
+  },
+  {
+    "id": 23,
+    "header": "Sustainability Claims",
+    "type": "Compliance",
+    "status": "In Process",
+    "target": "75",
+    "limit": "62",
+    "reviewer": "Emma Chen"
+  },
+  {
+    "id": 24,
+    "header": "Cargo Pants Revival",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "84",
+    "limit": "71",
+    "reviewer": "Raj Singh"
+  },
+  {
+    "id": 25,
+    "header": "Digital Print Patterns",
+    "type": "Product Match",
+    "status": "In Process",
+    "target": "80",
+    "limit": "67",
+    "reviewer": "Sofia Martinez"
+  },
+  {
+    "id": 26,
+    "header": "Cut-Out Designs",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "86",
+    "limit": "72",
+    "reviewer": "Marcus Kim"
+  },
+  {
+    "id": 27,
+    "header": "Seasonal Color Analysis",
+    "type": "Trend Report",
+    "status": "In Process",
+    "target": "91",
+    "limit": "79",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 28,
+    "header": "Micro Mini Skirts",
+    "type": "Product Match",
+    "status": "Done",
+    "target": "82",
+    "limit": "70",
+    "reviewer": "Emma Chen"
+  },
+  {
+    "id": 29,
+    "header": "Viral TikTok Aesthetics",
+    "type": "Trend Signal",
+    "status": "In Process",
+    "target": "96",
+    "limit": "85",
+    "reviewer": "Aisha Patel"
+  },
+  {
+    "id": 30,
+    "header": "Gorpcore Outdoor Trend",
+    "type": "Trend Signal",
+    "status": "Done",
+    "target": "88",
+    "limit": "75",
+    "reviewer": "Sofia Martinez"
+  },
+  {
+    "id": 31,
+    "header": "Cover page",
+    "type": "Cover page",
+    "status": "In Process",
+    "target": "18",
+    "limit": "5",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 32,
+    "header": "Table of contents",
+    "type": "Table of contents",
+    "status": "Done",
+    "target": "29",
+    "limit": "24",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 33,
+    "header": "Executive summary",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "10",
+    "limit": "13",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 34,
+    "header": "Technical approach",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "27",
+    "limit": "23",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 35,
+    "header": "Design",
+    "type": "Narrative",
+    "status": "In Process",
+    "target": "2",
+    "limit": "16",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 36,
+    "header": "Capabilities",
+    "type": "Narrative",
+    "status": "In Process",
+    "target": "20",
+    "limit": "8",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 37,
+    "header": "Integration with existing systems",
+    "type": "Narrative",
+    "status": "In Process",
+    "target": "19",
+    "limit": "21",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 38,
+    "header": "Innovation and Advantages",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "25",
+    "limit": "26",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 39,
+    "header": "Overview of EMR's Innovative Solutions",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "7",
+    "limit": "23",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 40,
+    "header": "Advanced Algorithms and Machine Learning",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "30",
+    "limit": "28",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 41,
+    "header": "Adaptive Communication Protocols",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "9",
+    "limit": "31",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 42,
+    "header": "Advantages Over Current Technologies",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "12",
+    "limit": "0",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 43,
+    "header": "Past Performance",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "22",
+    "limit": "33",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 44,
+    "header": "Customer Feedback and Satisfaction Levels",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "15",
+    "limit": "34",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 45,
+    "header": "Implementation Challenges and Solutions",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "3",
+    "limit": "35",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 46,
+    "header": "Security Measures and Data Protection Policies",
+    "type": "Narrative",
+    "status": "In Process",
+    "target": "6",
+    "limit": "36",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 47,
+    "header": "Scalability and Future Proofing",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "4",
+    "limit": "37",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 48,
+    "header": "Cost-Benefit Analysis",
+    "type": "Plain language",
+    "status": "Done",
+    "target": "14",
+    "limit": "38",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 49,
+    "header": "User Training and Onboarding Experience",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "17",
+    "limit": "39",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 50,
+    "header": "Future Development Roadmap",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "11",
+    "limit": "40",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 51,
+    "header": "System Architecture Overview",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "24",
+    "limit": "18",
+    "reviewer": "Maya Johnson"
+  },
+  {
+    "id": 52,
+    "header": "Risk Management Plan",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "15",
+    "limit": "22",
+    "reviewer": "Carlos Rodriguez"
+  },
+  {
+    "id": 53,
+    "header": "Compliance Documentation",
+    "type": "Legal",
+    "status": "In Process",
+    "target": "31",
+    "limit": "27",
+    "reviewer": "Sarah Chen"
+  },
+  {
+    "id": 54,
+    "header": "API Documentation",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "8",
+    "limit": "12",
+    "reviewer": "Raj Patel"
+  },
+  {
+    "id": 55,
+    "header": "User Interface Mockups",
+    "type": "Visual",
+    "status": "In Process",
+    "target": "19",
+    "limit": "25",
+    "reviewer": "Leila Ahmadi"
+  },
+  {
+    "id": 56,
+    "header": "Database Schema",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "22",
+    "limit": "20",
+    "reviewer": "Thomas Wilson"
+  },
+  {
+    "id": 57,
+    "header": "Testing Methodology",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "17",
+    "limit": "14",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 58,
+    "header": "Deployment Strategy",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "26",
+    "limit": "30",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 59,
+    "header": "Budget Breakdown",
+    "type": "Financial",
+    "status": "In Process",
+    "target": "13",
+    "limit": "16",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 60,
+    "header": "Market Analysis",
+    "type": "Research",
+    "status": "Done",
+    "target": "29",
+    "limit": "32",
+    "reviewer": "Sophia Martinez"
+  },
+  {
+    "id": 61,
+    "header": "Competitor Comparison",
+    "type": "Research",
+    "status": "In Process",
+    "target": "21",
+    "limit": "19",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 62,
+    "header": "Maintenance Plan",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "16",
+    "limit": "23",
+    "reviewer": "Alex Thompson"
+  },
+  {
+    "id": 63,
+    "header": "User Personas",
+    "type": "Research",
+    "status": "In Process",
+    "target": "27",
+    "limit": "24",
+    "reviewer": "Nina Patel"
+  },
+  {
+    "id": 64,
+    "header": "Accessibility Compliance",
+    "type": "Legal",
+    "status": "Done",
+    "target": "18",
+    "limit": "21",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 65,
+    "header": "Performance Metrics",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "23",
+    "limit": "26",
+    "reviewer": "David Kim"
+  },
+  {
+    "id": 66,
+    "header": "Disaster Recovery Plan",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "14",
+    "limit": "17",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 67,
+    "header": "Third-party Integrations",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "25",
+    "limit": "28",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 68,
+    "header": "User Feedback Summary",
+    "type": "Research",
+    "status": "Done",
+    "target": "20",
+    "limit": "15",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 69,
+    "header": "Localization Strategy",
+    "type": "Narrative",
+    "status": "In Process",
+    "target": "12",
+    "limit": "19",
+    "reviewer": "Maria Garcia"
+  },
+  {
+    "id": 70,
+    "header": "Mobile Compatibility",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "28",
+    "limit": "31",
+    "reviewer": "James Wilson"
+  },
+  {
+    "id": 71,
+    "header": "Data Migration Plan",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "19",
+    "limit": "22",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 72,
+    "header": "Quality Assurance Protocols",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "30",
+    "limit": "33",
+    "reviewer": "Priya Singh"
+  },
+  {
+    "id": 73,
+    "header": "Stakeholder Analysis",
+    "type": "Research",
+    "status": "In Process",
+    "target": "11",
+    "limit": "14",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 74,
+    "header": "Environmental Impact Assessment",
+    "type": "Research",
+    "status": "Done",
+    "target": "24",
+    "limit": "27",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 75,
+    "header": "Intellectual Property Rights",
+    "type": "Legal",
+    "status": "In Process",
+    "target": "17",
+    "limit": "20",
+    "reviewer": "Sarah Johnson"
+  },
+  {
+    "id": 76,
+    "header": "Customer Support Framework",
+    "type": "Narrative",
+    "status": "Done",
+    "target": "22",
+    "limit": "25",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 77,
+    "header": "Version Control Strategy",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "15",
+    "limit": "18",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 78,
+    "header": "Continuous Integration Pipeline",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "26",
+    "limit": "29",
+    "reviewer": "Michael Chen"
+  },
+  {
+    "id": 79,
+    "header": "Regulatory Compliance",
+    "type": "Legal",
+    "status": "In Process",
+    "target": "13",
+    "limit": "16",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 80,
+    "header": "User Authentication System",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "28",
+    "limit": "31",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 81,
+    "header": "Data Analytics Framework",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "21",
+    "limit": "24",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 82,
+    "header": "Cloud Infrastructure",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "16",
+    "limit": "19",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 83,
+    "header": "Network Security Measures",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "29",
+    "limit": "32",
+    "reviewer": "Lisa Wong"
+  },
+  {
+    "id": 84,
+    "header": "Project Timeline",
+    "type": "Planning",
+    "status": "Done",
+    "target": "14",
+    "limit": "17",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 85,
+    "header": "Resource Allocation",
+    "type": "Planning",
+    "status": "In Process",
+    "target": "27",
+    "limit": "30",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 86,
+    "header": "Team Structure and Roles",
+    "type": "Planning",
+    "status": "Done",
+    "target": "20",
+    "limit": "23",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 87,
+    "header": "Communication Protocols",
+    "type": "Planning",
+    "status": "In Process",
+    "target": "15",
+    "limit": "18",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 88,
+    "header": "Success Metrics",
+    "type": "Planning",
+    "status": "Done",
+    "target": "30",
+    "limit": "33",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 89,
+    "header": "Internationalization Support",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "23",
+    "limit": "26",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 90,
+    "header": "Backup and Recovery Procedures",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "18",
+    "limit": "21",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 91,
+    "header": "Monitoring and Alerting System",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "25",
+    "limit": "28",
+    "reviewer": "Daniel Park"
+  },
+  {
+    "id": 92,
+    "header": "Code Review Guidelines",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "12",
+    "limit": "15",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 93,
+    "header": "Documentation Standards",
+    "type": "Technical content",
+    "status": "In Process",
+    "target": "27",
+    "limit": "30",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 94,
+    "header": "Release Management Process",
+    "type": "Planning",
+    "status": "Done",
+    "target": "22",
+    "limit": "25",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 95,
+    "header": "Feature Prioritization Matrix",
+    "type": "Planning",
+    "status": "In Process",
+    "target": "19",
+    "limit": "22",
+    "reviewer": "Emma Davis"
+  },
+  {
+    "id": 96,
+    "header": "Technical Debt Assessment",
+    "type": "Technical content",
+    "status": "Done",
+    "target": "24",
+    "limit": "27",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 97,
+    "header": "Capacity Planning",
+    "type": "Planning",
+    "status": "In Process",
+    "target": "21",
+    "limit": "24",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 98,
+    "header": "Service Level Agreements",
+    "type": "Legal",
+    "status": "Done",
+    "target": "26",
+    "limit": "29",
+    "reviewer": "Assign reviewer"
+  }
+]
