@@ -473,23 +473,19 @@ export function ChatSidebar({
     const newMessages = messages.slice(0, messageIndex)
     setMessages(newMessages)
 
-    // Resend the last user message by simulating form submission
-    const currentInput = input
+    // Resend the last user message
     setInput(lastUserMessage.content)
     
-    // Use setTimeout to ensure state updates before submitting
+    // Use a more reliable way to submit the form
     setTimeout(() => {
-      const form = document.querySelector('form') as HTMLFormElement
-      if (form) {
-        form.requestSubmit()
+      if (textareaRef.current && textareaRef.current.form) {
+        const submitEvent = new Event('submit', { 
+          bubbles: true, 
+          cancelable: true 
+        })
+        textareaRef.current.form.dispatchEvent(submitEvent)
       }
-      // Restore original input if submission fails
-      setTimeout(() => {
-        if (input === lastUserMessage.content) {
-          setInput(currentInput)
-        }
-      }, 100)
-    }, 0)
+    }, 100)
   }
 
   const handleThumbsUp = async (messageId: string) => {

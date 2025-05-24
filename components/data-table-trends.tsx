@@ -738,17 +738,26 @@ export function DataTableTrends() {
 
   // Filter data based on active tab
   const filteredData = React.useMemo(() => {
+    console.log('Total data length:', data.length)
+    console.log('Active tab:', activeTab)
+    console.log('Sample trend type:', data[0]?.trend_type)
+    
     if (activeTab === 'trends') {
-      return data.filter(trend => trend.trend_type === 'signal' || !trend.trend_type)
+      // Show all trends that are not explicitly forecast
+      const filtered = data.filter(trend => trend.trend_type !== 'forecast')
+      console.log('Filtered signal trends:', filtered.length)
+      return filtered
     } else if (activeTab === 'forecast') {
-      return data.filter(trend => trend.trend_type === 'forecast')
+      const filtered = data.filter(trend => trend.trend_type === 'forecast')
+      console.log('Filtered forecast trends:', filtered.length)
+      return filtered
     }
     return data
   }, [data, activeTab])
 
   // Calculate counts for each tab
   const signalCount = React.useMemo(() => 
-    data.filter(trend => trend.trend_type === 'signal' || !trend.trend_type).length, 
+    data.filter(trend => trend.trend_type !== 'forecast').length, 
     [data]
   )
   
@@ -875,7 +884,7 @@ export function DataTableTrends() {
             </Button>
           </div>
         </div>
-        <TabsContent value="trends" className="relative flex flex-col gap-4 overflow-auto">
+        <TabsContent value="trends" className="relative flex flex-col gap-4 overflow-auto mt-0">
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
@@ -1000,21 +1009,21 @@ export function DataTableTrends() {
         </TabsContent>
         
         {/* Catalog Matches tab content placeholder */}
-        <TabsContent value="catalog" className="relative flex flex-col gap-4 overflow-auto">
+        <TabsContent value="catalog" className="relative flex flex-col gap-4 overflow-auto mt-0">
           <div className="flex items-center justify-center py-10">
             <div className="text-muted-foreground">Catalog matches feature coming soon...</div>
           </div>
         </TabsContent>
         
         {/* Inventory Actions tab content placeholder */}
-        <TabsContent value="inventory" className="relative flex flex-col gap-4 overflow-auto">
+        <TabsContent value="inventory" className="relative flex flex-col gap-4 overflow-auto mt-0">
           <div className="flex items-center justify-center py-10">
             <div className="text-muted-foreground">Inventory actions feature coming soon...</div>
           </div>
         </TabsContent>
         
         {/* Trend Forecasts tab content - same table structure as trends */}
-        <TabsContent value="forecast" className="relative flex flex-col gap-4 overflow-auto">
+        <TabsContent value="forecast" className="relative flex flex-col gap-4 overflow-auto mt-0">
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
