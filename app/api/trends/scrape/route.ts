@@ -348,10 +348,10 @@ export async function POST(request: Request) {
       sendProgress(`Extracted ${allTrends.length} raw trends`)
       
       if (allTrends.length === 0) {
-        sendProgress('ERROR: No trends extracted. Check API keys and network.')
+        sendProgress('ERROR: No trends extracted. Please try again in a few moments.')
         sendProgress('ERROR', {
           success: false,
-          error: 'No trends could be extracted from search results'
+          error: 'No trends could be extracted. The sources might be temporarily unavailable. Please retry.'
         })
         return
       }

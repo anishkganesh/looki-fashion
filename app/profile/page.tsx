@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Loader2, Save, User, Building2, CheckCircle, AlertCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Save, User, Building2, CheckCircle, AlertCircle, Package, Upload, FileText, Trash2, Eye, Download, RefreshCw, Database, Sparkles, Link2, FileJson, Key, File as FileIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import {
@@ -19,6 +19,28 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { createClient } from '@supabase/supabase-js'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -29,6 +51,12 @@ export default function ProfilePage() {
     type: "success" | "error" | null;
     message: string;
   }>({ type: null, message: "" })
+  
+  // Initialize Supabase client
+  const supabase = React.useMemo(() => createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), [])
   
   // User data
   const [userData, setUserData] = React.useState({
@@ -65,6 +93,31 @@ export default function ProfilePage() {
   
   const [newPassword, setNewPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
+  
+  // Product catalog state
+  const [catalogFiles, setCatalogFiles] = React.useState<any[]>([])
+  const [uploadProgress, setUploadProgress] = React.useState(0)
+  const [isUploading, setIsUploading] = React.useState(false)
+  const [processingStatus, setProcessingStatus] = React.useState<string>("")
+  const [mappingDialog, setMappingDialog] = React.useState(false)
+  const [fieldMappings, setFieldMappings] = React.useState<any>({})
+  const [previewData, setPreviewData] = React.useState<any[]>([])
+  const [apiConfig, setApiConfig] = React.useState({
+    endpoint: "",
+    authType: "api_key",
+    apiKey: "",
+    username: "",
+    password: "",
+    syncInterval: "manual",
+    lastSync: null as Date | null,
+  })
+  const [aiReviewDialog, setAiReviewDialog] = React.useState(false)
+  const [aiEnrichedData, setAiEnrichedData] = React.useState<any[]>([])
+  const [confidenceThreshold, setConfidenceThreshold] = React.useState(0.7)
+  const [importSummary, setImportSummary] = React.useState<any>(null)
+  
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const dropZoneRef = React.useRef<HTMLDivElement>(null)
   
   // Load profile data
   React.useEffect(() => {
@@ -150,6 +203,286 @@ export default function ProfilePage() {
       })
     } finally {
       setIsSaving(false)
+    }
+  }
+  
+  // File upload handlers
+  const handleFileUpload = async (files: File[]) => {
+    if (files.length === 0) return
+    
+    setIsUploading(true)
+    setUploadProgress(0)
+    
+    try {
+      for (const file of files) {
+        // Validate file size (50MB limit)
+        if (file.size > 50 * 1024 * 1024) {
+          toast.error(`${file.name} exceeds 50MB limit`)
+          continue
+        }
+        
+        setProcessingStatus(`Uploading ${file.name}...`)
+        
+        // Upload to Supabase Storage
+        const fileName = `${brandData.brand_id}/${Date.now()}-${file.name}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('product-catalogs')
+          .upload(fileName, file)
+        
+        if (uploadError) {
+          toast.error(`Failed to upload ${file.name}`)
+          continue
+        }
+        
+        // Parse file content
+        setProcessingStatus(`Processing ${file.name}...`)
+        const fileContent = await parseFileContent(file)
+        
+        if (fileContent.length > 0) {
+          // Show field mapping dialog
+          setPreviewData(fileContent.slice(0, 5)) // Preview first 5 rows
+          setMappingDialog(true)
+          
+          // Store file reference
+          setCatalogFiles(prev => [...prev, {
+            id: uploadData.path,
+            name: file.name,
+            type: file.name.endsWith('.csv') ? 'csv' : 'json',
+            size: formatFileSize(file.size),
+            uploadedAt: new Date().toLocaleString(),
+            path: uploadData.path
+          }])
+        }
+        
+        setUploadProgress(100)
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload files')
+    } finally {
+      setIsUploading(false)
+      setProcessingStatus("")
+    }
+  }
+  
+  const parseFileContent = async (file: File): Promise<any[]> => {
+    const text = await file.text()
+    
+    if (file.name.endsWith('.csv')) {
+      // Simple CSV parser
+      const lines = text.split('\n').filter(line => line.trim())
+      const headers = lines[0].split(',').map(h => h.trim())
+      
+      return lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim())
+        return headers.reduce((obj, header, index) => {
+          obj[header] = values[index] || ''
+          return obj
+        }, {} as any)
+      })
+    } else if (file.name.endsWith('.json')) {
+      return JSON.parse(text)
+    }
+    
+    return []
+  }
+  
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+  
+  const handlePreviewFile = async (file: any) => {
+    // TODO: Implement file preview
+    toast.info('File preview coming soon')
+  }
+  
+  const handleDownloadFile = async (file: any) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('product-catalogs')
+        .download(file.path)
+      
+      if (error) throw error
+      
+      // Create download link
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.name
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error('Failed to download file')
+    }
+  }
+  
+  const handleDeleteFile = async (file: any) => {
+    try {
+      const { error } = await supabase.storage
+        .from('product-catalogs')
+        .remove([file.path])
+      
+      if (error) throw error
+      
+      setCatalogFiles(prev => prev.filter(f => f.id !== file.id))
+      toast.success('File deleted')
+    } catch (error) {
+      toast.error('Failed to delete file')
+    }
+  }
+  
+  const handleTestApiConnection = async () => {
+    try {
+      const headers: any = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (apiConfig.authType === 'api_key' && apiConfig.apiKey) {
+        headers['Authorization'] = `Bearer ${apiConfig.apiKey}`
+      } else if (apiConfig.authType === 'basic' && apiConfig.username && apiConfig.password) {
+        headers['Authorization'] = `Basic ${btoa(`${apiConfig.username}:${apiConfig.password}`)}`
+      }
+      
+      const response = await fetch(apiConfig.endpoint, {
+        method: 'GET',
+        headers
+      })
+      
+      if (response.ok) {
+        toast.success('API connection successful!')
+      } else {
+        toast.error(`API returned status ${response.status}`)
+      }
+    } catch (error) {
+      toast.error('Failed to connect to API')
+    }
+  }
+  
+  const handleSyncNow = async () => {
+    try {
+      setProcessingStatus('Syncing products from API...')
+      setIsUploading(true)
+      
+      // TODO: Implement full API sync
+      toast.info('API sync coming soon')
+      
+      setApiConfig(prev => ({ ...prev, lastSync: new Date() }))
+    } catch (error) {
+      toast.error('Failed to sync from API')
+    } finally {
+      setIsUploading(false)
+      setProcessingStatus('')
+    }
+  }
+  
+  const handleProcessProducts = async () => {
+    try {
+      setMappingDialog(false)
+      setProcessingStatus('Processing products...')
+      setIsUploading(true)
+      
+      // Check if AI enhancement is enabled
+      const enableAI = (document.getElementById('ai-enhance') as HTMLInputElement)?.checked
+      
+      // Send to API for processing
+      const response = await fetch('/api/products/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          products: previewData,
+          fieldMappings,
+          brandId: brandData.brand_id,
+          enableAI,
+          confidenceThreshold
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to process products')
+      }
+      
+      // Update import summary
+      setImportSummary(result.results)
+      
+      // Show success message
+      toast.success(`Processed ${result.results.totalProducts} products successfully!`)
+      
+      // Clear preview data
+      setPreviewData([])
+      setFieldMappings({})
+      
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to process products')
+    } finally {
+      setIsUploading(false)
+      setProcessingStatus('')
+    }
+  }
+  
+  const handleSaveProducts = async () => {
+    // Get approved products
+    const approvedIndexes = new Set<number>()
+    aiEnrichedData.forEach((_, index) => {
+      const checkbox = document.getElementById(`approve-${index}`) as HTMLInputElement
+      if (checkbox?.checked) {
+        approvedIndexes.add(index)
+      }
+    })
+    
+    const approvedProducts = aiEnrichedData.filter((_, index) => approvedIndexes.has(index))
+    
+    if (approvedProducts.length === 0) {
+      toast.error('No products selected for saving')
+      return
+    }
+    
+    try {
+      setAiReviewDialog(false)
+      setProcessingStatus('Saving approved products...')
+      setIsUploading(true)
+      
+      // Process approved products
+      const response = await fetch('/api/products/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          products: approvedProducts.map(p => p.product),
+          fieldMappings: {},
+          brandId: brandData.brand_id,
+          enableAI: false, // Already enriched
+          confidenceThreshold,
+          preEnriched: approvedProducts
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to save products')
+      }
+      
+      // Update import summary
+      setImportSummary(result.results)
+      
+      // Show success message
+      toast.success(`Saved ${approvedProducts.length} products successfully!`)
+      
+      // Clear AI enriched data
+      setAiEnrichedData([])
+      
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save products')
+    } finally {
+      setIsUploading(false)
+      setProcessingStatus('')
     }
   }
   
@@ -519,6 +852,358 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
         
+        {/* Product Catalog Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Product Catalog
+            </CardTitle>
+            <CardDescription>
+              Upload your fashion catalog via CSV, JSON, or connect your API
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="upload" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="upload">File Upload</TabsTrigger>
+                <TabsTrigger value="api">API Integration</TabsTrigger>
+                <TabsTrigger value="manage">Manage Data</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="upload" className="space-y-4">
+                {/* Drag and Drop Zone */}
+                <div
+                  ref={dropZoneRef}
+                  className={cn(
+                    "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                    "hover:border-primary hover:bg-primary/5",
+                    isUploading && "opacity-50 pointer-events-none"
+                  )}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.classList.add("border-primary", "bg-primary/5")
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.classList.remove("border-primary", "bg-primary/5")
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault()
+                    e.currentTarget.classList.remove("border-primary", "bg-primary/5")
+                    const files = Array.from(e.dataTransfer.files)
+                    await handleFileUpload(files)
+                  }}
+                >
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium mb-2">
+                    Drag and drop your catalog files here
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Supports CSV, JSON, and Excel files (max 50MB)
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Browse Files
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".csv,.json,.xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      handleFileUpload(files)
+                    }}
+                  />
+                </div>
+                
+                {/* Upload Progress */}
+                {isUploading && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{processingStatus}</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} />
+                  </div>
+                )}
+                
+                {/* Uploaded Files */}
+                {catalogFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Uploaded Files</h4>
+                    <div className="space-y-2">
+                      {catalogFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            {file.type === 'csv' ? (
+                              <FileIcon className="h-5 w-5 text-green-600" />
+                            ) : (
+                              <FileJson className="h-5 w-5 text-blue-600" />
+                            )}
+                            <div>
+                              <p className="font-medium">{file.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {file.size} • {file.uploadedAt}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handlePreviewFile(file)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDownloadFile(file)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteFile(file)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* AI Enhancement Options */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <Label>AI Data Enhancement</Label>
+                    </div>
+                    <Checkbox
+                      id="ai-enhance"
+                      defaultChecked
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Use AI to automatically fill missing product attributes, generate descriptions, and estimate trend alignments
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <Label htmlFor="confidence" className="text-sm">
+                      Confidence Threshold
+                    </Label>
+                    <Input
+                      id="confidence"
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={confidenceThreshold}
+                      onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
+                      className="w-20"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="api" className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-endpoint">API Endpoint</Label>
+                    <Input
+                      id="api-endpoint"
+                      type="url"
+                      placeholder="https://api.yourbrand.com/products"
+                      value={apiConfig.endpoint}
+                      onChange={(e) => setApiConfig({...apiConfig, endpoint: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-type">Authentication Type</Label>
+                    <Select
+                      value={apiConfig.authType}
+                      onValueChange={(value) => setApiConfig({...apiConfig, authType: value})}
+                    >
+                      <SelectTrigger id="auth-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="api_key">API Key</SelectItem>
+                        <SelectItem value="basic">Basic Auth</SelectItem>
+                        <SelectItem value="oauth">OAuth 2.0</SelectItem>
+                        <SelectItem value="none">No Authentication</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {apiConfig.authType === 'api_key' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="api-key">API Key</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="api-key"
+                          type="password"
+                          placeholder="Enter your API key"
+                          value={apiConfig.apiKey}
+                          onChange={(e) => setApiConfig({...apiConfig, apiKey: e.target.value})}
+                        />
+                        <Button variant="outline" size="icon">
+                          <Key className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {apiConfig.authType === 'basic' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="username">Username</Label>
+                        <Input
+                          id="username"
+                          placeholder="Username"
+                          value={apiConfig.username}
+                          onChange={(e) => setApiConfig({...apiConfig, username: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Password"
+                          value={apiConfig.password}
+                          onChange={(e) => setApiConfig({...apiConfig, password: e.target.value})}
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="sync-interval">Sync Interval</Label>
+                    <Select
+                      value={apiConfig.syncInterval}
+                      onValueChange={(value) => setApiConfig({...apiConfig, syncInterval: value})}
+                    >
+                      <SelectTrigger id="sync-interval">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manual">Manual</SelectItem>
+                        <SelectItem value="hourly">Every Hour</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {apiConfig.lastSync && (
+                    <p className="text-sm text-muted-foreground">
+                      Last synced: {apiConfig.lastSync.toLocaleString()}
+                    </p>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleTestApiConnection}
+                      variant="outline"
+                    >
+                      <Link2 className="h-4 w-4 mr-2" />
+                      Test Connection
+                    </Button>
+                    <Button
+                      onClick={handleSyncNow}
+                      disabled={!apiConfig.endpoint}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sync Now
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="manage" className="space-y-4">
+                {importSummary && (
+                  <Alert>
+                    <Database className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        <p className="font-medium">Last Import Summary</p>
+                        <p className="text-sm">
+                          {importSummary.totalProducts} products imported • 
+                          {importSummary.newProducts} new • 
+                          {importSummary.updatedProducts} updated • 
+                          {importSummary.aiEnriched} AI enriched
+                        </p>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Product Data Overview</h4>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">
+                          Total Products
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">0</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">
+                          Categories
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">0</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">
+                          Trend Alignments
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold">0</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export All Products
+                  </Button>
+                  <Button variant="outline" className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All Data
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+        
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving}>
             {isSaving ? (
@@ -535,6 +1220,192 @@ export default function ProfilePage() {
           </Button>
         </div>
       </form>
+      
+      {/* Field Mapping Dialog */}
+      <Dialog open={mappingDialog} onOpenChange={setMappingDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Map CSV Fields to Product Attributes</DialogTitle>
+            <DialogDescription>
+              Match your CSV columns to the product database fields
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-4">
+              {/* Preview Table */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Data Preview</h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {previewData.length > 0 && Object.keys(previewData[0]).map(key => (
+                          <TableHead key={key} className="text-xs">{key}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewData.slice(0, 3).map((row, index) => (
+                        <TableRow key={index}>
+                          {Object.values(row).map((value: any, i) => (
+                            <TableCell key={i} className="text-xs">
+                              {String(value).slice(0, 50)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              {/* Field Mappings */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Field Mappings</h4>
+                <div className="grid gap-3">
+                  {[
+                    { field: 'product_code', label: 'Product Code', required: true },
+                    { field: 'product_name', label: 'Product Name', required: true },
+                    { field: 'current_price', label: 'Current Price', required: true },
+                    { field: 'original_price', label: 'Original Price', required: false },
+                    { field: 'description', label: 'Description', required: false },
+                    { field: 'category', label: 'Category', required: false },
+                    { field: 'stock_status', label: 'Stock Status', required: false },
+                  ].map(({ field, label, required }) => (
+                    <div key={field} className="grid grid-cols-2 gap-4 items-center">
+                      <Label className="text-sm">
+                        {label} {required && <span className="text-destructive">*</span>}
+                      </Label>
+                      <Select
+                        value={fieldMappings[field] || ''}
+                        onValueChange={(value) => setFieldMappings((prev: any) => ({
+                          ...prev,
+                          [field]: value
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select CSV column" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {previewData.length > 0 && Object.keys(previewData[0]).map(key => (
+                            <SelectItem key={key} value={key}>{key}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMappingDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleProcessProducts}>
+              Process Products
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* AI Review Dialog */}
+      <Dialog open={aiReviewDialog} onOpenChange={setAiReviewDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Review AI-Enhanced Products</DialogTitle>
+            <DialogDescription>
+              Review and approve AI-generated product data before saving
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-4">
+              {aiEnrichedData.map((item, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">
+                        {item.product.product_name}
+                      </CardTitle>
+                      <Badge variant={item.confidence >= confidenceThreshold ? "default" : "secondary"}>
+                        {(item.confidence * 100).toFixed(0)}% confidence
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {item.aiGenerated.description && (
+                      <div>
+                        <Label className="text-xs">AI Description</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.aiGenerated.description}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {item.aiGenerated.categories && (
+                      <div>
+                        <Label className="text-xs">Categories</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.aiGenerated.categories.join(' > ')}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {item.aiGenerated.colors && (
+                      <div>
+                        <Label className="text-xs">Colors</Label>
+                        <div className="flex gap-2 mt-1">
+                          {item.aiGenerated.colors.map((color: string, i: number) => (
+                            <Badge key={i} variant="outline">{color}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {item.aiGenerated.trendAlignments && item.aiGenerated.trendAlignments.length > 0 && (
+                      <div>
+                        <Label className="text-xs">Trend Alignments</Label>
+                        <div className="space-y-1 mt-1">
+                          {item.aiGenerated.trendAlignments.slice(0, 3).map((alignment: any, i: number) => (
+                            <div key={i} className="text-sm text-muted-foreground">
+                              • {alignment.trendIdentifier} ({(alignment.alignmentScore * 100).toFixed(0)}%)
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2 pt-2">
+                      <Checkbox
+                        id={`approve-${index}`}
+                        defaultChecked={item.confidence >= confidenceThreshold}
+                      />
+                      <Label htmlFor={`approve-${index}`} className="text-sm">
+                        Approve this enhancement
+                      </Label>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiReviewDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveProducts}>
+              Save Approved Products
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 
