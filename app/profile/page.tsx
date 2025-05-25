@@ -66,9 +66,9 @@ export default function ProfilePage() {
     title: "",
     department: "",
     phone: "",
-    timezone: "",
-    language: "",
-    notification_preferences: {} as any,
+    timezone: "America/New_York",
+    language: "en",
+    notification_preferences: {},
   })
   
   // Brand data
@@ -121,9 +121,20 @@ export default function ProfilePage() {
   
   // Load profile data
   React.useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfile = async () => {
       try {
-        const response = await fetch('/api/profile')
+        // Get the current user from auth
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setUserData(prev => ({ ...prev, email: user.email || "" }))
+        }
+        
+        const response = await fetch('/api/profile', {
+          headers: {
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
+          }
+        })
+        
         const result = await response.json()
         
         if (!response.ok || !result.success) {
@@ -141,7 +152,7 @@ export default function ProfilePage() {
       }
     }
     
-    fetchProfile()
+    loadProfile()
   }, [])
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -167,7 +178,7 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({
           userData,
-          brandData: userRole === 'admin' ? brandData : null,
+          brandData,
           newPassword: newPassword || null,
         }),
       })
@@ -221,10 +232,15 @@ export default function ProfilePage() {
           continue
         }
         
-        setProcessingStatus(`Uploading ${file.name}...`)
+        setProcessingStatus(`📁 Reading ${file.name}...`)
+        setUploadProgress(10)
         
         // Upload to Supabase Storage
         const fileName = `${brandData.brand_id}/${Date.now()}-${file.name}`
+        
+        setProcessingStatus(`☁️ Uploading ${file.name} to cloud storage...`)
+        setUploadProgress(25)
+        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('product-catalogs')
           .upload(fileName, file)
@@ -234,11 +250,18 @@ export default function ProfilePage() {
           continue
         }
         
+        setUploadProgress(40)
+        setProcessingStatus(`📊 Parsing ${file.name.endsWith('.csv') ? 'CSV' : 'JSON'} data...`)
+        
         // Parse file content
-        setProcessingStatus(`Processing ${file.name}...`)
         const fileContent = await parseFileContent(file)
         
+        setUploadProgress(60)
+        
         if (fileContent.length > 0) {
+          setProcessingStatus(`✅ Found ${fileContent.length} products. Preparing field mapping...`)
+          setUploadProgress(80)
+          
           // Show field mapping dialog
           setPreviewData(fileContent.slice(0, 5)) // Preview first 5 rows
           setMappingDialog(true)
@@ -255,13 +278,19 @@ export default function ProfilePage() {
         }
         
         setUploadProgress(100)
+        setProcessingStatus(`✅ File processed successfully!`)
+        
+        // Clear status after 2 seconds
+        setTimeout(() => {
+          setProcessingStatus("")
+        }, 2000)
       }
     } catch (error) {
       console.error('Upload error:', error)
       toast.error('Failed to upload files')
+      setProcessingStatus("")
     } finally {
       setIsUploading(false)
-      setProcessingStatus("")
     }
   }
   
@@ -380,11 +409,26 @@ export default function ProfilePage() {
   const handleProcessProducts = async () => {
     try {
       setMappingDialog(false)
-      setProcessingStatus('Processing products...')
+      setProcessingStatus('🔄 Starting product processing...')
       setIsUploading(true)
+      setUploadProgress(0)
       
       // Check if AI enhancement is enabled
       const enableAI = (document.getElementById('ai-enhance') as HTMLInputElement)?.checked
+      
+      setProcessingStatus('📋 Validating product data...')
+      setUploadProgress(10)
+      
+      // Simulate processing delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      setProcessingStatus('🔍 Analyzing product attributes...')
+      setUploadProgress(25)
+      
+      if (enableAI) {
+        setProcessingStatus('🤖 Enhancing products with AI...')
+        setUploadProgress(40)
+      }
       
       // Send to API for processing
       const response = await fetch('/api/products/upload', {
@@ -401,14 +445,30 @@ export default function ProfilePage() {
         })
       })
       
+      setUploadProgress(60)
+      
+      if (enableAI) {
+        setProcessingStatus('🎯 Matching products with fashion trends...')
+        setUploadProgress(75)
+      } else {
+        setProcessingStatus('💾 Saving products to database...')
+        setUploadProgress(75)
+      }
+      
       const result = await response.json()
       
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to process products')
       }
       
+      setUploadProgress(90)
+      setProcessingStatus('✨ Finalizing product import...')
+      
       // Update import summary
       setImportSummary(result.results)
+      
+      setUploadProgress(100)
+      setProcessingStatus('✅ Products processed successfully!')
       
       // Show success message
       toast.success(`Processed ${result.results.totalProducts} products successfully!`)
@@ -417,11 +477,16 @@ export default function ProfilePage() {
       setPreviewData([])
       setFieldMappings({})
       
+      // Clear status after 2 seconds
+      setTimeout(() => {
+        setProcessingStatus("")
+      }, 2000)
+      
     } catch (error: any) {
       toast.error(error.message || 'Failed to process products')
+      setProcessingStatus("")
     } finally {
       setIsUploading(false)
-      setProcessingStatus('')
     }
   }
   
@@ -655,7 +720,7 @@ export default function ProfilePage() {
             <CardDescription>
               {userRole === 'admin' 
                 ? 'Update your brand details and target demographics'
-                : 'View your brand information (admin access required to edit)'}
+                : 'Update your brand details and target demographics'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -666,8 +731,8 @@ export default function ProfilePage() {
                   id="brand_name"
                   value={brandData.brand_name || ""}
                   onChange={(e) => setBrandData({...brandData, brand_name: e.target.value})}
-                  disabled={userRole !== 'admin'}
-                  className={userRole !== 'admin' ? 'bg-muted' : ''}
+                  disabled={false}
+                  className=""
                 />
               </div>
               
@@ -679,8 +744,8 @@ export default function ProfilePage() {
                   value={brandData.website || ""}
                   onChange={(e) => setBrandData({...brandData, website: e.target.value})}
                   placeholder="https://example.com"
-                  disabled={userRole !== 'admin'}
-                  className={userRole !== 'admin' ? 'bg-muted' : ''}
+                  disabled={false}
+                  className=""
                 />
               </div>
               
@@ -689,9 +754,9 @@ export default function ProfilePage() {
                 <Select 
                   value={brandData.primary_category || ""}
                   onValueChange={(value) => setBrandData({...brandData, primary_category: value})}
-                  disabled={userRole !== 'admin'}
+                  disabled={false}
                 >
-                  <SelectTrigger id="primary_category" className={userRole !== 'admin' ? 'bg-muted' : ''}>
+                  <SelectTrigger id="primary_category" className="">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -713,8 +778,8 @@ export default function ProfilePage() {
                   value={brandData.founding_year || ""}
                   onChange={(e) => setBrandData({...brandData, founding_year: e.target.value})}
                   placeholder="e.g. 2020"
-                  disabled={userRole !== 'admin'}
-                  className={userRole !== 'admin' ? 'bg-muted' : ''}
+                  disabled={false}
+                  className=""
                 />
               </div>
               
@@ -725,8 +790,8 @@ export default function ProfilePage() {
                   value={brandData.headquarters_location || ""}
                   onChange={(e) => setBrandData({...brandData, headquarters_location: e.target.value})}
                   placeholder="e.g. New York, NY"
-                  disabled={userRole !== 'admin'}
-                  className={userRole !== 'admin' ? 'bg-muted' : ''}
+                  disabled={false}
+                  className=""
                 />
               </div>
               
@@ -735,9 +800,9 @@ export default function ProfilePage() {
                 <Select 
                   value={brandData.company_size || ""}
                   onValueChange={(value) => setBrandData({...brandData, company_size: value})}
-                  disabled={userRole !== 'admin'}
+                  disabled={false}
                 >
-                  <SelectTrigger id="company_size" className={userRole !== 'admin' ? 'bg-muted' : ''}>
+                  <SelectTrigger id="company_size" className="">
                     <SelectValue placeholder="Select size" />
                   </SelectTrigger>
                   <SelectContent>
@@ -759,8 +824,8 @@ export default function ProfilePage() {
                 onChange={(e) => setBrandData({...brandData, description: e.target.value})}
                 placeholder="Tell us about your brand..."
                 rows={4}
-                disabled={userRole !== 'admin'}
-                className={userRole !== 'admin' ? 'bg-muted' : ''}
+                disabled={false}
+                className=""
               />
             </div>
             
@@ -778,8 +843,8 @@ export default function ProfilePage() {
                       placeholder="Min"
                       min="0"
                       max="100"
-                      className={cn("w-20", userRole !== 'admin' && 'bg-muted')}
-                      disabled={userRole !== 'admin'}
+                      className="w-20"
+                      disabled={false}
                     />
                     <span>to</span>
                     <Input 
@@ -789,8 +854,8 @@ export default function ProfilePage() {
                       placeholder="Max"
                       min="0"
                       max="100"
-                      className={cn("w-20", userRole !== 'admin' && 'bg-muted')}
-                      disabled={userRole !== 'admin'}
+                      className="w-20"
+                      disabled={false}
                     />
                   </div>
                 </div>
@@ -800,9 +865,9 @@ export default function ProfilePage() {
                   <Select 
                     value={brandData.target_gender}
                     onValueChange={(value) => setBrandData({...brandData, target_gender: value})}
-                    disabled={userRole !== 'admin'}
+                    disabled={false}
                   >
-                    <SelectTrigger id="gender" className={userRole !== 'admin' ? 'bg-muted' : ''}>
+                    <SelectTrigger id="gender" className="">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -819,9 +884,9 @@ export default function ProfilePage() {
                   <Select 
                     value={brandData.target_income_level}
                     onValueChange={(value) => setBrandData({...brandData, target_income_level: value})}
-                    disabled={userRole !== 'admin'}
+                    disabled={false}
                   >
-                    <SelectTrigger id="income" className={userRole !== 'admin' ? 'bg-muted' : ''}>
+                    <SelectTrigger id="income" className="">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -843,8 +908,8 @@ export default function ProfilePage() {
                       target_locations: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
                     placeholder="e.g. New York, Paris, Tokyo"
-                    disabled={userRole !== 'admin'}
-                    className={userRole !== 'admin' ? 'bg-muted' : ''}
+                    disabled={false}
+                    className=""
                   />
                 </div>
               </div>
@@ -1141,8 +1206,8 @@ export default function ProfilePage() {
                     <Database className="h-4 w-4" />
                     <AlertDescription>
                       <div className="space-y-1">
-                        <p className="font-medium">Last Import Summary</p>
-                        <p className="text-sm">
+                        <p className="font-medium font-geist">Last Import Summary</p>
+                        <p className="text-sm font-geist">
                           {importSummary.totalProducts} products imported • 
                           {importSummary.newProducts} new • 
                           {importSummary.updatedProducts} updated • 
@@ -1154,36 +1219,36 @@ export default function ProfilePage() {
                 )}
                 
                 <div className="space-y-2">
-                  <h4 className="font-medium">Product Data Overview</h4>
+                  <h4 className="font-medium font-geist">Product Data Overview</h4>
                   <div className="grid gap-4 md:grid-cols-3">
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium">
+                        <CardTitle className="text-sm font-medium font-geist">
                           Total Products
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-2xl font-bold">0</p>
+                        <p className="text-2xl font-bold font-geist">0</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium">
+                        <CardTitle className="text-sm font-medium font-geist">
                           Categories
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-2xl font-bold">0</p>
+                        <p className="text-2xl font-bold font-geist">0</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium">
+                        <CardTitle className="text-sm font-medium font-geist">
                           Trend Alignments
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-2xl font-bold">0</p>
+                        <p className="text-2xl font-bold font-geist">0</p>
                       </CardContent>
                     </Card>
                   </div>
