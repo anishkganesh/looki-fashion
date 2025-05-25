@@ -1,31 +1,25 @@
 import { NextResponse } from 'next/server'
 import { supabaseService } from '@/lib/supabase-service'
-import { headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
 export async function GET(request: Request) {
   try {
-    // Get the authorization header
-    const headersList = await headers()
-    const authorization = headersList.get('authorization')
+    // Create a Supabase client with cookies
+    const cookieStore = await cookies()
     
-    // Create a Supabase client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            authorization: authorization || '',
-          },
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     
-    // Get the current user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get the current user from auth using the cookie session
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      cookieStore.get('sb-dfxauievbyqwcynwtvib-auth-token')?.value
+    )
     
     if (authError || !user) {
+      console.error('Auth error:', authError)
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
@@ -66,24 +60,12 @@ export async function GET(request: Request) {
       success: true,
       user: {
         ...userData,
-        user_id: userData.id, // Map id to user_id for frontend compatibility
-        email: user.email, // Add email from auth
-        full_name: userData.name || '', // Map name to full_name
-        title: '',
-        department: '',
-        phone: '',
-        timezone: 'America/New_York',
-        language: 'en',
-        notification_preferences: {},
+        user_id: userData.id,
+        email: user.email,
+        full_name: userData.name || '',
+        role: userData.role || 'member'
       },
-      brand: {
-        ...brandData,
-        primary_category: brandData.category || '', // Map category to primary_category
-        secondary_categories: [],
-        headquarters_location: '',
-        company_size: '',
-        founding_year: brandData.founded_year?.toString() || '',
-      }
+      brand: brandData
     })
   } catch (error) {
     console.error('Profile fetch error:', error)
@@ -96,24 +78,18 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    // Get the authorization header
-    const headersList = await headers()
-    const authorization = headersList.get('authorization')
+    // Create a Supabase client with cookies
+    const cookieStore = await cookies()
     
-    // Create a Supabase client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            authorization: authorization || '',
-          },
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get the current user from auth using the cookie session
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      cookieStore.get('sb-dfxauievbyqwcynwtvib-auth-token')?.value
+    )
     
     if (authError || !user) {
       return NextResponse.json(
@@ -145,7 +121,6 @@ export async function PUT(request: Request) {
         .from('usr')
         .update({
           name: userData.full_name || userData.name,
-          // Other fields from userData are not in the database, so we skip them
         })
         .eq('id', currentUser.id)
       
@@ -154,14 +129,14 @@ export async function PUT(request: Request) {
       }
     }
     
-    // Update brand data - remove admin check to allow all users to edit
+    // Update brand data - all users can edit
     if (brandData) {
       const updateData: any = {
         brand_name: brandData.brand_name,
         description: brandData.description,
         website: brandData.website,
-        category: brandData.primary_category || brandData.category,
-        founded_year: brandData.founding_year ? parseInt(brandData.founding_year) : null,
+        category: brandData.category,
+        founded_year: brandData.founded_year ? parseInt(brandData.founded_year) : null,
         // Demographics
         target_age_min: brandData.target_age_min,
         target_age_max: brandData.target_age_max,
@@ -209,26 +184,15 @@ export async function PUT(request: Request) {
     
     return NextResponse.json({
       success: true,
+      message: 'Profile updated successfully!',
       user: {
         ...updatedUser,
         user_id: updatedUser.id,
         email: user.email,
         full_name: updatedUser.name || '',
-        title: '',
-        department: '',
-        phone: '',
-        timezone: 'America/New_York',
-        language: 'en',
-        notification_preferences: {},
+        role: updatedUser.role || 'member'
       },
-      brand: {
-        ...updatedBrand,
-        primary_category: updatedBrand.category || '',
-        secondary_categories: [],
-        headquarters_location: '',
-        company_size: '',
-        founding_year: updatedBrand.founded_year?.toString() || '',
-      }
+      brand: updatedBrand
     })
   } catch (error: any) {
     console.error('Profile update error:', error)

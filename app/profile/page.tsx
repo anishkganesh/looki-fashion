@@ -58,30 +58,22 @@ export default function ProfilePage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), [])
   
-  // User data
+  // User data - only fields that exist in database
   const [userData, setUserData] = React.useState({
     user_id: "",
     email: "",
     full_name: "",
-    title: "",
-    department: "",
-    phone: "",
-    timezone: "America/New_York",
-    language: "en",
-    notification_preferences: {},
+    role: ""
   })
   
-  // Brand data
+  // Brand data - only fields that exist in database
   const [brandData, setBrandData] = React.useState({
     brand_id: "",
     brand_name: "",
     description: "",
     website: "",
-    primary_category: "",
-    secondary_categories: [] as string[],
-    founding_year: "",
-    headquarters_location: "",
-    company_size: "",
+    category: "",
+    founded_year: "",
     target_age_min: 18,
     target_age_max: 65,
     target_gender: "all",
@@ -102,17 +94,6 @@ export default function ProfilePage() {
   const [mappingDialog, setMappingDialog] = React.useState(false)
   const [fieldMappings, setFieldMappings] = React.useState<any>({})
   const [previewData, setPreviewData] = React.useState<any[]>([])
-  const [apiConfig, setApiConfig] = React.useState({
-    endpoint: "",
-    authType: "api_key",
-    apiKey: "",
-    username: "",
-    password: "",
-    syncInterval: "manual",
-    lastSync: null as Date | null,
-  })
-  const [aiReviewDialog, setAiReviewDialog] = React.useState(false)
-  const [aiEnrichedData, setAiEnrichedData] = React.useState<any[]>([])
   const [confidenceThreshold, setConfidenceThreshold] = React.useState(0.7)
   const [importSummary, setImportSummary] = React.useState<any>(null)
   
@@ -123,17 +104,7 @@ export default function ProfilePage() {
   React.useEffect(() => {
     const loadProfile = async () => {
       try {
-        // Get the current user from auth
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          setUserData(prev => ({ ...prev, email: user.email || "" }))
-        }
-        
-        const response = await fetch('/api/profile', {
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`
-          }
-        })
+        const response = await fetch('/api/profile')
         
         const result = await response.json()
         
@@ -141,8 +112,30 @@ export default function ProfilePage() {
           throw new Error(result.error || 'Failed to fetch profile')
         }
         
-        setUserData(result.user)
-        setBrandData(result.brand)
+        // Map the data correctly
+        setUserData({
+          user_id: result.user.user_id,
+          email: result.user.email,
+          full_name: result.user.full_name,
+          role: result.user.role
+        })
+        
+        setBrandData({
+          brand_id: result.brand.brand_id,
+          brand_name: result.brand.brand_name || "",
+          description: result.brand.description || "",
+          website: result.brand.website || "",
+          category: result.brand.category || "",
+          founded_year: result.brand.founded_year?.toString() || "",
+          target_age_min: result.brand.target_age_min || 18,
+          target_age_max: result.brand.target_age_max || 65,
+          target_gender: result.brand.target_gender || "all",
+          target_locations: result.brand.target_locations || [],
+          target_income_level: result.brand.target_income_level || "medium",
+          target_lifestyle: result.brand.target_lifestyle || [],
+          target_interests: result.brand.target_interests || []
+        })
+        
         setUserRole(result.user.role)
       } catch (error: any) {
         toast.error(error.message || 'Failed to load profile')
@@ -191,16 +184,12 @@ export default function ProfilePage() {
       
       setAlert({
         type: "success",
-        message: "Profile updated successfully!"
+        message: result.message || "Profile updated successfully!"
       })
       
       // Clear password fields
       setNewPassword("")
       setConfirmPassword("")
-      
-      // Update with fresh data
-      setUserData(result.user)
-      setBrandData(result.brand)
       
       // Clear success message after 5 seconds
       setTimeout(() => {
@@ -235,50 +224,33 @@ export default function ProfilePage() {
         setProcessingStatus(`📁 Reading ${file.name}...`)
         setUploadProgress(10)
         
-        // Upload to Supabase Storage
-        const fileName = `${brandData.brand_id}/${Date.now()}-${file.name}`
-        
-        setProcessingStatus(`☁️ Uploading ${file.name} to cloud storage...`)
-        setUploadProgress(25)
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('product-catalogs')
-          .upload(fileName, file)
-        
-        if (uploadError) {
-          toast.error(`Failed to upload ${file.name}`)
-          continue
-        }
+        // Parse file content first to show preview
+        const fileContent = await parseFileContent(file)
         
         setUploadProgress(40)
         setProcessingStatus(`📊 Parsing ${file.name.endsWith('.csv') ? 'CSV' : 'JSON'} data...`)
         
-        // Parse file content
-        const fileContent = await parseFileContent(file)
-        
-        setUploadProgress(60)
-        
         if (fileContent.length > 0) {
-          setProcessingStatus(`✅ Found ${fileContent.length} products. Preparing field mapping...`)
+          setProcessingStatus(`✅ Found ${fileContent.length} products. Showing preview...`)
           setUploadProgress(80)
           
-          // Show field mapping dialog
-          setPreviewData(fileContent.slice(0, 5)) // Preview first 5 rows
+          // Show preview data
+          setPreviewData(fileContent.slice(0, 5))
           setMappingDialog(true)
           
-          // Store file reference
+          // Store file for later upload
           setCatalogFiles(prev => [...prev, {
-            id: uploadData.path,
+            file: file,
             name: file.name,
             type: file.name.endsWith('.csv') ? 'csv' : 'json',
             size: formatFileSize(file.size),
             uploadedAt: new Date().toLocaleString(),
-            path: uploadData.path
+            content: fileContent
           }])
         }
         
         setUploadProgress(100)
-        setProcessingStatus(`✅ File processed successfully!`)
+        setProcessingStatus(`✅ File parsed successfully!`)
         
         // Clear status after 2 seconds
         setTimeout(() => {
@@ -287,7 +259,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Upload error:', error)
-      toast.error('Failed to upload files')
+      toast.error('Failed to process files')
       setProcessingStatus("")
     } finally {
       setIsUploading(false)
@@ -322,90 +294,6 @@ export default function ProfilePage() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
   
-  const handlePreviewFile = async (file: any) => {
-    // TODO: Implement file preview
-    toast.info('File preview coming soon')
-  }
-  
-  const handleDownloadFile = async (file: any) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('product-catalogs')
-        .download(file.path)
-      
-      if (error) throw error
-      
-      // Create download link
-      const url = URL.createObjectURL(data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = file.name
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      toast.error('Failed to download file')
-    }
-  }
-  
-  const handleDeleteFile = async (file: any) => {
-    try {
-      const { error } = await supabase.storage
-        .from('product-catalogs')
-        .remove([file.path])
-      
-      if (error) throw error
-      
-      setCatalogFiles(prev => prev.filter(f => f.id !== file.id))
-      toast.success('File deleted')
-    } catch (error) {
-      toast.error('Failed to delete file')
-    }
-  }
-  
-  const handleTestApiConnection = async () => {
-    try {
-      const headers: any = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (apiConfig.authType === 'api_key' && apiConfig.apiKey) {
-        headers['Authorization'] = `Bearer ${apiConfig.apiKey}`
-      } else if (apiConfig.authType === 'basic' && apiConfig.username && apiConfig.password) {
-        headers['Authorization'] = `Basic ${btoa(`${apiConfig.username}:${apiConfig.password}`)}`
-      }
-      
-      const response = await fetch(apiConfig.endpoint, {
-        method: 'GET',
-        headers
-      })
-      
-      if (response.ok) {
-        toast.success('API connection successful!')
-      } else {
-        toast.error(`API returned status ${response.status}`)
-      }
-    } catch (error) {
-      toast.error('Failed to connect to API')
-    }
-  }
-  
-  const handleSyncNow = async () => {
-    try {
-      setProcessingStatus('Syncing products from API...')
-      setIsUploading(true)
-      
-      // TODO: Implement full API sync
-      toast.info('API sync coming soon')
-      
-      setApiConfig(prev => ({ ...prev, lastSync: new Date() }))
-    } catch (error) {
-      toast.error('Failed to sync from API')
-    } finally {
-      setIsUploading(false)
-      setProcessingStatus('')
-    }
-  }
-  
   const handleProcessProducts = async () => {
     try {
       setMappingDialog(false)
@@ -430,6 +318,33 @@ export default function ProfilePage() {
         setUploadProgress(40)
       }
       
+      // Upload file to Supabase Storage first
+      const currentFile = catalogFiles[catalogFiles.length - 1]
+      if (currentFile && currentFile.file) {
+        const fileName = `${brandData.brand_id}/${Date.now()}-${currentFile.name}`
+        
+        setProcessingStatus(`☁️ Uploading to cloud storage...`)
+        setUploadProgress(50)
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('product-catalogs')
+          .upload(fileName, currentFile.file)
+        
+        if (uploadError) {
+          throw new Error('Failed to upload file')
+        }
+      }
+      
+      setUploadProgress(60)
+      
+      if (enableAI) {
+        setProcessingStatus('🎯 Matching products with fashion trends...')
+        setUploadProgress(75)
+      } else {
+        setProcessingStatus('💾 Saving products to database...')
+        setUploadProgress(75)
+      }
+      
       // Send to API for processing
       const response = await fetch('/api/products/upload', {
         method: 'POST',
@@ -444,16 +359,6 @@ export default function ProfilePage() {
           confidenceThreshold
         })
       })
-      
-      setUploadProgress(60)
-      
-      if (enableAI) {
-        setProcessingStatus('🎯 Matching products with fashion trends...')
-        setUploadProgress(75)
-      } else {
-        setProcessingStatus('💾 Saving products to database...')
-        setUploadProgress(75)
-      }
       
       const result = await response.json()
       
@@ -487,67 +392,6 @@ export default function ProfilePage() {
       setProcessingStatus("")
     } finally {
       setIsUploading(false)
-    }
-  }
-  
-  const handleSaveProducts = async () => {
-    // Get approved products
-    const approvedIndexes = new Set<number>()
-    aiEnrichedData.forEach((_, index) => {
-      const checkbox = document.getElementById(`approve-${index}`) as HTMLInputElement
-      if (checkbox?.checked) {
-        approvedIndexes.add(index)
-      }
-    })
-    
-    const approvedProducts = aiEnrichedData.filter((_, index) => approvedIndexes.has(index))
-    
-    if (approvedProducts.length === 0) {
-      toast.error('No products selected for saving')
-      return
-    }
-    
-    try {
-      setAiReviewDialog(false)
-      setProcessingStatus('Saving approved products...')
-      setIsUploading(true)
-      
-      // Process approved products
-      const response = await fetch('/api/products/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          products: approvedProducts.map(p => p.product),
-          fieldMappings: {},
-          brandId: brandData.brand_id,
-          enableAI: false, // Already enriched
-          confidenceThreshold,
-          preEnriched: approvedProducts
-        })
-      })
-      
-      const result = await response.json()
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to save products')
-      }
-      
-      // Update import summary
-      setImportSummary(result.results)
-      
-      // Show success message
-      toast.success(`Saved ${approvedProducts.length} products successfully!`)
-      
-      // Clear AI enriched data
-      setAiEnrichedData([])
-      
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to save products')
-    } finally {
-      setIsUploading(false)
-      setProcessingStatus('')
     }
   }
   
@@ -602,7 +446,7 @@ export default function ProfilePage() {
               Personal Information
             </CardTitle>
             <CardDescription>
-              Update your personal details and preferences
+              Update your personal details
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -626,58 +470,6 @@ export default function ProfilePage() {
                   onChange={(e) => setUserData({...userData, full_name: e.target.value})}
                   placeholder="Your full name"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="title">Job Title</Label>
-                <Input 
-                  id="title"
-                  value={userData.title || ""}
-                  onChange={(e) => setUserData({...userData, title: e.target.value})}
-                  placeholder="e.g. Marketing Manager"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Input 
-                  id="department"
-                  value={userData.department || ""}
-                  onChange={(e) => setUserData({...userData, department: e.target.value})}
-                  placeholder="e.g. Marketing"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input 
-                  id="phone"
-                  type="tel"
-                  value={userData.phone || ""}
-                  onChange={(e) => setUserData({...userData, phone: e.target.value})}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Select 
-                  value={userData.timezone || "America/New_York"}
-                  onValueChange={(value) => setUserData({...userData, timezone: value})}
-                >
-                  <SelectTrigger id="timezone">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                    <SelectItem value="America/Chicago">Central Time</SelectItem>
-                    <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                    <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                    <SelectItem value="Europe/London">London</SelectItem>
-                    <SelectItem value="Europe/Paris">Paris</SelectItem>
-                    <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             
@@ -710,7 +502,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
         
-        {/* Brand Information - Only editable by admins */}
+        {/* Brand Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -718,9 +510,7 @@ export default function ProfilePage() {
               Brand Information
             </CardTitle>
             <CardDescription>
-              {userRole === 'admin' 
-                ? 'Update your brand details and target demographics'
-                : 'Update your brand details and target demographics'}
+              Update your brand details and target demographics
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -731,8 +521,6 @@ export default function ProfilePage() {
                   id="brand_name"
                   value={brandData.brand_name || ""}
                   onChange={(e) => setBrandData({...brandData, brand_name: e.target.value})}
-                  disabled={false}
-                  className=""
                 />
               </div>
               
@@ -744,19 +532,16 @@ export default function ProfilePage() {
                   value={brandData.website || ""}
                   onChange={(e) => setBrandData({...brandData, website: e.target.value})}
                   placeholder="https://example.com"
-                  disabled={false}
-                  className=""
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="primary_category">Primary Category</Label>
+                <Label htmlFor="category">Category</Label>
                 <Select 
-                  value={brandData.primary_category || ""}
-                  onValueChange={(value) => setBrandData({...brandData, primary_category: value})}
-                  disabled={false}
+                  value={brandData.category || ""}
+                  onValueChange={(value) => setBrandData({...brandData, category: value})}
                 >
-                  <SelectTrigger id="primary_category" className="">
+                  <SelectTrigger id="category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -772,47 +557,13 @@ export default function ProfilePage() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="founding_year">Founded Year</Label>
+                <Label htmlFor="founded_year">Founded Year</Label>
                 <Input 
-                  id="founding_year"
-                  value={brandData.founding_year || ""}
-                  onChange={(e) => setBrandData({...brandData, founding_year: e.target.value})}
+                  id="founded_year"
+                  value={brandData.founded_year || ""}
+                  onChange={(e) => setBrandData({...brandData, founded_year: e.target.value})}
                   placeholder="e.g. 2020"
-                  disabled={false}
-                  className=""
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="headquarters">Headquarters</Label>
-                <Input 
-                  id="headquarters"
-                  value={brandData.headquarters_location || ""}
-                  onChange={(e) => setBrandData({...brandData, headquarters_location: e.target.value})}
-                  placeholder="e.g. New York, NY"
-                  disabled={false}
-                  className=""
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="company_size">Company Size</Label>
-                <Select 
-                  value={brandData.company_size || ""}
-                  onValueChange={(value) => setBrandData({...brandData, company_size: value})}
-                  disabled={false}
-                >
-                  <SelectTrigger id="company_size" className="">
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1-10">1-10 employees</SelectItem>
-                    <SelectItem value="11-50">11-50 employees</SelectItem>
-                    <SelectItem value="51-200">51-200 employees</SelectItem>
-                    <SelectItem value="201-500">201-500 employees</SelectItem>
-                    <SelectItem value="500+">500+ employees</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             
@@ -824,8 +575,6 @@ export default function ProfilePage() {
                 onChange={(e) => setBrandData({...brandData, description: e.target.value})}
                 placeholder="Tell us about your brand..."
                 rows={4}
-                disabled={false}
-                className=""
               />
             </div>
             
@@ -844,7 +593,6 @@ export default function ProfilePage() {
                       min="0"
                       max="100"
                       className="w-20"
-                      disabled={false}
                     />
                     <span>to</span>
                     <Input 
@@ -855,7 +603,6 @@ export default function ProfilePage() {
                       min="0"
                       max="100"
                       className="w-20"
-                      disabled={false}
                     />
                   </div>
                 </div>
@@ -865,9 +612,8 @@ export default function ProfilePage() {
                   <Select 
                     value={brandData.target_gender}
                     onValueChange={(value) => setBrandData({...brandData, target_gender: value})}
-                    disabled={false}
                   >
-                    <SelectTrigger id="gender" className="">
+                    <SelectTrigger id="gender">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -884,9 +630,8 @@ export default function ProfilePage() {
                   <Select 
                     value={brandData.target_income_level}
                     onValueChange={(value) => setBrandData({...brandData, target_income_level: value})}
-                    disabled={false}
                   >
-                    <SelectTrigger id="income" className="">
+                    <SelectTrigger id="income">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -908,8 +653,6 @@ export default function ProfilePage() {
                       target_locations: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
                     placeholder="e.g. New York, Paris, Tokyo"
-                    disabled={false}
-                    className=""
                   />
                 </div>
               </div>
@@ -925,14 +668,13 @@ export default function ProfilePage() {
               Product Catalog
             </CardTitle>
             <CardDescription>
-              Upload your fashion catalog via CSV, JSON, or connect your API
+              Upload your fashion catalog via CSV or JSON
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="upload">File Upload</TabsTrigger>
-                <TabsTrigger value="api">API Integration</TabsTrigger>
                 <TabsTrigger value="manage">Manage Data</TabsTrigger>
               </TabsList>
               
@@ -965,7 +707,7 @@ export default function ProfilePage() {
                     Drag and drop your catalog files here
                   </p>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Supports CSV, JSON, and Excel files (max 50MB)
+                    Supports CSV and JSON files (max 50MB)
                   </p>
                   <Button
                     variant="outline"
@@ -979,7 +721,7 @@ export default function ProfilePage() {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept=".csv,.json,.xlsx,.xls"
+                    accept=".csv,.json"
                     className="hidden"
                     onChange={(e) => {
                       const files = Array.from(e.target.files || [])
@@ -999,55 +741,35 @@ export default function ProfilePage() {
                   </div>
                 )}
                 
-                {/* Uploaded Files */}
-                {catalogFiles.length > 0 && (
+                {/* Data Preview */}
+                {previewData.length > 0 && !mappingDialog && (
                   <div className="space-y-2">
-                    <h4 className="font-medium">Uploaded Files</h4>
-                    <div className="space-y-2">
-                      {catalogFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            {file.type === 'csv' ? (
-                              <FileIcon className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <FileJson className="h-5 w-5 text-blue-600" />
-                            )}
-                            <div>
-                              <p className="font-medium">{file.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {file.size} • {file.uploadedAt}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handlePreviewFile(file)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDownloadFile(file)}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteFile(file)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                    <h4 className="font-medium">Data Preview</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {Object.keys(previewData[0]).map(key => (
+                              <TableHead key={key} className="text-xs">{key}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {previewData.slice(0, 3).map((row, index) => (
+                            <TableRow key={index}>
+                              {Object.values(row).map((value: any, i) => (
+                                <TableCell key={i} className="text-xs">
+                                  {String(value).slice(0, 50)}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      Showing first 3 of {previewData.length} products
+                    </p>
                   </div>
                 )}
                 
@@ -1080,122 +802,6 @@ export default function ProfilePage() {
                       onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
                       className="w-20"
                     />
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="api" className="space-y-4">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="api-endpoint">API Endpoint</Label>
-                    <Input
-                      id="api-endpoint"
-                      type="url"
-                      placeholder="https://api.yourbrand.com/products"
-                      value={apiConfig.endpoint}
-                      onChange={(e) => setApiConfig({...apiConfig, endpoint: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="auth-type">Authentication Type</Label>
-                    <Select
-                      value={apiConfig.authType}
-                      onValueChange={(value) => setApiConfig({...apiConfig, authType: value})}
-                    >
-                      <SelectTrigger id="auth-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="api_key">API Key</SelectItem>
-                        <SelectItem value="basic">Basic Auth</SelectItem>
-                        <SelectItem value="oauth">OAuth 2.0</SelectItem>
-                        <SelectItem value="none">No Authentication</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {apiConfig.authType === 'api_key' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="api-key">API Key</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="api-key"
-                          type="password"
-                          placeholder="Enter your API key"
-                          value={apiConfig.apiKey}
-                          onChange={(e) => setApiConfig({...apiConfig, apiKey: e.target.value})}
-                        />
-                        <Button variant="outline" size="icon">
-                          <Key className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {apiConfig.authType === 'basic' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
-                        <Input
-                          id="username"
-                          placeholder="Username"
-                          value={apiConfig.username}
-                          onChange={(e) => setApiConfig({...apiConfig, username: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          placeholder="Password"
-                          value={apiConfig.password}
-                          onChange={(e) => setApiConfig({...apiConfig, password: e.target.value})}
-                        />
-                      </div>
-                    </>
-                  )}
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="sync-interval">Sync Interval</Label>
-                    <Select
-                      value={apiConfig.syncInterval}
-                      onValueChange={(value) => setApiConfig({...apiConfig, syncInterval: value})}
-                    >
-                      <SelectTrigger id="sync-interval">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manual">Manual</SelectItem>
-                        <SelectItem value="hourly">Every Hour</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {apiConfig.lastSync && (
-                    <p className="text-sm text-muted-foreground">
-                      Last synced: {apiConfig.lastSync.toLocaleString()}
-                    </p>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleTestApiConnection}
-                      variant="outline"
-                    >
-                      <Link2 className="h-4 w-4 mr-2" />
-                      Test Connection
-                    </Button>
-                    <Button
-                      onClick={handleSyncNow}
-                      disabled={!apiConfig.endpoint}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Sync Now
-                    </Button>
                   </div>
                 </div>
               </TabsContent>
@@ -1374,99 +980,6 @@ export default function ProfilePage() {
             </Button>
             <Button onClick={handleProcessProducts}>
               Process Products
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* AI Review Dialog */}
-      <Dialog open={aiReviewDialog} onOpenChange={setAiReviewDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Review AI-Enhanced Products</DialogTitle>
-            <DialogDescription>
-              Review and approve AI-generated product data before saving
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ScrollArea className="h-[400px] pr-4">
-            <div className="space-y-4">
-              {aiEnrichedData.map((item, index) => (
-                <Card key={index}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">
-                        {item.product.product_name}
-                      </CardTitle>
-                      <Badge variant={item.confidence >= confidenceThreshold ? "default" : "secondary"}>
-                        {(item.confidence * 100).toFixed(0)}% confidence
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {item.aiGenerated.description && (
-                      <div>
-                        <Label className="text-xs">AI Description</Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {item.aiGenerated.description}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {item.aiGenerated.categories && (
-                      <div>
-                        <Label className="text-xs">Categories</Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {item.aiGenerated.categories.join(' > ')}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {item.aiGenerated.colors && (
-                      <div>
-                        <Label className="text-xs">Colors</Label>
-                        <div className="flex gap-2 mt-1">
-                          {item.aiGenerated.colors.map((color: string, i: number) => (
-                            <Badge key={i} variant="outline">{color}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {item.aiGenerated.trendAlignments && item.aiGenerated.trendAlignments.length > 0 && (
-                      <div>
-                        <Label className="text-xs">Trend Alignments</Label>
-                        <div className="space-y-1 mt-1">
-                          {item.aiGenerated.trendAlignments.slice(0, 3).map((alignment: any, i: number) => (
-                            <div key={i} className="text-sm text-muted-foreground">
-                              • {alignment.trendIdentifier} ({(alignment.alignmentScore * 100).toFixed(0)}%)
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-2 pt-2">
-                      <Checkbox
-                        id={`approve-${index}`}
-                        defaultChecked={item.confidence >= confidenceThreshold}
-                      />
-                      <Label htmlFor={`approve-${index}`} className="text-sm">
-                        Approve this enhancement
-                      </Label>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </ScrollArea>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAiReviewDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveProducts}>
-              Save Approved Products
             </Button>
           </DialogFooter>
         </DialogContent>
