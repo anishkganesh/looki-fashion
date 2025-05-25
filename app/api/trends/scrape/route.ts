@@ -117,94 +117,67 @@ function getNextSeason() {
 // Parse trends using OpenAI - optimized for speed
 async function parseTrendsWithAI(content: string, url: string, brandContext?: string) {
   try {
-    const prompt = `Extract 3-5 specific fashion trends from this content. Focus on actual items/styles relevant to ${brandContext || 'fashion brands'}.
+    const prompt = `Extract 5-8 specific fashion trends from this content. Focus on actual items/styles relevant to ${brandContext || 'fashion brands'}.
 
-Content: ${content.slice(0, 2000)}
+Content: ${content.slice(0, 2500)}
 
-For each trend:
-- name: Specific trend name (2-4 words)
-- description: Brief description (1 sentence)
-- category: One of: color, pattern, silhouette, fabric, accessory, footwear, lifestyle, tech
-- is_forecast: true if upcoming/predicted, false if current
-- relevance: 0.5-1.0
+For each trend, provide a JSON array with these exact fields:
+- name: Specific trend name (2-4 words, e.g., "Oversized Blazers", "Neon Running Shoes")
+- description: Brief description (1-2 sentences about what it is and why it's trending)
+- category: One of: color, pattern, silhouette, fabric, accessory, footwear, lifestyle, tech, general
+- is_forecast: true if it's upcoming/predicted for next season, false if currently trending
+- relevance: 0.7-1.0 for how relevant to ${brandContext || 'fashion'}
 
-Return ONLY a JSON array. Be SPECIFIC (e.g., "Oversized Blazers" not "blazers").`
+Important: Return ONLY a valid JSON array, no other text.`
 
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-      max_tokens: 800
+      temperature: 0.6,
+      max_tokens: 1000
     })
     
     let trendsJson = response.choices[0].message.content?.trim() || '[]'
-    trendsJson = trendsJson.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')
     
-    const trends = JSON.parse(trendsJson)
+    // Clean up response
+    trendsJson = trendsJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '')
     
-    // Add default demographics
-    return trends.map((trend: any) => ({
-      ...trend,
-      demographics: {
-        age_range: [18, 45],
-        gender: 'all',
-        locations: ['New York', 'Los Angeles', 'London', 'Paris', 'Tokyo'],
-        income_level: 'medium',
-        lifestyle: ['urban', 'fashion-forward'],
-        interests: ['fashion', 'style']
+    // Try to parse
+    let trends = []
+    try {
+      trends = JSON.parse(trendsJson)
+      if (!Array.isArray(trends)) {
+        console.error('AI response is not an array:', trendsJson)
+        return []
       }
-    }))
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', trendsJson)
+      return []
+    }
+    
+    // Add default demographics and validate
+    return trends
+      .filter(trend => trend.name && trend.category) // Must have at least name and category
+      .slice(0, 8) // Max 8 trends per source
+      .map((trend: any) => ({
+        name: trend.name,
+        description: trend.description || `${trend.name} is trending in ${brandContext || 'fashion'}`,
+        category: trend.category || 'general',
+        is_forecast: trend.is_forecast === true,
+        relevance: trend.relevance || 0.8,
+        demographics: {
+          age_range: [18, 45],
+          gender: 'all',
+          locations: ['New York', 'Los Angeles', 'London', 'Paris', 'Tokyo'],
+          income_level: 'medium',
+          lifestyle: ['urban', 'fashion-forward'],
+          interests: ['fashion', 'style']
+        }
+      }))
   } catch (error) {
     console.error('AI parsing error:', error)
     return []
   }
-}
-
-// Process URLs in parallel batches
-async function processUrlBatch(urls: string[], brandContext: string, sendProgress: Function) {
-  const results = await Promise.allSettled(
-    urls.map(async (url) => {
-      try {
-        const domain = new URL(url).hostname
-        sendProgress(`Scraping ${domain}...`)
-        
-        const scrapedData = await firecrawl.scrapeUrl(url, {
-          formats: ["markdown"],
-          timeout: 4000, // 4 second timeout
-          waitFor: 300
-        })
-        
-        // Check if it's an error response
-        if ('error' in scrapedData) {
-          console.error(`Error response from ${url}:`, scrapedData.error)
-          return []
-        }
-        
-        if (!scrapedData.markdown || scrapedData.markdown.length < 200) {
-          return []
-        }
-        
-        const trends = await parseTrendsWithAI(
-          scrapedData.markdown,
-          url,
-          brandContext
-        )
-        
-        return trends.slice(0, 3).map((trend: any) => ({
-          ...trend,
-          source_url: url,
-          source_title: scrapedData.title || domain
-        }))
-      } catch (error) {
-        console.error(`Error scraping ${url}:`, error)
-        return []
-      }
-    })
-  )
-  
-  return results
-    .filter(r => r.status === 'fulfilled')
-    .flatMap(r => (r as PromiseFulfilledResult<any[]>).value)
 }
 
 // Calculate trend metrics
@@ -303,51 +276,85 @@ export async function POST(request: Request) {
       
       const allTrends: any[] = []
       const brandContext = brandInfo?.brand_name || 'fashion'
+      const processedUrls = new Set<string>()
       
-      // Process queries and build URL list
-      const urlsToScrape: string[] = []
-      
+      // Process queries sequentially for better control
       for (const query of queries) {
         sendProgress(`Searching: "${query}"...`)
         
         try {
-          // Get search results
+          // Get search results with content
           const searchResult = await firecrawl.search(query, {
-            limit: 4, // 4 results per query
+            limit: 5, // 5 results per query
             scrapeOptions: {
               formats: ["markdown"],
-              timeout: 3000,
-              waitFor: 200
+              timeout: 4000,
+              waitFor: 300
             }
           })
           
-          if (searchResult.data) {
-            // Extract URLs from search results
-            searchResult.data.forEach(result => {
-              if (result.url) {
-                urlsToScrape.push(result.url)
-              }
-            })
+          if (!searchResult.data || searchResult.data.length === 0) {
+            sendProgress(`No results for: "${query}"`)
+            continue
           }
+          
+          sendProgress(`Found ${searchResult.data.length} results for: "${query}"`)
+          
+          // Process each result directly (no re-scraping needed)
+          for (const result of searchResult.data) {
+            if (!result.url || processedUrls.has(result.url)) continue
+            processedUrls.add(result.url)
+            
+            if (!result.markdown || result.markdown.length < 200) {
+              sendProgress(`Skipping ${new URL(result.url).hostname} - insufficient content`)
+              continue
+            }
+            
+            const domain = new URL(result.url).hostname
+            sendProgress(`Extracting trends from ${domain}...`)
+            
+            const trends = await parseTrendsWithAI(
+              result.markdown,
+              result.url,
+              brandContext
+            )
+            
+            if (trends.length > 0) {
+              sendProgress(`Found ${trends.length} trends from ${domain}`)
+              
+              // Add source info to each trend
+              trends.forEach((trend: any) => {
+                allTrends.push({
+                  ...trend,
+                  source_url: result.url,
+                  source_title: result.title || domain
+                })
+              })
+            } else {
+              sendProgress(`No trends extracted from ${domain}`)
+            }
+            
+            // Stop if we have enough trends
+            if (allTrends.length >= 30) break
+          }
+          
+          if (allTrends.length >= 30) break
         } catch (error) {
           console.error(`Search error for "${query}":`, error)
+          sendProgress(`Error searching "${query}": ${error}`)
         }
       }
       
-      sendProgress(`Found ${urlsToScrape.length} URLs to analyze`)
-      
-      // Process URLs in batches of 5 (Firecrawl concurrent limit)
-      const batchSize = 5
-      for (let i = 0; i < urlsToScrape.length; i += batchSize) {
-        const batch = urlsToScrape.slice(i, i + batchSize)
-        const batchTrends = await processUrlBatch(batch, brandContext, sendProgress)
-        allTrends.push(...batchTrends)
-        
-        // Stop if we have enough trends
-        if (allTrends.length >= 30) break
-      }
-      
       sendProgress(`Extracted ${allTrends.length} raw trends`)
+      
+      if (allTrends.length === 0) {
+        sendProgress('ERROR: No trends extracted. Check API keys and network.')
+        sendProgress('ERROR', {
+          success: false,
+          error: 'No trends could be extracted from search results'
+        })
+        return
+      }
       
       // Deduplicate and limit to 30 trends
       const uniqueTrends = new Map<string, any>()
@@ -378,9 +385,11 @@ export async function POST(request: Request) {
           const sourceCount = trendSources.get(trendId) || 1
           const metrics = calculateTrendMetrics(trend, sourceCount)
           
-          // Determine trend type
-          const trendType = trend.is_forecast || 
-            metrics.lifecycle_stage === 'emerging' && metrics.momentum_score < 50
+          // Balance trend types - 60% signals, 40% forecasts
+          const randomFactor = Math.random()
+          const shouldBeForecast = trend.is_forecast || randomFactor < 0.4
+          
+          const trendType = shouldBeForecast && metrics.momentum_score < 70
             ? 'forecast' : 'signal'
           
           const trendData = {
@@ -389,8 +398,12 @@ export async function POST(request: Request) {
             trend_description: trend.description || '',
             trend_type: trendType,
             ...metrics,
-            last_updated: new Date().toISOString()
+            last_updated: new Date().toISOString(),
+            created_at: new Date().toISOString()
           }
+          
+          // Log the trend being saved
+          console.log(`Saving trend: ${trendId}`, { type: trendType, category: trend.category })
           
           // Check if exists
           const { data: existing, error: selectError } = await supabaseService
@@ -407,10 +420,12 @@ export async function POST(request: Request) {
           
           if (existing) {
             // Update existing
-            const { error: updateError } = await supabaseService
+            const { data: updated, error: updateError } = await supabaseService
               .from('trends')
               .update(trendData)
               .eq('trend_id', existing.trend_id)
+              .select()
+              .single()
             
             if (updateError) {
               console.error(`Error updating trend ${trendId}:`, updateError)
@@ -421,12 +436,15 @@ export async function POST(request: Request) {
             }
           } else {
             // Insert new
-            const { error: insertError } = await supabaseService
+            const { data: inserted, error: insertError } = await supabaseService
               .from('trends')
               .insert(trendData)
+              .select()
+              .single()
             
             if (insertError) {
               console.error(`Error inserting trend ${trendId}:`, insertError)
+              console.error('Trend data:', trendData)
               errorCount++
             } else {
               insertedCount++
