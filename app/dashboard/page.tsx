@@ -8,7 +8,7 @@ import { SiteHeader } from "../../components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ChatLayout } from "@/components/chat-layout"
 import { useRequireAuth } from "@/lib/auth-utils"
-import { Loader2, Clock, Database, StopCircle, PlayCircle } from "lucide-react"
+import { Loader2, Clock, Database, StopCircle, PlayCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import { supabase } from "@/lib/supabase"
 
 export default function DashboardPage() {
   const { user, session, isLoading } = useRequireAuth()
@@ -33,6 +34,48 @@ export default function DashboardPage() {
   const [autoRunEnabled, setAutoRunEnabled] = useState(false)
   const [nextRunTime, setNextRunTime] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState<string>("")
+  const [catalogIntegrated, setCatalogIntegrated] = useState(false)
+  const [productCount, setProductCount] = useState(0)
+  const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory' | 'forecast'>('trends')
+
+  // Check catalog integration status
+  useEffect(() => {
+    const checkCatalogStatus = async () => {
+      if (!user) return
+      
+      try {
+        // Get user's brand
+        const { data: userData } = await supabase
+          .from('usr')
+          .select('brand_id')
+          .eq('email', user.email)
+          .single()
+        
+        if (userData?.brand_id) {
+          // Check if catalog is integrated
+          const { data: brandData } = await supabase
+            .from('brands')
+            .select('has_catalog_integrated')
+            .eq('brand_id', userData.brand_id)
+            .single()
+          
+          setCatalogIntegrated(brandData?.has_catalog_integrated || false)
+          
+          // Get product count
+          const { count } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('brand_id', userData.brand_id)
+          
+          setProductCount(count || 0)
+        }
+      } catch (error) {
+        console.error('Error checking catalog status:', error)
+      }
+    }
+    
+    checkCatalogStatus()
+  }, [user])
 
   // Load auto-run state from localStorage
   useEffect(() => {
@@ -214,21 +257,29 @@ export default function DashboardPage() {
                 <div className="px-4 lg:px-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h1 className="text-2xl font-semibold">Live Fashion Trends</h1>
+                      <h1 className="text-2xl font-semibold">
+                        {activeTab === 'trends' && 'Live Fashion Trends'}
+                        {activeTab === 'catalog' && 'Catalog Matches'}
+                        {activeTab === 'inventory' && 'Inventory Actions'}
+                        {activeTab === 'forecast' && 'Trend Forecasts'}
+                      </h1>
                       <p className="text-sm text-muted-foreground">
-                        Real-time fashion trend analysis from global sources
+                        {activeTab === 'trends' && 'Real-time fashion trend analysis from global sources'}
+                        {activeTab === 'catalog' && 'Your integrated product catalog with trend analysis'}
+                        {activeTab === 'inventory' && 'Recommended inventory actions based on trends'}
+                        {activeTab === 'forecast' && 'AI-powered trend predictions and forecasts'}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
                       {/* Status Indicators */}
                       <div className="flex items-center gap-3 text-sm">
-                        {agentStatus.totalTrends !== undefined && (
+                        {agentStatus.totalTrends !== undefined && (activeTab === 'trends' || activeTab === 'forecast') && (
                           <Badge variant="outline" className="gap-1">
                             <Database className="h-3 w-3" />
                             {agentStatus.totalTrends} trends
                           </Badge>
                         )}
-                        {autoRunEnabled && countdown && (
+                        {autoRunEnabled && countdown && (activeTab === 'trends' || activeTab === 'forecast') && (
                           <Badge variant="secondary" className="gap-1">
                             <Clock className="h-3 w-3" />
                             Next run: {countdown}
@@ -237,6 +288,7 @@ export default function DashboardPage() {
                       </div>
                       
                       {/* Action Buttons */}
+                      {(activeTab === 'trends' || activeTab === 'forecast') && (
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -271,17 +323,18 @@ export default function DashboardPage() {
                           )}
                         </Button>
                       </div>
+                      )}
                     </div>
                   </div>
                   
                   {/* Progress Message */}
-                  {progressMessage && (
+                  {progressMessage && (activeTab === 'trends' || activeTab === 'forecast') && (
                     <div className="text-sm text-muted-foreground animate-pulse">
                       {progressMessage}
                     </div>
                   )}
                   
-                  <DataTableTrends />
+                  <DataTableTrends onTabChange={setActiveTab} session={session} />
                 </div>
               </div>
             </div>

@@ -4,6 +4,7 @@ import * as React from "react"
 import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles, User } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -81,16 +82,20 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/catalog-integration" className="flex cursor-pointer">
                 <Sparkles className="mr-2 h-4 w-4" />
-                Upgrade to Pro
+                  Integrate Data
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push('/profile')}>
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="flex cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 Account
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard className="mr-2 h-4 w-4" />

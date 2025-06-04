@@ -34,6 +34,15 @@ import {
   AlertCircleIcon,
   MoreVerticalIcon,
   MessageSquare,
+  Database,
+  Clock,
+  StopCircle,
+  PlayCircle,
+  SearchIcon,
+  ExternalLinkIcon,
+  RefreshCwIcon,
+  PackageIcon,
+  StarIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -77,6 +86,8 @@ import {
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import axios from "axios"
+import { Checkbox } from "@/components/ui/checkbox"
+import { InventoryActionsTable } from "@/components/inventory-actions-table"
 
 interface Trend {
   trend_id: number
@@ -254,10 +265,15 @@ const columns: ColumnDef<Trend>[] = [
   },
   {
     accessorKey: "created_at",
-    header: "Created Date",
+    header: "Added",
     cell: ({ row }) => {
       const date = new Date(row.original.created_at)
-      return <span className="text-sm text-muted-foreground">{date.toLocaleDateString()}</span>
+      const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24))
+      return (
+        <div className="text-sm text-muted-foreground">
+          {daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`}
+        </div>
+      )
     },
   },
   {
@@ -602,27 +618,331 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
   )
 }
 
-export function DataTableTrends() {
+function ProductDetailSheet({ product, open, onOpenChange }: { 
+  product: any | null, 
+  open: boolean, 
+  onOpenChange: (open: boolean) => void
+}) {
+  const router = useRouter()
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
+  const [generatingImage, setGeneratingImage] = React.useState(false)
+  
+  // Reset generated image when product changes
+  React.useEffect(() => {
+    if (product) {
+      setGeneratedImage(null)
+      setGeneratingImage(false)
+    }
+  }, [product?.product_id])
+  
+  if (!product) return null
+
+  const handleGenerateImage = async () => {
+    setGeneratingImage(true)
+    try {
+      const prompt = `Product photography for ${product.product_name}. ${product.product_description || ''} Category: ${product.category}. Professional e-commerce photography, white background, high quality.`
+      
+      const response = await axios.post(
+        'https://api.openai.com/v1/images/generations',
+        {
+          model: 'dall-e-3',
+          prompt: prompt.slice(0, 1000),
+          n: 1,
+          size: '1024x1024',
+          quality: 'standard',
+          style: 'natural'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer REDACTED_OPENAI_KEY`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      
+      if (response.data && response.data.data && response.data.data[0]) {
+        setGeneratedImage(response.data.data[0].url)
+        toast.success('Image generated successfully')
+      }
+    } catch (error: any) {
+      console.error('Error generating image:', error)
+      toast.error('Failed to generate image: ' + (error.response?.data?.error?.message || error.message))
+    } finally {
+      setGeneratingImage(false)
+    }
+  }
+
+  const handleExport = () => {
+    const data = JSON.stringify(product, null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `product-${product.product_code}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Product data exported')
+  }
+
+  const handleAddContext = () => {
+    // Format product data as context
+    const contextData = `Context from Product: ${product.product_name}\n` +
+      `SKU: ${product.product_code}\n` +
+      `Category: ${product.category}\n` +
+      `Price: $${product.current_price}\n` +
+      `Stock Status: ${product.stock_status}\n` +
+      `Inventory: ${product.current_inventory_level || 0} units\n` +
+      `Color: ${product.color || 'N/A'}\n` +
+      `Description: ${product.product_description || 'N/A'}`;
+    
+    // Dispatch event to add context to chat
+    window.dispatchEvent(new CustomEvent('addChatContext', { 
+      detail: { context: contextData } 
+    }));
+    
+    // Close the sheet
+    onOpenChange(false);
+    
+    // Open the chat sidebar
+    window.dispatchEvent(new CustomEvent('openChat', { 
+      detail: { view: 'sidebar' } 
+    }));
+    
+    toast.success('Context added to chat');
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[540px] sm:max-w-[540px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{product.product_name}</SheetTitle>
+          <SheetDescription>
+            SKU: {product.product_code}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-6 space-y-6">
+          <div className="flex gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    <FileDownIcon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Export Data</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleGenerateImage}
+                    disabled={generatingImage}
+                  >
+                    {generatingImage ? (
+                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Generate Image</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAddContext}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Add to Chat</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(`https://www.adidas.com/us/search?q=${encodeURIComponent(product.product_code)}`, '_blank')}
+                  >
+                    <ExternalLinkIcon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>View Product</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          
+          {/* Product Images */}
+          {(product.images && product.images.length > 0) || generatedImage ? (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Product Images</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {generatedImage && (
+                  <img 
+                    src={generatedImage} 
+                    alt="Generated product image"
+                    className="w-full rounded-lg border object-cover aspect-square"
+                  />
+                )}
+                {product.images?.map((image: string, index: number) => (
+                  <img 
+                    key={index}
+                    src={image} 
+                    alt={`${product.product_name} ${index + 1}`}
+                    className="w-full rounded-lg border object-cover aspect-square"
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+          
+          <Separator />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm text-muted-foreground">Category</Label>
+              <p className="font-medium">{product.category}</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Brand</Label>
+              <p className="font-medium">{product.brand_name || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Current Price</Label>
+              <p className="font-medium">
+                {product.currency === 'USD' ? '$' : product.currency} {product.current_price?.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Original Price</Label>
+              <div className="font-medium">
+                {product.currency === 'USD' ? '$' : product.currency} {product.original_price?.toFixed(2)}
+                {product.discount_percentage > 0 && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    -{product.discount_percentage}%
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Stock Status</Label>
+              <div className="mt-1">
+                <Badge 
+                  variant={product.stock_status === "InStock" ? "default" : "secondary"}
+                  className={product.stock_status === "InStock" ? "bg-green-500 text-white" : ""}
+                >
+                  {product.stock_status}
+                </Badge>
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Inventory Level</Label>
+              <p className="font-medium">{product.current_inventory_level || 0} units</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Color</Label>
+              <p className="font-medium">{product.color || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Material</Label>
+              <p className="font-medium">{product.material || 'N/A'}</p>
+            </div>
+          </div>
+          
+          {product.size_range && product.size_range.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <Label className="text-sm text-muted-foreground">Available Sizes</Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {product.size_range.map((size: string) => (
+                    <Badge key={size} variant="secondary">
+                      {size}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          
+          {product.product_description && (
+            <>
+              <Separator />
+              <div>
+                <Label className="text-sm text-muted-foreground">Description</Label>
+                <p className="mt-2 text-sm">{product.product_description}</p>
+              </div>
+            </>
+          )}
+          
+          <Separator />
+          
+          <div>
+            <Label className="text-sm text-muted-foreground mb-2">Product Details</Label>
+            <div className="space-y-2 mt-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Gender</span>
+                <span className="font-medium">{product.gender || 'Unisex'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Season</span>
+                <span className="font-medium">{product.season || 'All Season'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="text-sm text-muted-foreground">
+            <p>Added: {new Date(product.created_at).toLocaleString()}</p>
+            <p>Last Updated: {new Date(product.updated_at).toLocaleString()}</p>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+export function DataTableTrends({ onTabChange, session }: { 
+  onTabChange?: (tab: 'trends' | 'catalog' | 'inventory' | 'forecast') => void
+  session?: any
+}) {
   const [data, setData] = React.useState<Trend[]>([])
   const [loading, setLoading] = React.useState(true)
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'created_at', desc: true }
   ])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    last_updated: false
-  })
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 20,
-  })
   const [selectedTrend, setSelectedTrend] = React.useState<Trend | null>(null)
   const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [initialLoad, setInitialLoad] = React.useState(true)
   const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory' | 'forecast'>('trends')
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [catalogProducts, setCatalogProducts] = React.useState<any[]>([])
+  const [catalogLoading, setCatalogLoading] = React.useState(false)
+  const [catalogSorting, setCatalogSorting] = React.useState<SortingState>([
+    { id: 'created_at', desc: true }
+  ])
+  const [inventorySorting, setInventorySorting] = React.useState<SortingState>([
+    { id: 'confidence_score', desc: true }
+  ])
+  const [userBrandId, setUserBrandId] = React.useState<number | null>(null)
+  const [inventoryCount, setInventoryCount] = React.useState(0)
+  const [productCount, setProductCount] = React.useState(0)
+  const [generating, setGenerating] = React.useState(false)
+  const [generationProgress, setGenerationProgress] = React.useState("")
+  const inventoryTableRef = React.useRef<any>(null)
 
-  // Initialize Supabase client for real-time updates only
   const supabase = React.useMemo(
     () => createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -631,11 +951,156 @@ export function DataTableTrends() {
     []
   )
 
+  // Fetch user's brand ID and product count
+  React.useEffect(() => {
+    const fetchUserBrandId = async () => {
+      if (!session?.user?.email) return
+      
+      try {
+        const { data: userData, error: userError } = await supabase
+          .from('usr')
+          .select('brand_id')
+          .eq('email', session.user.email)
+          .single()
+        
+        if (userError) throw userError
+        
+        if (userData?.brand_id) {
+          setUserBrandId(userData.brand_id)
+          
+          // Fetch product count
+          const { count: prodCount } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('brand_id', userData.brand_id)
+            .eq('is_active', true)
+          
+          setProductCount(prodCount || 0)
+        }
+      } catch (error) {
+        console.error('Error fetching user brand:', error)
+      }
+    }
+    
+    fetchUserBrandId()
+  }, [session, supabase])
+
+  // Fetch catalog products
+  const fetchCatalogProducts = React.useCallback(async () => {
+    try {
+      setCatalogLoading(true)
+      console.log('Fetching catalog products, session:', session)
+      
+      if (!session?.access_token) {
+        console.error('No session found')
+        setCatalogLoading(false)
+        return
+      }
+      
+      const response = await fetch('/api/catalog/products', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      })
+      
+      console.log('Catalog response status:', response.status)
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Catalog products result:', result)
+        
+        // Fetch additional attributes for each product
+        if (result.products && result.products.length > 0) {
+          const productIds = result.products.map((p: any) => p.product_id)
+          
+          // Fetch product attributes
+          const { data: attributes } = await supabase
+            .from('product_attributes')
+            .select('*')
+            .in('product_id', productIds)
+          
+          // Fetch product colors
+          const { data: colors } = await supabase
+            .from('product_colors')
+            .select('product_id, color_name')
+            .in('product_id', productIds)
+          
+          // Fetch product categories for gender info
+          const { data: categories } = await supabase
+            .from('product_categories')
+            .select('product_id, category_path')
+            .in('product_id', productIds)
+          
+          // Map attributes to products
+          const attributesMap = new Map()
+          attributes?.forEach(attr => {
+            if (!attributesMap.has(attr.product_id)) {
+              attributesMap.set(attr.product_id, {})
+            }
+            // Store all attributes by name
+            attributesMap.get(attr.product_id)[attr.attribute_name] = attr.attribute_value
+          })
+          
+          const colorsMap = new Map()
+          colors?.forEach(color => {
+            if (!colorsMap.has(color.product_id)) {
+              colorsMap.set(color.product_id, [])
+            }
+            colorsMap.get(color.product_id).push(color.color_name)
+          })
+          
+          const categoriesMap = new Map()
+          categories?.forEach(cat => {
+            categoriesMap.set(cat.product_id, cat.category_path)
+          })
+          
+          // Enhance products with additional data
+          const enhancedProducts = result.products.map((product: any) => {
+            const attrs = attributesMap.get(product.product_id) || {}
+            const productColors = colorsMap.get(product.product_id) || []
+            const categoryPath = categoriesMap.get(product.product_id) || ''
+            
+            // Extract gender from category path (e.g., "Women/Clothing" -> "Women")
+            const gender = categoryPath.split('/')[0] || product.gender
+            
+            return {
+              ...product,
+              color: productColors.join(', ') || product.color || 'N/A',
+              gender: gender || 'Unisex',
+              average_rating: attrs.average_rating ? parseFloat(attrs.average_rating) : null,
+              description: attrs.description || null,
+              reviews_count: attrs.reviews_count ? parseInt(attrs.reviews_count) : null,
+              attributes: attrs
+            }
+          })
+          
+          setCatalogProducts(enhancedProducts)
+        } else {
+          setCatalogProducts(result.products || [])
+        }
+      } else {
+        const error = await response.text()
+        console.error('Catalog fetch error:', error)
+      }
+    } catch (error) {
+      console.error('Error fetching catalog products:', error)
+    } finally {
+      setCatalogLoading(false)
+    }
+  }, [session, supabase])
+
+  // Debug catalog count
+  React.useEffect(() => {
+    console.log('Catalog count updated:', catalogProducts.length)
+  }, [catalogProducts.length])
+
   // Fetch trends from API (bypasses RLS)
   const fetchTrends = React.useCallback(async () => {
     try {
       // Only show loading on initial load
-      if (initialLoad) {
+      if (loading) {
         setLoading(true)
       }
       
@@ -663,12 +1128,14 @@ export function DataTableTrends() {
       toast.error('Failed to connect to server')
     } finally {
       setLoading(false)
-      setInitialLoad(false)
     }
-  }, [initialLoad])
+  }, [loading])
 
   React.useEffect(() => {
     fetchTrends()
+    if (session) {
+      fetchCatalogProducts()
+    }
     
     // Listen for refresh event from dashboard
     const handleRefreshEvent = () => {
@@ -723,7 +1190,15 @@ export function DataTableTrends() {
       window.removeEventListener('refreshTrends', handleRefreshEvent)
       subscription.unsubscribe()
     }
-  }, [supabase, fetchTrends])
+  }, [supabase, fetchTrends, fetchCatalogProducts, session])
+
+  // Fetch catalog products when session is available
+  React.useEffect(() => {
+    if (session && userBrandId) {
+      console.log('Session and brand available, fetching catalog...')
+      fetchCatalogProducts()
+    }
+  }, [session, userBrandId, fetchCatalogProducts])
 
   const handleUpdateTrend = React.useCallback((updatedTrend: Trend) => {
     // Update locally without refetching
@@ -789,13 +1264,11 @@ export function DataTableTrends() {
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onPaginationChange: setPagination,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
-      pagination,
     },
     meta: {
       onRowClick: (trend: Trend) => {
@@ -804,6 +1277,122 @@ export function DataTableTrends() {
       }
     }
   })
+
+  // Update parent when tab changes
+  const handleTabChange = (value: string) => {
+    const tab = value as 'trends' | 'catalog' | 'inventory' | 'forecast'
+    setActiveTab(tab)
+    
+    // Refresh catalog when switching to catalog tab
+    if (tab === 'catalog' && session) {
+      console.log('Switching to catalog tab, refreshing products...')
+      fetchCatalogProducts()
+    }
+    
+    if (onTabChange) {
+      onTabChange(tab)
+    }
+  }
+
+  // Fetch inventory actions count
+  const fetchInventoryCount = React.useCallback(async () => {
+    if (!userBrandId) return
+    
+    try {
+      const { count, error } = await supabase
+        .from('recommendations')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', userBrandId)
+        .eq('is_active', true)
+      
+      if (!error && count !== null) {
+        setInventoryCount(count)
+      }
+    } catch (error) {
+      console.error('Error fetching inventory count:', error)
+    }
+  }, [userBrandId, supabase])
+
+  React.useEffect(() => {
+    if (userBrandId) {
+      fetchInventoryCount()
+    }
+  }, [userBrandId, fetchInventoryCount])
+
+  // Generate recommendations handler
+  const handleGenerateRecommendations = React.useCallback(async () => {
+    if (!userBrandId) return
+    
+    try {
+      setGenerating(true)
+      setGenerationProgress("Analyzing product catalog...")
+      
+      // Add delay to show progress
+      setTimeout(() => setGenerationProgress("Identifying relevant fashion trends..."), 800)
+      setTimeout(() => setGenerationProgress("Matching products with trends..."), 2000)
+      setTimeout(() => setGenerationProgress("Calculating alignment scores..."), 3500)
+      setTimeout(() => setGenerationProgress("Generating personalized recommendations..."), 5000)
+      setTimeout(() => setGenerationProgress("Finalizing recommendations..."), 6500)
+      
+      const response = await fetch('/api/recommendations/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ brand_id: userBrandId })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate recommendations')
+      }
+
+      const result = await response.json()
+      toast.success(`Generated ${result.recommendations_count} recommendations`)
+      
+      // Refresh inventory count
+      await fetchInventoryCount()
+      
+      // Trigger refresh in inventory table
+      if (inventoryTableRef.current?.fetchRecommendations) {
+        inventoryTableRef.current.fetchRecommendations()
+      }
+    } catch (error) {
+      console.error('Error generating recommendations:', error)
+      toast.error('Failed to generate recommendations')
+    } finally {
+      setGenerating(false)
+      setGenerationProgress("")
+    }
+  }, [userBrandId])
+
+  // Get current catalog sort label
+  const getCurrentCatalogSortLabel = () => {
+    if (catalogSorting.length === 0) return 'Product Name'
+    const sortField = catalogSorting[0].id
+    const sortMap: Record<string, string> = {
+      'product_name': 'Product Name',
+      'product_code': 'SKU',
+      'current_price': 'Price',
+      'category': 'Category',
+      'stock_status': 'Stock Status',
+      'created_at': 'Date Added'
+    }
+    return sortMap[sortField] || 'Sort by'
+  }
+
+  // Get current inventory sort label
+  const getCurrentInventorySortLabel = () => {
+    if (inventorySorting.length === 0) return 'Confidence Score'
+    const sortField = inventorySorting[0].id
+    const sortMap: Record<string, string> = {
+      'confidence_score': 'Confidence Score',
+      'alignment_score': 'Match Score',
+      'recommendation_action': 'Action Type',
+      'product_name': 'Product Name',
+      'trend_identifier': 'Trend Name'
+    }
+    return sortMap[sortField] || 'Sort by'
+  }
 
   if (loading) {
     return (
@@ -815,51 +1404,87 @@ export function DataTableTrends() {
 
   return (
     <>
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="flex w-full flex-col justify-start gap-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="font-sans">
-            <TabsTrigger value="trends">
+      <div className="space-y-4">
+        {/* Progress message for recommendations */}
+        {generating && generationProgress && (
+          <div className="text-sm text-muted-foreground animate-pulse">
+            {generationProgress}
+          </div>
+        )}
+        
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <div className="flex items-center justify-between mb-4">
+            <TabsList className="grid w-fit grid-cols-4">
+              <TabsTrigger value="trends" className="flex items-center gap-2">
               Trend Signals
-              {signalCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
-                >
-                  {signalCount}
+                {data.filter(t => t.trend_type !== 'forecast').length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {data.filter(t => t.trend_type !== 'forecast').length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="catalog" className="gap-1">
-              Catalog Matches{" "}
-              <Badge
-                variant="secondary"
-                className="flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
-              >
-                3
+              <TabsTrigger value="catalog" className="flex items-center gap-2">
+                Catalog Matches
+                {catalogProducts.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {catalogProducts.length}
               </Badge>
+                )}
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="gap-1">
-              Inventory Actions{" "}
-              <Badge
-                variant="secondary"
-                className="flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
-              >
-                2
+              <TabsTrigger value="inventory" className="flex items-center gap-2">
+                Inventory Actions
+                {inventoryCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {inventoryCount}
               </Badge>
+                )}
             </TabsTrigger>
-            <TabsTrigger value="forecast">
+              <TabsTrigger value="forecast" className="flex items-center gap-2">
               Trend Forecasts
-              {forecastCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
-                >
-                  {forecastCount}
+                {data.filter(t => t.trend_type === 'forecast').length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {data.filter(t => t.trend_type === 'forecast').length}
                 </Badge>
               )}
             </TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
+              {/* Status Badges */}
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="outline" className="gap-1">
+                  <Database className="h-3 w-3" />
+                  {data.length} trends
+                </Badge>
+                {productCount > 0 && (
+                  <Badge variant="outline" className="gap-1">
+                    <PackageIcon className="h-3 w-3" />
+                    {productCount} products
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Universal Search Bar */}
+              <div className="relative">
+                <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={
+                    activeTab === 'trends' ? "Search trends..." :
+                    activeTab === 'catalog' ? "Search products..." :
+                    activeTab === 'inventory' ? "Search inventory..." :
+                    "Search forecasts..."
+                  }
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    // For inventory tab, update the table filter
+                    if (activeTab === 'inventory' && inventoryTableRef.current?.setSearchFilter) {
+                      inventoryTableRef.current.setSearchFilter(e.target.value)
+                    }
+                  }}
+                  className="pl-8 w-[300px]"
+                />
+              </div>
+              {activeTab !== 'catalog' && activeTab !== 'inventory' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -890,16 +1515,112 @@ export function DataTableTrends() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+              )}
+              {activeTab === 'catalog' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <ColumnsIcon className="mr-2 h-4 w-4" />
+                      <span className="hidden lg:inline">{getCurrentCatalogSortLabel()}</span>
+                      <span className="lg:hidden">Sort</span>
+                      <ChevronDownIcon className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'product_name', desc: false }])}>
+                      Product Name
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'product_code', desc: false }])}>
+                      SKU
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: false }])}>
+                      Price (Low to High)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: true }])}>
+                      Price (High to Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'category', desc: false }])}>
+                      Category
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'stock_status', desc: false }])}>
+                      Stock Status
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'created_at', desc: true }])}>
+                      Date Added (Newest First)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {activeTab === 'inventory' && (
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <ColumnsIcon className="mr-2 h-4 w-4" />
+                        <span className="hidden lg:inline">{getCurrentInventorySortLabel()}</span>
+                        <span className="lg:hidden">Sort</span>
+                        <ChevronDownIcon className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => {
+                        setInventorySorting([{ id: 'confidence_score', desc: true }])
+                        inventoryTableRef.current?.setSorting([{ id: 'confidence_score', desc: true }])
+                      }}>
+                        Confidence Score (High to Low)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setInventorySorting([{ id: 'alignment_score', desc: true }])
+                        inventoryTableRef.current?.setSorting([{ id: 'alignment_score', desc: true }])
+                      }}>
+                        Match Score (High to Low)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setInventorySorting([{ id: 'recommendation_action', desc: false }])
+                        inventoryTableRef.current?.setSorting([{ id: 'recommendation_action', desc: false }])
+                      }}>
+                        Action Type
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setInventorySorting([{ id: 'product_name', desc: false }])
+                        inventoryTableRef.current?.setSorting([{ id: 'product_name', desc: false }])
+                      }}>
+                        Product Name (A-Z)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setInventorySorting([{ id: 'trend_identifier', desc: false }])
+                        inventoryTableRef.current?.setSorting([{ id: 'trend_identifier', desc: false }])
+                      }}>
+                        Trend Name (A-Z)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    onClick={handleGenerateRecommendations}
+                    disabled={generating}
+                    size="sm"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCwIcon className="mr-2 h-4 w-4" />
+                        Generate Recommendations
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
             <Button variant="outline" size="sm">
               <PlusIcon className="mr-2 h-4 w-4" />
               <span className="hidden lg:inline">Add Section</span>
             </Button>
           </div>
         </div>
-        
-        {/* All tabs must have identical wrapper structure */}
         <div className="w-full">
-          {/* Trend Signals tab */}
           <TabsContent value="trends" className="flex flex-col gap-4 m-0 p-0">
             <div className="overflow-hidden rounded-lg border">
               <Table>
@@ -958,7 +1679,7 @@ export function DataTableTrends() {
               </div>
               <div className="flex items-center gap-8">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                    <Label htmlFor="rows-per-page-trends" className="text-sm font-medium">
                     Rows per page
                   </Label>
                   <Select
@@ -967,7 +1688,7 @@ export function DataTableTrends() {
                       table.setPageSize(Number(value))
                     }}
                   >
-                    <SelectTrigger className="w-20" id="rows-per-page">
+                      <SelectTrigger className="w-20" id="rows-per-page-trends">
                       <SelectValue placeholder={table.getState().pagination.pageSize} />
                     </SelectTrigger>
                     <SelectContent side="top">
@@ -1024,21 +1745,38 @@ export function DataTableTrends() {
             </div>
           </TabsContent>
           
-          {/* Catalog Matches tab content placeholder */}
           <TabsContent value="catalog" className="flex flex-col gap-4 m-0 p-0">
+              {catalogLoading ? (
             <div className="flex items-center justify-center py-10 rounded-lg border">
-              <div className="text-muted-foreground">Catalog matches feature coming soon...</div>
+                  <div className="text-muted-foreground">Loading catalog...</div>
             </div>
+              ) : (
+                <CatalogTable 
+                  products={catalogProducts} 
+                  searchQuery={searchQuery}
+                  sorting={catalogSorting}
+                  onSortingChange={setCatalogSorting}
+                />
+              )}
           </TabsContent>
           
-          {/* Inventory Actions tab content placeholder */}
           <TabsContent value="inventory" className="flex flex-col gap-4 m-0 p-0">
+              {session?.user && userBrandId ? (
+                <InventoryActionsTable 
+                  ref={inventoryTableRef}
+                  brandId={userBrandId} 
+                  session={session}
+                  onRecommendationsGenerated={fetchInventoryCount}
+                />
+              ) : (
             <div className="flex items-center justify-center py-10 rounded-lg border">
-              <div className="text-muted-foreground">Inventory actions feature coming soon...</div>
+                  <div className="text-muted-foreground">
+                    {!session?.user ? "Please log in to view inventory actions" : "Loading..."}
             </div>
+                </div>
+              )}
           </TabsContent>
           
-          {/* Trend Forecasts tab - same structure as trends */}
           <TabsContent value="forecast" className="flex flex-col gap-4 m-0 p-0">
             <div className="overflow-hidden rounded-lg border">
               <Table>
@@ -1170,6 +1908,367 @@ export function DataTableTrends() {
         open={sheetOpen} 
         onOpenChange={setSheetOpen}
         onUpdateTrend={handleUpdateTrend}
+        />
+      </div>
+    </>
+  )
+}
+
+function CatalogTable({ products, searchQuery, sorting, onSortingChange }: { 
+  products: any[]; 
+  searchQuery: string;
+  sorting: SortingState;
+  onSortingChange: (sorting: SortingState) => void;
+}) {
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [rowSelection, setRowSelection] = React.useState({})
+  const [selectedProduct, setSelectedProduct] = React.useState<any>(null)
+  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: 20,
+  })
+
+  const columns: ColumnDef<any>[] = [
+    {
+      accessorKey: "product_code",
+      header: "SKU",
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">{row.getValue("product_code")}</div>
+      ),
+    },
+    {
+      accessorKey: "product_name",
+      header: "Product",
+      cell: ({ row, table }) => {
+        const product = row.original
+        
+        return (
+          <div 
+            className="flex items-center gap-3 cursor-pointer hover:text-primary"
+            onClick={() => (table.options.meta as any)?.onRowClick?.(row.original)}
+          >
+            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="max-w-[300px]">
+              <div className="font-medium truncate">{product.product_name}</div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {product.color && product.color !== 'N/A' && (
+                  <span>Color: {product.color}</span>
+                )}
+                {product.gender && product.gender !== 'Unisex' && (
+                  <>
+                    {product.color && product.color !== 'N/A' && <span>•</span>}
+                    <span>{product.gender}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => {
+        const category = row.getValue("category") as string
+        return (
+          <Badge variant="secondary">
+            {category}
+          </Badge>
+        )
+      },
+    },
+    {
+      accessorKey: "current_price",
+      header: "Price",
+      cell: ({ row }) => {
+        const price = parseFloat(row.getValue("current_price"))
+        const originalPrice = row.original.original_price
+        const discount = row.original.discount_percentage
+        const currency = row.original.currency
+        
+        return (
+          <div className="space-y-1">
+            <div className="font-medium">
+              {currency === 'USD' ? '$' : currency} {price.toFixed(2)}
+            </div>
+            {discount > 0 && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="line-through text-muted-foreground">
+                  ${originalPrice.toFixed(2)}
+                </span>
+                <Badge variant="outline" className="text-xs">
+                  -{discount}%
+                </Badge>
+              </div>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "average_rating",
+      header: "Rating",
+      cell: ({ row }) => {
+        const rating = row.original.average_rating
+        const reviewCount = row.original.reviews_count
+        
+        if (!rating) {
+          return <span className="text-muted-foreground text-sm">No ratings</span>
+        }
+        
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              {[...Array(5)].map((_, i) => (
+                <StarIcon 
+                  key={i} 
+                  className={`h-3 w-3 ${
+                    i < Math.floor(rating)
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
+                  }`}
+                />
+              ))}
+              <span className="text-sm font-medium ml-1">{rating.toFixed(1)}</span>
+            </div>
+            {reviewCount && (
+              <div className="text-xs text-muted-foreground">
+                {reviewCount} reviews
+              </div>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "stock_status",
+      header: "Stock",
+      cell: ({ row }) => {
+        const status = row.getValue("stock_status") as string
+        const inventory = row.original.current_inventory_level
+        
+        return (
+          <div className="space-y-1">
+            <Badge 
+              variant={status === "InStock" ? "default" : "secondary"}
+              className={status === "InStock" ? "bg-green-500 text-white hover:bg-green-600" : ""}
+            >
+              {status}
+            </Badge>
+            {inventory > 0 && (
+              <div className="text-xs text-muted-foreground">
+                {inventory} units
+              </div>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "trend_match_score",
+      header: "Trend Match",
+      cell: ({ row }) => {
+        // Generate a stable trend match score based on product ID
+        // In production, this would come from actual trend matching algorithm
+        const productId = row.original.product_id || 0
+        const score = 70 + (productId % 31) // Generates 70-100 based on product ID
+        const color = score > 90 ? 'text-green-600' : score > 80 ? 'text-yellow-600' : 'text-orange-600'
+        return (
+          <div className="flex items-center gap-2">
+            <TrendingUpIcon className={`h-4 w-4 ${color}`} />
+            <span className={`font-medium ${color}`}>{score}%</span>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "created_at",
+      header: "Added",
+      cell: ({ row }) => {
+        const date = new Date(row.original.created_at)
+        const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24))
+        return (
+          <div className="text-sm text-muted-foreground">
+            {daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`}
+          </div>
+        )
+      },
+    },
+  ]
+
+  const table = useReactTable({
+    data: products,
+    columns,
+    onSortingChange: (updaterOrValue) => {
+      const newSorting = typeof updaterOrValue === 'function' 
+        ? updaterOrValue(sorting) 
+        : updaterOrValue
+      onSortingChange(newSorting)
+    },
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onRowSelectionChange: setRowSelection,
+    onPaginationChange: setPagination,
+    state: {
+      sorting,
+      columnFilters,
+      rowSelection,
+      pagination,
+    },
+    meta: {
+      onRowClick: (product: any) => {
+        setSelectedProduct(product)
+        setSheetOpen(true)
+      }
+    }
+  })
+
+  // Apply search filter
+  React.useEffect(() => {
+    if (searchQuery) {
+      table.getColumn("product_name")?.setFilterValue(searchQuery)
+    } else {
+      table.getColumn("product_name")?.setFilterValue("")
+    }
+  }, [searchQuery, table])
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-lg border">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody className="font-sans">
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No products found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-between px-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
+          {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, products.length)} of {products.length} products
+        </div>
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="rows-per-page-catalog" className="text-sm font-medium">
+              Rows per page
+            </Label>
+            <Select
+              value={`${table.getState().pagination.pageSize}`}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value))
+              }}
+            >
+              <SelectTrigger className="w-20" id="rows-per-page-catalog">
+                <SelectValue placeholder={table.getState().pagination.pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-fit items-center justify-center text-sm font-medium">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronsLeftIcon className="h-4 w-4" />
+              <span className="sr-only">Go to first page</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+              <span className="sr-only">Go to previous page</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+              <span className="sr-only">Go to next page</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronsRightIcon className="h-4 w-4" />
+              <span className="sr-only">Go to last page</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Product Details Sheet - Using same pattern as TrendDetailSheet */}
+      <ProductDetailSheet
+        product={selectedProduct}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
       />
     </>
   )

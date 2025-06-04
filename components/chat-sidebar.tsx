@@ -431,32 +431,59 @@ export function ChatSidebar({
     const messageIndex = messages.findIndex(m => m.id === messageId)
     if (messageIndex === -1) return
 
-    // Create new messages array with the edited message and remove all messages after it
-    const newMessages = messages.slice(0, messageIndex).concat({
-      ...messages[messageIndex],
+    // Update the message content directly
+    const updatedMessages = [...messages]
+    updatedMessages[messageIndex] = {
+      ...updatedMessages[messageIndex],
       content: editedContent
-    })
+    }
 
+    // Remove all messages after the edited one
+    const newMessages = updatedMessages.slice(0, messageIndex + 1)
     setMessages(newMessages)
     setEditingMessageId(null)
     
-    // Resend the edited message by simulating form submission
-    const currentInput = input
-    setInput(editedContent)
+    // Now trigger a regeneration from this point
+    setIsLoading(true)
     
-    // Use setTimeout to ensure state updates before submitting
-    setTimeout(() => {
-      const form = document.querySelector('form') as HTMLFormElement
-      if (form) {
-        form.requestSubmit()
+    try {
+      // Get the conversation up to this point
+      const conversationMessages = newMessages.filter(m => m.role !== 'system')
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: conversationMessages,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`)
       }
-      // Restore original input if submission fails
-      setTimeout(() => {
-        if (input === editedContent) {
-          setInput(currentInput)
-        }
-      }, 100)
-    }, 0)
+      
+      const responseData = await response.json()
+      
+      // Add the assistant's response
+      setMessages([...newMessages, {
+        id: responseData.id || Date.now().toString(),
+        role: responseData.role || "assistant",
+        content: responseData.content || "I'm not sure how to respond to that.",
+        createdAt: responseData.createdAt ? new Date(responseData.createdAt) : new Date()
+      }])
+    } catch (error) {
+      console.error("Error regenerating response:", error)
+      setMessages([...newMessages, {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "I'm sorry, there was an error processing your request. Please try again.",
+        createdAt: new Date()
+      }])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCancelEdit = () => {
@@ -465,27 +492,59 @@ export function ChatSidebar({
   }
 
   const handleRegenerate = async (messageIndex: number) => {
-    // Get the last user message before this assistant message
-    const lastUserMessage = messages.slice(0, messageIndex).reverse().find(m => m.role === 'user')
-    if (!lastUserMessage) return
-
-    // Remove this assistant message and all messages after it
-    const newMessages = messages.slice(0, messageIndex)
-    setMessages(newMessages)
-
-    // Resend the last user message
-    setInput(lastUserMessage.content)
+    // Get the actual message from the filtered list
+    const filteredMessages = messages.filter(m => m.role !== 'system')
+    const targetMessage = filteredMessages[messageIndex]
     
-    // Use a more reliable way to submit the form
-    setTimeout(() => {
-      if (textareaRef.current && textareaRef.current.form) {
-        const submitEvent = new Event('submit', { 
-          bubbles: true, 
-          cancelable: true 
-        })
-        textareaRef.current.form.dispatchEvent(submitEvent)
+    if (!targetMessage || targetMessage.role !== 'assistant') return
+    
+    // Find the index in the full messages array
+    const fullMessageIndex = messages.findIndex(m => m.id === targetMessage.id)
+    if (fullMessageIndex === -1) return
+    
+    // Remove this assistant message and all messages after it
+    const newMessages = messages.slice(0, fullMessageIndex)
+    setMessages(newMessages)
+    setIsLoading(true)
+    
+    try {
+      // Get the conversation up to this point (excluding system messages)
+      const conversationMessages = newMessages.filter(m => m.role !== 'system')
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: conversationMessages,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`)
       }
-    }, 100)
+      
+      const responseData = await response.json()
+      
+      // Add the new assistant response
+      setMessages([...newMessages, {
+        id: responseData.id || Date.now().toString(),
+        role: responseData.role || "assistant",
+        content: responseData.content || "I'm not sure how to respond to that.",
+        createdAt: responseData.createdAt ? new Date(responseData.createdAt) : new Date()
+      }])
+    } catch (error) {
+      console.error("Error regenerating response:", error)
+      setMessages([...newMessages, {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "I'm sorry, there was an error regenerating the response. Please try again.",
+        createdAt: new Date()
+      }])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleThumbsUp = async (messageId: string) => {

@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     if (!systemMessageExists) {
       finalMessages.unshift({
         role: 'system',
-        content: 'You are a helpful assistant that can provide information, analyze files, generate images, and search the web to answer questions.'
+        content: 'You are Looki AI, a helpful assistant specializing in fashion trend intelligence. You can provide information, analyze files, and help with trend-related queries. When web search results are provided to you, use them to answer questions, but do not mention "searching the web" unless you actually receive search results. Focus on providing clear, actionable insights.'
       });
     }
     
@@ -167,9 +167,13 @@ export async function POST(req: Request) {
     // Add web search results to the messages if requested
     if (webSearch && webSearch.results) {
       console.log("Processing web search results");
+      const formattedResults = webSearch.results.map((result: any, index: number) => 
+        `${index + 1}. ${result.title}\n   ${result.snippet}\n   Link: ${result.link || '#'}`
+      ).join('\n\n');
+      
       finalMessages.push({
         role: 'system',
-        content: `Here are some web search results that might help answer the query: ${JSON.stringify(webSearch.results).substring(0, 200)}...`
+        content: `Here are web search results to help answer the user's query:\n\n${formattedResults}\n\nPlease use these search results to provide a comprehensive answer to the user's question.`
       });
     }
     
