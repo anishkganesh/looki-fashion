@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Separator } from "@/components/ui/separator"
 
 const chartConfig = {
   revenue: {
@@ -29,6 +30,20 @@ export function ChartAreaInteractive() {
   const [timeRange, setTimeRange] = React.useState("30d")
   const [chartData, setChartData] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [selectedMetric, setSelectedMetric] = React.useState<"revenue" | "alignment">("revenue")
+
+  // Load saved metric preference
+  React.useEffect(() => {
+    const savedMetric = localStorage.getItem("looki_selected_metric")
+    if (savedMetric === "revenue" || savedMetric === "alignment") {
+      setSelectedMetric(savedMetric)
+    }
+  }, [])
+
+  // Save metric preference
+  React.useEffect(() => {
+    localStorage.setItem("looki_selected_metric", selectedMetric)
+  }, [selectedMetric])
 
   const supabase = React.useMemo(
     () => createClient(
@@ -221,6 +236,10 @@ export function ChartAreaInteractive() {
     return `$${value}`
   }
 
+  // Determine which metric we're showing
+  const showingRevenue = selectedMetric === "revenue"
+  const showingAlignment = selectedMetric === "alignment"
+
   // Add context menu for the chart
   const chartContext = useContextMenu({
     data: {
@@ -230,12 +249,8 @@ export function ChartAreaInteractive() {
       })),
       datasets: [
         {
-          label: "Potential Revenue",
-          data: filteredData.map(item => item.revenue)
-        },
-        {
-          label: "Avg Alignment Score",
-          data: filteredData.map(item => item.alignment)
+          label: showingRevenue ? "Potential Revenue" : "Avg Alignment Score",
+          data: filteredData.map(item => showingRevenue ? item.revenue : item.alignment)
         }
       ]
     },
@@ -257,66 +272,140 @@ export function ChartAreaInteractive() {
     )
   }
 
+  // Get description based on selected metric
+  const description = showingRevenue 
+    ? { full: "Potential revenue impact over time", short: "Revenue trends" }
+    : { full: "Alignment scores over time", short: "Alignment trends" }
+
   return (
     <Card className="@container/card" ref={chartContext.ref as any}>
       <CardHeader className="relative">
         <CardTitle>Product-Trend Correlation</CardTitle>
         <CardDescription>
-          <span className="@[540px]/card:block hidden">Potential revenue impact and alignment scores over time</span>
-          <span className="@[540px]/card:hidden">Revenue & alignment trends</span>
+          <span className="@[540px]/card:block hidden">{description.full}</span>
+          <span className="@[540px]/card:hidden">{description.short}</span>
         </CardDescription>
         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-          <div>• Potential Revenue: Total inventory value of products matched to trends</div>
-          <div>• Alignment Score: How well your products match current fashion trends (0-100%)</div>
+          {showingRevenue ? (
+            <div>• Potential Revenue: Total inventory value of products matched to trends</div>
+          ) : (
+            <div>• Alignment Score: How well your products match current fashion trends (0-100%)</div>
+          )}
         </div>
-        <div className="absolute right-4 top-4">
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={setTimeRange}
-            variant="outline"
-            className="@[767px]/card:flex hidden"
-          >
-            <ToggleGroupItem value="90d" className="h-8 px-2.5">
-              Last 3 months
-            </ToggleGroupItem>
-            <ToggleGroupItem value="30d" className="h-8 px-2.5">
-              Last 30 days
-            </ToggleGroupItem>
-            <ToggleGroupItem value="7d" className="h-8 px-2.5">
-              Last 7 days
-            </ToggleGroupItem>
-          </ToggleGroup>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="@[767px]/card:hidden flex w-40" aria-label="Select a value">
-              <SelectValue placeholder="Last 3 months" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="90d" className="rounded-lg">
-                Last 3 months
-              </SelectItem>
-              <SelectItem value="30d" className="rounded-lg">
-                Last 30 days
-              </SelectItem>
-              <SelectItem value="7d" className="rounded-lg">
-                Last 7 days
-              </SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="absolute right-4 top-4 flex items-center gap-4">
+          {/* Metric Selection Section */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground @[540px]/card:inline hidden">Metric:</span>
+            <ToggleGroup
+              type="single"
+              value={selectedMetric}
+              onValueChange={(value) => value && setSelectedMetric(value as "revenue" | "alignment")}
+              variant="outline"
+              className="@[540px]/card:flex hidden"
+            >
+              <ToggleGroupItem value="revenue" className="h-8 px-2.5">
+                Revenue
+              </ToggleGroupItem>
+              <ToggleGroupItem value="alignment" className="h-8 px-2.5">
+                Alignment
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {/* Visual Separator */}
+          <Separator orientation="vertical" className="h-6 @[540px]/card:block hidden" />
+          
+          {/* Time Range Section */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground @[767px]/card:inline hidden">Period:</span>
+            <ToggleGroup
+              type="single"
+              value={timeRange}
+              onValueChange={setTimeRange}
+              variant="outline"
+              className="@[767px]/card:flex hidden"
+            >
+              <ToggleGroupItem value="90d" className="h-8 px-2.5">
+                3 months
+              </ToggleGroupItem>
+              <ToggleGroupItem value="30d" className="h-8 px-2.5">
+                30 days
+              </ToggleGroupItem>
+              <ToggleGroupItem value="7d" className="h-8 px-2.5">
+                7 days
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          
+          {/* Mobile/Tablet Controls */}
+          <div className="@[767px]/card:hidden flex items-center gap-2">
+            {/* Mobile Metric Selection */}
+            <Select value={selectedMetric} onValueChange={(value) => setSelectedMetric(value as "revenue" | "alignment")}>
+              <SelectTrigger className="w-32 @[540px]/card:hidden" aria-label="Select metric">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="revenue" className="rounded-lg">
+                  Revenue
+                </SelectItem>
+                <SelectItem value="alignment" className="rounded-lg">
+                  Alignment
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Tablet Metric Toggle */}
+            <ToggleGroup
+              type="single"
+              value={selectedMetric}
+              onValueChange={(value) => value && setSelectedMetric(value as "revenue" | "alignment")}
+              variant="outline"
+              className="@[540px]/card:flex @[767px]/card:hidden hidden"
+            >
+              <ToggleGroupItem value="revenue" className="h-8 px-2.5">
+                Revenue
+              </ToggleGroupItem>
+              <ToggleGroupItem value="alignment" className="h-8 px-2.5">
+                Alignment
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {/* Time Range Select */}
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-32" aria-label="Select time range">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="90d" className="rounded-lg">
+                  3 months
+                </SelectItem>
+                <SelectItem value="30d" className="rounded-lg">
+                  30 days
+                </SelectItem>
+                <SelectItem value="7d" className="rounded-lg">
+                  7 days
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
           <AreaChart data={filteredData}>
             <defs>
-              <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={1.0} />
-                <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.1} />
-              </linearGradient>
-              <linearGradient id="fillAlignment" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-alignment)" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="var(--color-alignment)" stopOpacity={0.1} />
-              </linearGradient>
+              {showingRevenue && (
+                <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={1.0} />
+                  <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.1} />
+                </linearGradient>
+              )}
+              {showingAlignment && (
+                <linearGradient id="fillAlignment" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-alignment)" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="var(--color-alignment)" stopOpacity={0.1} />
+                </linearGradient>
+              )}
             </defs>
             <CartesianGrid vertical={false} />
             <XAxis
@@ -334,21 +423,11 @@ export function ChartAreaInteractive() {
               }}
             />
             <YAxis
-              yAxisId="revenue"
-              orientation="left"
               tickLine={false}
               axisLine={false}
-              tickFormatter={formatCurrency}
-              width={80}
-            />
-            <YAxis
-              yAxisId="alignment"
-              orientation="right"
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(value) => `${value}%`}
-              domain={[0, 100]}
-              width={50}
+              tickFormatter={showingRevenue ? formatCurrency : (value) => `${value}%`}
+              width={showingRevenue ? 80 : 50}
+              domain={showingAlignment ? [0, 100] : undefined}
             />
             <ChartTooltip
               cursor={false}
@@ -362,7 +441,7 @@ export function ChartAreaInteractive() {
                     })
                   }}
                   formatter={(value, name) => {
-                    if (name === "revenue") {
+                    if (showingRevenue) {
                       return formatCurrency(value as number)
                     }
                     return `${value}%`
@@ -372,20 +451,12 @@ export function ChartAreaInteractive() {
               }
             />
             <Area 
-              yAxisId="revenue"
-              dataKey="revenue" 
+              dataKey={showingRevenue ? "revenue" : "alignment"}
               type="natural" 
-              fill="url(#fillRevenue)" 
-              stroke="var(--color-revenue)" 
+              fill={showingRevenue ? "url(#fillRevenue)" : "url(#fillAlignment)"} 
+              stroke={showingRevenue ? "var(--color-revenue)" : "var(--color-alignment)"} 
               strokeWidth={2}
-            />
-            <Area 
-              yAxisId="alignment"
-              dataKey="alignment" 
-              type="natural" 
-              fill="url(#fillAlignment)" 
-              stroke="var(--color-alignment)" 
-              strokeWidth={2}
+              animationDuration={300}
             />
           </AreaChart>
         </ChartContainer>
