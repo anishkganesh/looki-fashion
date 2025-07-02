@@ -13,6 +13,7 @@ import { useGlobalChat } from "@/lib/global-chat-context"
 import { Toggle } from "@/components/ui/toggle"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
+import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 
 // Function to format message content
 const formatMessageContent = (content: string): React.ReactNode => {
@@ -155,7 +156,29 @@ export function ChatSidebar({
   // Function to handle sending messages
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (input.trim() === "" || isLoading) return;
+    if (input.trim() === "" || isLoading || !currentUser?.email) return;
+    
+    // Determine credit cost based on operation
+    let creditOperation: keyof typeof CREDIT_COSTS = 'chat';
+    let creditDescription = 'Chat message';
+    
+    if (isGeneratingImage) {
+      creditOperation = 'image_generation';
+      creditDescription = 'Image generation';
+    } else if (isSearchingWeb) {
+      creditOperation = 'web_search';
+      creditDescription = 'Web search';
+    } else if (uploadedFiles.length > 0) {
+      creditOperation = 'file_analysis';
+      creditDescription = 'File analysis';
+    }
+    
+    // Check credits
+    const creditCheck = await useCredits(currentUser.email, creditOperation, creditDescription);
+    if (!creditCheck.success) {
+      toast.error(creditCheck.message || 'Insufficient credits');
+      return;
+    }
     
     // Add user message to the chat
     const userMessage = {

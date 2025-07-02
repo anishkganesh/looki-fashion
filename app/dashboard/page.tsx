@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 
 export default function DashboardPage() {
   const { user, session, isLoading } = useRequireAuth()
@@ -214,6 +215,15 @@ export default function DashboardPage() {
 
   const handleManualScrape = async () => {
     try {
+      // Check credits first
+      const creditCheck = await useCredits(user?.email!, 'trend_agent', 'Running trend discovery agent')
+      if (!creditCheck.success) {
+        toast.error(creditCheck.message || 'Insufficient credits')
+        return
+      }
+      
+      toast.info(`Using ${CREDIT_COSTS.trend_agent} credits for trend agent`)
+      
       setIsScrapingManually(true)
       setProgressMessage("Initializing trend agent...")
       

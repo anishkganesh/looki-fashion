@@ -91,6 +91,7 @@ import axios from "axios"
 import { Checkbox } from "@/components/ui/checkbox"
 import { InventoryActionsTable } from "@/components/inventory-actions-table"
 import { getTrendDisplayName } from "@/lib/format-utils"
+import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 
 interface Trend {
   trend_id: number
@@ -1095,7 +1096,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
           <Separator />
           
           <div className="text-sm text-muted-foreground">
-            <p>Added: {new Date(product.created_at).toLocaleString()}</p>
+            <p>Added: {product.created_at ? new Date(product.created_at).toLocaleString() : 'N/A'}</p>
             <p>Last Updated: {new Date(product.updated_at).toLocaleString()}</p>
           </div>
         </div>
@@ -1521,9 +1522,18 @@ export function DataTableTrends({ onTabChange, session }: {
 
   // Generate recommendations handler
   const handleGenerateRecommendations = React.useCallback(async () => {
-    if (!userBrandId) return
+    if (!userBrandId || !session?.user?.email) return
     
     try {
+      // Check credits first
+      const creditCheck = await useCredits(session.user.email, 'recommendations', 'Generating inventory recommendations')
+      if (!creditCheck.success) {
+        toast.error(creditCheck.message || 'Insufficient credits')
+        return
+      }
+      
+      toast.info(`Using ${CREDIT_COSTS.recommendations} credits for recommendations`)
+      
       setGenerating(true)
       setGenerationProgress("Analyzing product catalog...")
       

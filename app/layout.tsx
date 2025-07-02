@@ -6,6 +6,7 @@ import { ChatProvider } from "@/lib/chat-context"
 import { GlobalChatProvider } from "@/lib/global-chat-context"
 import { CatalogImportProvider } from "@/lib/catalog-import-context"
 import { CatalogImportProgress } from "@/components/catalog-import-progress"
+import { CreditsWidget } from "@/components/credits-widget"
 import { Toaster } from "@/components/ui/toaster"
 import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
@@ -20,10 +21,12 @@ export const metadata: Metadata = {
   description: "Transform your fashion business with AI-powered trend intelligence. Track emerging trends, optimize inventory, and boost sales with data-driven insights.",
   icons: {
     icon: [
+      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/favicon.png', type: 'image/png' },
       { url: '/favicon.avif', type: 'image/avif' },
     ],
-    shortcut: '/favicon.avif',
-    apple: '/favicon.avif',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.png',
   },
   openGraph: {
     title: "Looki - Fashion Trend Intelligence Platform",
@@ -47,9 +50,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable}`} suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.avif" type="image/avif" />
-        <link rel="shortcut icon" href="/favicon.avif" type="image/avif" />
-        <link rel="apple-touch-icon" href="/favicon.avif" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
       <body
         className={cn(
@@ -71,6 +74,7 @@ export default function RootLayout({
                   {children}
                 </ChatProvider>
                 <CatalogImportProgress />
+                <CreditsWidget />
               </CatalogImportProvider>
             </GlobalChatProvider>
           </AuthProvider>
