@@ -12,10 +12,10 @@ export function SiteHeader() {
   const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
   const [availableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
-    { id: "2", name: "KENZO" },
-    { id: "3", name: "GANT" },
-    { id: "4", name: "Marisa Lojas" },
-    { id: "5", name: "Walmart" }
+    { id: "2", name: "Cris Barros" },
+    { id: "3", name: "Walmart" },
+    { id: "4", name: "Track & Field" },
+    { id: "5", name: "Marisa Lojas" }
   ])
   
   // Load saved brand on mount
@@ -63,13 +63,10 @@ export function SiteHeader() {
       }
     }
     
-    // Emit event for other components
+    // Emit event for other components to refetch data
     window.dispatchEvent(new CustomEvent('brandChanged', { 
       detail: { brandId: value, brandName: availableBrands.find(b => b.id === value)?.name } 
     }))
-    
-    // Reload the page to refresh all data
-    window.location.reload()
   }
 
   return (

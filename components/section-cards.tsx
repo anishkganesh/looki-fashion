@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js"
 import { useRequireAuth } from "@/lib/auth-utils"
 import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
 
-export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selectedBrandId?: string }>(({ selectedBrandId }, ref) => {
+export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selectedBrandId?: string; onLoadComplete?: () => void }>(({ selectedBrandId, onLoadComplete }, ref) => {
   const { user, session } = useRequireAuth()
   const [stats, setStats] = React.useState({
     activeTrends: { value: 0, change: 0, percentage: 0 },
@@ -17,6 +17,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
     potentialRevenue: { value: 0, change: 0, percentage: 0 }
   })
   const [loading, setLoading] = React.useState(true)
+  const [previousStats, setPreviousStats] = React.useState<typeof stats | null>(null)
 
   const supabase = React.useMemo(
     () => createClient(
@@ -214,24 +215,39 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             }
           }
           
-          setStats(calculatedStats)
-          
-          // Cache the calculated stats
-          sessionStorage.setItem(cacheKey, JSON.stringify(calculatedStats))
-          sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+          // Only update if we have valid data (not all zeros)
+          if (calculatedStats.activeTrends.value > 0 || 
+              calculatedStats.alignmentScore.value > 0 || 
+              calculatedStats.optimizationOpportunities.value > 0 || 
+              calculatedStats.potentialRevenue.value > 0) {
+            setPreviousStats(stats)
+            setStats(calculatedStats)
+            
+            // Cache the calculated stats
+            sessionStorage.setItem(cacheKey, JSON.stringify(calculatedStats))
+            sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+          } else if (previousStats) {
+            // Use previous stats if current calculation returns all zeros
+            setStats(previousStats)
+          }
         }
       } catch (error) {
         console.error('Error fetching statistics:', error)
-        // Use sample data on error
-        const sampleStats = {
-          activeTrends: { value: 67, change: 12, percentage: 21.8 },
-          alignmentScore: { value: 76, change: 6, percentage: 8.57 },
-          optimizationOpportunities: { value: 23, change: 5, percentage: 27.8 },
-          potentialRevenue: { value: 45000, change: 8500, percentage: 23.3 }
+        // Use previous stats if available, otherwise use sample data
+        if (previousStats) {
+          setStats(previousStats)
+        } else {
+          const sampleStats = {
+            activeTrends: { value: 67, change: 12, percentage: 21.8 },
+            alignmentScore: { value: 76, change: 6, percentage: 8.57 },
+            optimizationOpportunities: { value: 23, change: 5, percentage: 27.8 },
+            potentialRevenue: { value: 45000, change: 8500, percentage: 23.3 }
+          }
+          setStats(sampleStats)
         }
-        setStats(sampleStats)
       } finally {
         setLoading(false)
+        if (onLoadComplete) onLoadComplete()
       }
     }
 

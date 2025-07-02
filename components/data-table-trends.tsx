@@ -1138,10 +1138,9 @@ export function DataTableTrends({ onTabChange, session }: {
   const [availableBrands, setAvailableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
     { id: "2", name: "Cris Barros" },
-    { id: "3", name: "HOPE fashions" },
+    { id: "3", name: "Walmart" },
     { id: "4", name: "Track & Field" },
-    { id: "5", name: "Walmart" },
-    { id: "13", name: "Marisa Lojas" }
+    { id: "5", name: "Marisa Lojas" }
   ])
   const [activeBrandContext, setActiveBrandContext] = React.useState<any>(null)
 
@@ -1237,6 +1236,23 @@ export function DataTableTrends({ onTabChange, session }: {
     
     fetchUserBrandId()
   }, [session, supabase, availableBrands])
+
+  // Listen for brand changes from header
+  React.useEffect(() => {
+    const handleBrandChange = (event: CustomEvent) => {
+      const { brandId } = event.detail
+      setSelectedBrandId(brandId)
+      // Trigger refetch
+      fetchCatalogProducts()
+      fetchBrandDetails(brandId)
+      fetchInventoryCount()
+    }
+    
+    window.addEventListener('brandChanged', handleBrandChange as any)
+    return () => {
+      window.removeEventListener('brandChanged', handleBrandChange as any)
+    }
+  }, [fetchCatalogProducts, fetchBrandDetails, fetchInventoryCount])
 
   // Add ref to prevent duplicate fetches
   const fetchingCatalogRef = React.useRef(false)
@@ -1741,37 +1757,6 @@ export function DataTableTrends({ onTabChange, session }: {
               )}
               {activeTab === 'catalog' && (
                 <>
-                  <Select 
-                    value={selectedBrandId} 
-                    onValueChange={async (value) => {
-                      setSelectedBrandId(value)
-                      // Persist the selection
-                      if (session?.user?.email) {
-                        const selectedBrandName = availableBrands.find(b => b.id === value)?.name
-                        if (selectedBrandName) {
-                          await fetch('/api/profile/update-brand', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              userEmail: session.user.email,
-                              selectedBrand: selectedBrandName
-                            })
-                          })
-                        }
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select Brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableBrands.map((brand) => (
-                        <SelectItem key={brand.id} value={brand.id}>
-                          {brand.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">

@@ -25,13 +25,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function ChartAreaInteractive({ selectedBrandId }: { selectedBrandId?: string }) {
+export function ChartAreaInteractive({ selectedBrandId, onLoadComplete }: { selectedBrandId?: string; onLoadComplete?: () => void }) {
   const { user } = useRequireAuth()
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("30d")
   const [chartData, setChartData] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [selectedMetric, setSelectedMetric] = React.useState<"revenue" | "alignment">("revenue")
+  const [previousData, setPreviousData] = React.useState<any[]>([])
+  const [hasInitialData, setHasInitialData] = React.useState(false)
 
   // Load saved metric preference
   React.useEffect(() => {
@@ -142,18 +144,35 @@ export function ChartAreaInteractive({ selectedBrandId }: { selectedBrandId?: st
         // Generate chart data based on time range
         const data = generateChartData(totalPotentialRevenue, avgAlignment, timeRange)
         
-        setChartData(data)
-        
-        // Cache the data
-        sessionStorage.setItem(cacheKey, JSON.stringify(data))
-        sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+        // Only update if we have valid data
+        if (data.length > 0 && (totalPotentialRevenue > 0 || avgAlignment > 0)) {
+          setPreviousData(chartData)
+          setChartData(data)
+          setHasInitialData(true)
+          
+          // Cache the data
+          sessionStorage.setItem(cacheKey, JSON.stringify(data))
+          sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+        } else if (hasInitialData && previousData.length > 0) {
+          // Keep showing previous data if new data is empty
+          setChartData(previousData)
+        } else {
+          // Use sample data only if no previous data exists
+          const sampleData = generateSampleData(timeRange)
+          setChartData(sampleData)
+        }
       } catch (error) {
         console.error('Error fetching chart data:', error)
-        // Use sample data on error
-        const sampleData = generateSampleData(timeRange)
-        setChartData(sampleData)
+        // Use previous data if available, otherwise use sample data
+        if (hasInitialData && previousData.length > 0) {
+          setChartData(previousData)
+        } else {
+          const sampleData = generateSampleData(timeRange)
+          setChartData(sampleData)
+        }
       } finally {
         setLoading(false)
+        if (onLoadComplete) onLoadComplete()
       }
     }
 

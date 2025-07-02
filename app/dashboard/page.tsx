@@ -59,10 +59,10 @@ export default function DashboardPage() {
         // Get brand ID from available brands (would need to fetch or hardcode)
         const brandMap: Record<string, string> = {
           "Arvind Fashions": "1",
-          "KENZO": "2", 
-          "GANT": "3",
-          "Marisa Lojas": "4",
-          "Walmart": "5"
+          "Cris Barros": "2",
+          "Walmart": "3",
+          "Track & Field": "4",
+          "Marisa Lojas": "5"
         }
         setSelectedBrandId(brandMap[userData.selected_brand] || userData.brand_id?.toString() || "")
       } else if (userData?.brand_id) {
@@ -72,6 +72,22 @@ export default function DashboardPage() {
     
     fetchSelectedBrand()
   }, [user])
+
+  // Listen for brand changes
+  React.useEffect(() => {
+    const handleBrandChange = (event: CustomEvent) => {
+      const { brandId } = event.detail
+      setSelectedBrandId(brandId)
+      // Trigger loading states
+      setStatsLoading(true)
+      setChartLoading(true)
+    }
+    
+    window.addEventListener('brandChanged', handleBrandChange as any)
+    return () => {
+      window.removeEventListener('brandChanged', handleBrandChange as any)
+    }
+  }, [])
 
   // Check catalog integration status
   const checkCatalogStatus = async () => {
@@ -305,9 +321,15 @@ export default function DashboardPage() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                <SectionCards selectedBrandId={selectedBrandId} />
+                <SectionCards 
+                  selectedBrandId={selectedBrandId} 
+                  onLoadComplete={() => setStatsLoading(false)}
+                />
                 <div className="px-4 lg:px-6">
-                  <ChartAreaInteractive selectedBrandId={selectedBrandId} />
+                  <ChartAreaInteractive 
+                    selectedBrandId={selectedBrandId} 
+                    onLoadComplete={() => setChartLoading(false)}
+                  />
                 </div>
                 <div className="px-4 lg:px-6 space-y-4">
                   <div className="flex items-center justify-between">
