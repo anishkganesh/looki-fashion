@@ -13,9 +13,9 @@ export function SiteHeader() {
   const [availableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
     { id: "2", name: "Cris Barros" },
-    { id: "3", name: "Walmart" },
     { id: "4", name: "Track & Field" },
-    { id: "5", name: "Marisa Lojas" }
+    { id: "5", name: "Walmart" },
+    { id: "13", name: "Marisa Lojas" }
   ])
   
   // Load saved brand on mount
