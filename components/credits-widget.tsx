@@ -102,29 +102,25 @@ export function CreditsWidget() {
   const variant = isLow ? "destructive" : "secondary"
 
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="w-full">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-lg p-3 shadow-lg">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Coins className={`h-4 w-4 ${isLow ? 'text-destructive' : 'text-primary'}`} />
-                  <span className="font-semibold text-sm">
-                    {credits.toLocaleString()} / {maxCredits.toLocaleString()}
-                  </span>
-                  {isLow && <AlertCircle className="h-4 w-4 text-destructive" />}
-                </div>
-                <Progress 
-                  value={percentage} 
-                  className="w-24 h-2"
-                />
+            <div className="p-3 border-t">
+              <div className="flex items-center gap-2 mb-2">
+                <Coins className={`h-4 w-4 ${isLow ? 'text-destructive' : 'text-primary'}`} />
+                <span className="text-sm font-medium">
+                  {credits.toLocaleString()} / {maxCredits.toLocaleString()}
+                </span>
+                {isLow && <AlertCircle className="h-3 w-3 text-destructive" />}
               </div>
-              <div className="mt-2">
-                <Badge variant={variant} className="text-xs">
-                  {isLow ? 'Low Credits' : 'Credits Available'}
-                </Badge>
-              </div>
+              <Progress 
+                value={percentage} 
+                className="h-1.5 mb-1"
+              />
+              <Badge variant={variant} className="text-xs w-full justify-center">
+                {isLow ? 'Low Credits' : 'Credits Available'}
+              </Badge>
             </div>
           </TooltipTrigger>
           <TooltipContent side="left" className="max-w-xs">

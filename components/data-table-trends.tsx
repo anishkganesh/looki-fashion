@@ -92,6 +92,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { InventoryActionsTable } from "@/components/inventory-actions-table"
 import { getTrendDisplayName } from "@/lib/format-utils"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
+import { HydrationWrapper } from "@/components/hydration-wrapper"
 
 interface Trend {
   trend_id: number
@@ -738,8 +739,8 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
           <Separator />
           
           <div className="text-sm text-muted-foreground">
-            <p>Created: {new Date(trend.created_at).toLocaleString()}</p>
-            <p>Last Updated: {new Date(trend.last_updated).toLocaleString()}</p>
+            <p>Created: {new Date(trend.created_at).toLocaleDateString()}</p>
+            <p>Last Updated: {new Date(trend.last_updated).toLocaleDateString()}</p>
           </div>
         </div>
       </SheetContent>
@@ -1096,8 +1097,8 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
           <Separator />
           
           <div className="text-sm text-muted-foreground">
-            <p>Added: {product.created_at ? new Date(product.created_at).toLocaleString() : 'N/A'}</p>
-            <p>Last Updated: {new Date(product.updated_at).toLocaleString()}</p>
+            <p>Added: {product.created_at ? new Date(product.created_at).toLocaleDateString() : 'N/A'}</p>
+            <p>Last Updated: {product.updated_at ? new Date(product.updated_at).toLocaleDateString() : 'N/A'}</p>
           </div>
         </div>
       </SheetContent>
@@ -1655,6 +1656,7 @@ export function DataTableTrends({ onTabChange, session }: {
   }
 
   return (
+    <HydrationWrapper>
     <>
       <div className="space-y-4">
         {/* Progress message for recommendations */}
@@ -2037,6 +2039,7 @@ export function DataTableTrends({ onTabChange, session }: {
         />
       </div>
     </>
+    </HydrationWrapper>
   )
 }
 

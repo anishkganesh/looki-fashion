@@ -6,7 +6,6 @@ import { ChatProvider } from "@/lib/chat-context"
 import { GlobalChatProvider } from "@/lib/global-chat-context"
 import { CatalogImportProvider } from "@/lib/catalog-import-context"
 import { CatalogImportProgress } from "@/components/catalog-import-progress"
-import { CreditsWidget } from "@/components/credits-widget"
 import { Toaster } from "@/components/ui/toaster"
 import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
@@ -74,7 +73,6 @@ export default function RootLayout({
                   {children}
                 </ChatProvider>
                 <CatalogImportProgress />
-                <CreditsWidget />
               </CatalogImportProvider>
             </GlobalChatProvider>
           </AuthProvider>

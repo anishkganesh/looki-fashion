@@ -25,6 +25,7 @@ import { NavDocuments } from "./nav-documents"
 import { NavMain } from "./nav-main"
 import { NavSecondary } from "./nav-secondary"
 import { NavUser } from "./nav-user"
+import { CreditsWidget } from "./credits-widget"
 import {
   Sidebar,
   SidebarContent,
@@ -175,6 +176,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <CreditsWidget />
         <NavUser />
       </SidebarFooter>
     </Sidebar>

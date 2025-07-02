@@ -80,7 +80,7 @@ export function SiteHeader() {
           <Building2 className="h-4 w-4 text-muted-foreground" />
           <Select value={selectedBrandId} onValueChange={handleBrandChange}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Brand" />
+              <SelectValue placeholder="Select Brand" className="font-semibold" />
             </SelectTrigger>
             <SelectContent>
               {availableBrands.map((brand) => (
