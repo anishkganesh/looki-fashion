@@ -58,24 +58,45 @@ interface GlobalChatContextType {
   // User info
   currentUser: any;
   setCurrentUser: (user: any) => void;
+  
+  // Brand context
+  activeBrandContext: any;
+  setActiveBrandContext: (brand: any) => void;
 }
 
 const GlobalChatContext = createContext<GlobalChatContextType | undefined>(undefined)
 
 export function GlobalChatProvider({ children }: { children: React.ReactNode }) {
   // Initialize with system message
-  const initialMessages: Message[] = [
-    {
-      id: "1",
-      role: "system",
-      content: "You are a fashion analyst AI assistant with real-time web search capabilities. You can search the web for current fashion trends, analyze fashion-related files and images, generate fashion imagery, and provide up-to-date fashion industry insights. When web search is enabled, you have access to current information beyond your training data. You should never say you don't have access to current information or that your knowledge is limited to a certain date when web search is available. Instead, use the web search feature to find the most recent information."
-    },
-    {
-      id: "2",
-      role: "assistant",
-      content: "Hello! I'm your fashion industry assistant with real-time web search capabilities. I can help you with trend analysis, generate fashion images, analyze fashion-related files, and search the web for the latest fashion insights and trends from 2025 and beyond. How can I assist you today?"
+  const getInitialMessages = (brandContext: any = null): Message[] => {
+    let systemContent = "You are a fashion analyst AI assistant with real-time web search capabilities. You can search the web for current fashion trends, analyze fashion-related files and images, generate fashion imagery, and provide up-to-date fashion industry insights. When web search is enabled, you have access to current information beyond your training data. You should never say you don't have access to current information or that your knowledge is limited to a certain date when web search is available. Instead, use the web search feature to find the most recent information.";
+    
+    if (brandContext) {
+      systemContent += `\n\nCurrent Brand Context: You are analyzing for ${brandContext.brand_name}. ${brandContext.description || ''} 
+Target Demographics: ${brandContext.target_gender || 'all genders'}, ages ${brandContext.target_age_min || 18}-${brandContext.target_age_max || 65}, ${brandContext.target_income_level || 'all'} income level.
+Category: ${brandContext.category || 'fashion'}
+Target Locations: ${brandContext.target_locations?.join(', ') || 'global'}
+Target Lifestyle: ${brandContext.target_lifestyle?.join(', ') || 'general'}
+Target Interests: ${brandContext.target_interests?.join(', ') || 'fashion'}
+
+When providing recommendations, analysis, or insights, tailor them specifically to this brand's target market and positioning.`;
     }
-  ];
+    
+    return [
+      {
+        id: "1",
+        role: "system",
+        content: systemContent
+      },
+      {
+        id: "2",
+        role: "assistant",
+        content: "Hello! I'm your fashion industry assistant with real-time web search capabilities. I can help you with trend analysis, generate fashion images, analyze fashion-related files, and search the web for the latest fashion insights and trends from 2025 and beyond. How can I assist you today?"
+      }
+    ];
+  };
+  
+  const initialMessages = getInitialMessages();
 
   // Current chat state
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -95,6 +116,33 @@ export function GlobalChatProvider({ children }: { children: React.ReactNode }) 
   
   // User info
   const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  // Brand context
+  const [activeBrandContext, setActiveBrandContext] = useState<any>(null);
+  
+  // Listen for brand context changes
+  useEffect(() => {
+    const handleBrandContextChange = (event: CustomEvent) => {
+      setActiveBrandContext(event.detail.brand);
+      
+      // Update system message with new brand context
+      const newMessages = getInitialMessages(event.detail.brand);
+      setMessages(prev => {
+        // Keep existing messages but update the system message
+        const updatedMessages = [...prev];
+        if (updatedMessages[0]?.role === 'system') {
+          updatedMessages[0] = newMessages[0];
+        }
+        return updatedMessages;
+      });
+    };
+    
+    window.addEventListener('brandContextChanged', handleBrandContextChange as any);
+    
+    return () => {
+      window.removeEventListener('brandContextChanged', handleBrandContextChange as any);
+    };
+  }, []);
   
   // Get current user on mount
   useEffect(() => {
@@ -284,7 +332,9 @@ export function GlobalChatProvider({ children }: { children: React.ReactNode }) 
         saveCurrentChat,
         loadChatHistory,
         currentUser,
-        setCurrentUser
+        setCurrentUser,
+        activeBrandContext,
+        setActiveBrandContext
       }}
     >
       {children}

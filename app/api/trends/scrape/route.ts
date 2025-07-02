@@ -156,32 +156,47 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   
   let selectedSources: string[] = []
   
-  // Add brand-specific sources
-  if (brandName.includes('marisa') || brandCountry === 'BR') {
+  // PRIORITIZE REGION-SPECIFIC SOURCES FIRST
+  if (brandCountry === 'BR' || brandName.includes('marisa')) {
+    // For Brazilian brands, ONLY use Brazilian sources + social media
     selectedSources.push(...fashionSources.brazilian)
-    selectedSources.push(...fashionSources.fast_fashion)
+    selectedSources.push('tiktok.com.br', 'instagram.com.br') // Brazilian versions
+    selectedSources.push(...fashionSources.fast_fashion.filter(s => ['zara.com', 'hm.com', 'forever21.com'].includes(s))) // Only international brands active in Brazil
+    selectedSources.push('mercadolivre.com.br', 'olx.com.br') // Brazilian marketplaces
+  } else if (brandCountry === 'US') {
+    // US sources
+    selectedSources.push(...fashionSources.publications.slice(0, 5))
+    selectedSources.push(...fashionSources.retail.slice(0, 5))
+    selectedSources.push(...fashionSources.social)
+  } else if (['FR', 'IT', 'ES', 'DE', 'UK'].includes(brandCountry)) {
+    // European sources
+    selectedSources.push(...fashionSources.european)
+    selectedSources.push(...fashionSources.luxury.slice(0, 5))
+  } else if (['JP', 'KR', 'CN'].includes(brandCountry)) {
+    // Asian sources
+    selectedSources.push(...fashionSources.asian)
   }
   
-  if (brandName.includes('nike') || brandCategory.includes('athletic')) {
-    selectedSources.push(...fashionSources.athletic)
-    selectedSources.push(...fashionSources.streetwear)
+  // Add category-specific sources only from same region
+  if (brandCategory.includes('athletic')) {
+    selectedSources.push(...fashionSources.athletic.slice(0, 3))
+    selectedSources.push(...fashionSources.streetwear.slice(0, 2))
   }
   
   if (brandCategory.includes('luxury') || brandInfo?.target_income_level === 'high') {
-    selectedSources.push(...fashionSources.luxury)
-    selectedSources.push(...fashionSources.publications.slice(0, 3))
+    selectedSources.push(...fashionSources.luxury.slice(0, 3))
   }
   
-  if (brandCategory.includes('sustainable') || brandInfo?.target_interests?.includes('sustainability')) {
-    selectedSources.push(...fashionSources.sustainability)
+  if (brandCategory.includes('sustainable')) {
+    selectedSources.push(...fashionSources.sustainability.slice(0, 2))
   }
   
-  // Always add social media for real-time trends
-  selectedSources.push(...fashionSources.social)
-  
-  // Add general fashion sources
-  selectedSources.push(...fashionSources.publications.slice(0, 4))
-  selectedSources.push(...fashionSources.retail.slice(0, 3))
+  // Add social media but prioritize regional versions
+  if (brandCountry === 'BR') {
+    selectedSources.push('tiktok.com.br', 'instagram.com.br', 'pinterest.com.br', 'twitter.com.br')
+  } else {
+    selectedSources.push(...fashionSources.social.slice(0, 5))
+  }
   
   // Remove duplicates and return
   return [...new Set(selectedSources)]
@@ -264,52 +279,80 @@ function generateBrandSpecificQueries(brandInfo: any) {
   // Location-specific context
   const locationContext = targetLocations.length > 0 ? targetLocations[0] : brandCountry
   
-  // Core trend discovery queries - focus on micro-trends and hashtags
-  // Randomize query selection for diversity
-  const allCoreTrendQueries = [
-    // TikTok hashtag trends - varied
-    `site:tiktok.com #fashion ${timeContexts[0]} trending viral`,
-    `site:tiktok.com #ootd #styleinspo ${timeContexts[1]} fyp`,
-    `site:tiktok.com #fashiontrends ${month} ${year} viral`,
-    `site:tiktok.com fashion challenge ${timeContexts[2]} trend`,
-    `site:tiktok.com style hack ${timeContexts[3]} viral`,
-    `site:tiktok.com fashion finds ${timeContexts[4]}`,
-    
-    // Instagram hashtag trends - varied
-    `site:instagram.com #fashion #trending ${timeContexts[0]}`,
-    `site:instagram.com #streetstyle #fashionista ${timeContexts[1]}`,
-    `site:instagram.com fashion reels trending ${timeContexts[2]}`,
-    `site:instagram.com outfit ideas ${month} ${year}`,
-    `site:instagram.com fashion inspo ${timeContexts[3]}`,
-    
-    // Reddit micro-communities - expanded
-    `site:reddit.com/r/fashion "trending" "viral" ${timeContexts[0]}`,
-    `site:reddit.com/r/streetwear "cop or drop" ${timeContexts[1]}`,
-    `site:reddit.com/r/womensstreetwear trending ${timeContexts[2]}`,
-    `site:reddit.com/r/malefashion ${month} ${year}`,
-    `site:reddit.com fashion advice trending ${timeContexts[3]}`,
-    
-    // Pinterest trends
-    `site:pinterest.com fashion trends ${month} ${year}`,
-    `site:pinterest.com outfit aesthetic ${season} ${year}`,
-    `site:pinterest.com style board trending ${timeContexts[0]}`,
-    
-    // Twitter/X trends
-    `site:twitter.com fashion trending ${timeContexts[0]}`,
-    `site:x.com style viral ${timeContexts[1]}`,
-    
-    // Hashtag aggregation - more variety
-    `#fashion #viral #trending ${timeContexts[0]} tiktok instagram`,
-    `fashion hashtags trending ${month} ${year} micro trends`,
-    `microtrends fashion ${timeContexts[2]} social media`,
-    `fashion movement ${timeContexts[3]} gen z millennial`,
-    `style trend alert ${timeContexts[4]} influencer`,
-    
-    // Emerging platform trends
-    `fashion trends threads app ${timeContexts[0]}`,
-    `style trending youtube shorts ${timeContexts[1]}`,
-    `fashion viral BeReal ${month} ${year}`
-  ]
+  // Core trend discovery queries - REGION-SPECIFIC
+  let allCoreTrendQueries = []
+  
+  if (brandCountry === 'BR') {
+    // Brazilian-specific queries
+    allCoreTrendQueries = [
+      // Brazilian TikTok trends
+      `site:tiktok.com.br #moda ${timeContexts[0]} trending viral brasil`,
+      `site:tiktok.com.br #lookdodia #modabrasileira ${timeContexts[1]} fyp`,
+      `site:tiktok.com.br #tendencias ${month} ${year} viral`,
+      `site:tiktok.com.br moda desafio ${timeContexts[2]} trend`,
+      `site:tiktok.com.br truque estilo ${timeContexts[3]} viral`,
+      
+      // Brazilian Instagram
+      `site:instagram.com.br #moda #trending ${timeContexts[0]}`,
+      `site:instagram.com.br #streetstyle #fashionista brasil ${timeContexts[1]}`,
+      `site:instagram.com.br moda reels trending ${timeContexts[2]}`,
+      `site:instagram.com.br ideias look ${month} ${year}`,
+      
+      // Brazilian Pinterest
+      `site:pinterest.com.br moda tendencias ${month} ${year}`,
+      `site:pinterest.com.br estilo aesthetic ${season} ${year}`,
+      
+      // Brazilian hashtags
+      `#modabrasil #viral #trending ${timeContexts[0]} tiktok instagram`,
+      `moda hashtags brasil ${month} ${year} micro tendencias`,
+      `#fashionbr #ootdbrasil ${timeContexts[2]} social media`,
+      `#lookbrasileiro #estilo ${timeContexts[3]} influencer`
+    ]
+  } else if (['FR', 'IT', 'ES', 'DE', 'UK'].includes(brandCountry)) {
+    // European queries
+    allCoreTrendQueries = [
+      // European TikTok
+      `site:tiktok.com #fashion ${timeContexts[0]} trending viral europe`,
+      `site:tiktok.com #ootd #styleinspo ${timeContexts[1]} european style`,
+      `site:tiktok.com fashion trends ${month} ${year} paris milan`,
+      
+      // European Instagram
+      `site:instagram.com #fashioneurope #trending ${timeContexts[0]}`,
+      `site:instagram.com european street style ${timeContexts[1]}`,
+      `site:instagram.com fashion week ${locationContext} ${timeContexts[2]}`,
+      
+      // European specific
+      `european fashion trends ${month} ${year}`,
+      `${locationContext} street style ${timeContexts[0]}`,
+      `fashion week ${locationContext} ${season} ${year}`
+    ]
+  } else {
+    // Default (US/Global) queries
+    allCoreTrendQueries = [
+      // TikTok hashtag trends
+      `site:tiktok.com #fashion ${timeContexts[0]} trending viral`,
+      `site:tiktok.com #ootd #styleinspo ${timeContexts[1]} fyp`,
+      `site:tiktok.com #fashiontrends ${month} ${year} viral`,
+      `site:tiktok.com fashion challenge ${timeContexts[2]} trend`,
+      
+      // Instagram hashtag trends
+      `site:instagram.com #fashion #trending ${timeContexts[0]}`,
+      `site:instagram.com #streetstyle #fashionista ${timeContexts[1]}`,
+      `site:instagram.com fashion reels trending ${timeContexts[2]}`,
+      
+      // Reddit micro-communities
+      `site:reddit.com/r/fashion "trending" "viral" ${timeContexts[0]}`,
+      `site:reddit.com/r/streetwear "cop or drop" ${timeContexts[1]}`,
+      
+      // Pinterest trends
+      `site:pinterest.com fashion trends ${month} ${year}`,
+      `site:pinterest.com outfit aesthetic ${season} ${year}`,
+      
+      // Hashtag aggregation
+      `#fashion #viral #trending ${timeContexts[0]} tiktok instagram`,
+      `fashion hashtags trending ${month} ${year} micro trends`
+    ]
+  }
   
   // Focus on high-yield sources first
   const highYieldQueries = allCoreTrendQueries.filter(q => 

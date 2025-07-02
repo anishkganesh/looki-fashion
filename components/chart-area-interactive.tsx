@@ -161,7 +161,15 @@ export function ChartAreaInteractive() {
 
   const generateChartData = (totalRevenue: number, avgAlignment: number, range: string) => {
     const now = new Date()
-    const days = range === '7d' ? 7 : range === '30d' ? 30 : 90
+    let days = 90 // default
+    
+    if (range === '7d') days = 7
+    else if (range === '30d') days = 30
+    else if (range === '90d') days = 90
+    else if (range === '365d') days = 365
+    else if (range === '730d') days = 730
+    else if (range === 'all') days = 1095 // 3 years for "all time"
+    
     const data = []
 
     // Generate distinct patterns for each metric
@@ -202,7 +210,15 @@ export function ChartAreaInteractive() {
 
   const generateSampleData = (range: string) => {
     const now = new Date()
-    const days = range === '7d' ? 7 : range === '30d' ? 30 : 90
+    let days = 90 // default
+    
+    if (range === '7d') days = 7
+    else if (range === '30d') days = 30
+    else if (range === '90d') days = 90
+    else if (range === '365d') days = 365
+    else if (range === '730d') days = 730
+    else if (range === 'all') days = 1095 // 3 years for "all time"
+    
     const data = []
     
     for (let i = days - 1; i >= 0; i--) {
@@ -288,13 +304,13 @@ export function ChartAreaInteractive() {
             value={showingRevenue ? "Σ(price × inventory)" : "Average %"}
             steps={showingRevenue ? [
               { label: "Formula", value: "Σ(price × inventory)", formula: "for all recommended products" },
-              { label: "Time Period", value: timeRange === '7d' ? "7 days" : timeRange === '30d' ? "30 days" : "90 days" },
+              { label: "Time Period", value: timeRange === '7d' ? "7 days" : timeRange === '30d' ? "30 days" : timeRange === '90d' ? "90 days" : timeRange === '365d' ? "1 year" : timeRange === '730d' ? "2 years" : "All time" },
               { label: "Data Points", value: filteredData.length.toString() },
               { label: "Trend Line", value: "Linear regression", formula: "best fit line through points" }
             ] : [
               { label: "Formula", value: "Σ(scores) ÷ count", formula: "average of all alignment scores" },
               { label: "Score Range", value: "0-100%" },
-              { label: "Time Period", value: timeRange === '7d' ? "7 days" : timeRange === '30d' ? "30 days" : "90 days" },
+              { label: "Time Period", value: timeRange === '7d' ? "7 days" : timeRange === '30d' ? "30 days" : timeRange === '90d' ? "90 days" : timeRange === '365d' ? "1 year" : timeRange === '730d' ? "2 years" : "All time" },
               { label: "Baseline", value: "70%", formula: "industry standard" }
             ]}
             description={showingRevenue ? 
@@ -347,6 +363,15 @@ export function ChartAreaInteractive() {
               variant="outline"
               className="@[767px]/card:flex hidden"
             >
+              <ToggleGroupItem value="all" className="h-8 px-2.5">
+                All time
+              </ToggleGroupItem>
+              <ToggleGroupItem value="730d" className="h-8 px-2.5">
+                2 years
+              </ToggleGroupItem>
+              <ToggleGroupItem value="365d" className="h-8 px-2.5">
+                1 year
+              </ToggleGroupItem>
               <ToggleGroupItem value="90d" className="h-8 px-2.5">
                 3 months
               </ToggleGroupItem>
@@ -398,6 +423,15 @@ export function ChartAreaInteractive() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg">
+                  All time
+                </SelectItem>
+                <SelectItem value="730d" className="rounded-lg">
+                  2 years
+                </SelectItem>
+                <SelectItem value="365d" className="rounded-lg">
+                  1 year
+                </SelectItem>
                 <SelectItem value="90d" className="rounded-lg">
                   3 months
                 </SelectItem>

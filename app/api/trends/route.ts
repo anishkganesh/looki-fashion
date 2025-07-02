@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseService } from '@/lib/supabase-service'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Always fetch all trends, no filtering
     const { data: trends, error } = await supabaseService
       .from('trends')
       .select('*')

@@ -24,29 +24,50 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's brand
+    // Get brand_id from query params
+    const searchParams = request.nextUrl.searchParams
+    const brandIdParam = searchParams.get('brand_id')
+    
+    let brandId: number
+    let userBrandId: number | null = null
+    
+    // Always get user's brand for context
     const { data: userData, error: userError } = await supabase
       .from('usr')
       .select('brand_id')
       .eq('email', user.email)
       .single()
-
-    if (userError || !userData?.brand_id) {
-      return NextResponse.json({ error: 'User brand not found' }, { status: 404 })
+    
+    if (userData?.brand_id) {
+      userBrandId = userData.brand_id
+    }
+    
+    if (brandIdParam && brandIdParam !== 'all') {
+      // Use the brand from query params
+      brandId = parseInt(brandIdParam)
+    } else {
+      // Default to showing all brands
+      brandId = 0 // Will fetch all brands
     }
 
     // First, try to fetch just the products without joins to isolate the issue
-    console.log('Fetching products for brand_id:', userData.brand_id)
+    console.log('Fetching products for brand_id:', brandId === 0 ? 'all' : brandId)
     
     let products = []
     let count = 0
     
     try {
       // Fetch all products without joins since the related tables don't exist
-      const { data: fetchedProducts, error: productsError, count: productCount } = await supabase
+      let query = supabase
         .from('products')
         .select('*', { count: 'exact' })
-        .eq('brand_id', userData.brand_id)
+      
+      // Apply brand filter only if not fetching all brands
+      if (brandId !== 0) {
+        query = query.eq('brand_id', brandId)
+      }
+      
+      const { data: fetchedProducts, error: productsError, count: productCount } = await query
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(3000) // Increase limit to get all products
@@ -56,7 +77,7 @@ export async function GET(request: NextRequest) {
         throw productsError
       }
       
-      console.log(`Found ${productCount} products for brand ${userData.brand_id}`)
+      console.log(`Found ${productCount} products for brand ${brandId === 0 ? 'all' : brandId}`)
       
       products = fetchedProducts || []
       count = productCount || 0
@@ -72,7 +93,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       products: products || [],
-      count: count || 0
+      count: count || 0,
+      userBrandId: userBrandId
     })
   } catch (error) {
     console.error('Error in catalog products API:', error)

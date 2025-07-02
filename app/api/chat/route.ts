@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Request type:", body.tool ? body.tool : "chat", "Request body:", JSON.stringify(body).substring(0, 200) + "...");
     
-    const { messages, tool, webSearch, fileContents, fileType, fileName, userEmail } = body;
+    const { messages, tool, webSearch, fileContents, fileType, fileName, userEmail, brandContext: providedBrandContext } = body;
     
     // Handle image generation request
     if (tool === 'image') {
@@ -63,11 +63,15 @@ export async function POST(req: Request) {
       }
     }
     
-    // Fetch user's brand info if email provided
+    // Use provided brand context if available, otherwise fetch user's default brand
     let brandContext = '';
-    if (userEmail) {
+    if (providedBrandContext) {
+      // Use the brand context from the filter
+      const brand = providedBrandContext;
+      brandContext = `\n\nContext about the current brand:\n- Brand Name: ${brand.brand_name}\n- Category: ${brand.category}\n- Description: ${brand.description || 'Not provided'}\n- Target Audience: ${brand.target_gender || 'all'} aged ${brand.target_age_min || 18}-${brand.target_age_max || 65}\n- Income Level: ${brand.target_income_level || 'medium'}\n- Locations: ${brand.target_locations?.join(', ') || 'Global'}\n- Founded: ${brand.founded_year || 'Unknown'}\n- Website: ${brand.website || 'Not provided'}\n- Country: ${brand.country || 'Unknown'}`;
+    } else if (userEmail) {
       try {
-        // First get the user to find their brand_id
+        // Fallback to user's default brand if no context provided
         const { data: userData } = await supabaseService
           .from('usr')
           .select('brand_id')
@@ -83,7 +87,7 @@ export async function POST(req: Request) {
             .single();
           
           if (brandData) {
-            brandContext = `\n\nContext about the user's brand:\n- Brand Name: ${brandData.brand_name}\n- Category: ${brandData.category}\n- Description: ${brandData.description || 'Not provided'}\n- Target Audience: ${brandData.target_gender || 'all'} aged ${brandData.target_age_min || 18}-${brandData.target_age_max || 65}\n- Income Level: ${brandData.target_income_level || 'medium'}\n- Locations: ${brandData.target_locations?.join(', ') || 'Global'}\n- Founded: ${brandData.founded_year || 'Unknown'}\n- Website: ${brandData.website || 'Not provided'}`;
+            brandContext = `\n\nContext about the user's brand:\n- Brand Name: ${brandData.brand_name}\n- Category: ${brandData.category}\n- Description: ${brandData.description || 'Not provided'}\n- Target Audience: ${brandData.target_gender || 'all'} aged ${brandData.target_age_min || 18}-${brandData.target_age_max || 65}\n- Income Level: ${brandData.target_income_level || 'medium'}\n- Locations: ${brandData.target_locations?.join(', ') || 'Global'}\n- Founded: ${brandData.founded_year || 'Unknown'}\n- Website: ${brandData.website || 'Not provided'}\n- Country: ${brandData.country || 'Unknown'}`;
           }
         }
       } catch (error) {

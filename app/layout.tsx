@@ -19,8 +19,10 @@ export const metadata: Metadata = {
   title: "Looki - Fashion Trend Intelligence Platform",
   description: "Transform your fashion business with AI-powered trend intelligence. Track emerging trends, optimize inventory, and boost sales with data-driven insights.",
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
+    icon: [
+      { url: '/favicon.avif', type: 'image/avif' },
+    ],
+    shortcut: '/favicon.avif',
     apple: '/apple-touch-icon.png',
   },
   openGraph: {

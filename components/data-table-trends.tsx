@@ -43,6 +43,7 @@ import {
   RefreshCwIcon,
   PackageIcon,
   StarIcon,
+  Building2,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -1133,6 +1134,16 @@ export function DataTableTrends({ onTabChange, session }: {
   const [generating, setGenerating] = React.useState(false)
   const [generationProgress, setGenerationProgress] = React.useState("")
   const inventoryTableRef = React.useRef<any>(null)
+  const [selectedBrandId, setSelectedBrandId] = React.useState<string>("all")
+  const [availableBrands, setAvailableBrands] = React.useState<{id: string, name: string}[]>([
+    { id: "1", name: "Arvind Fashions" },
+    { id: "2", name: "Cris Barros" },
+    { id: "3", name: "HOPE fashions" },
+    { id: "4", name: "Track & Field" },
+    { id: "5", name: "Walmart" },
+    { id: "13", name: "Marisa Lojas" }
+  ])
+  const [activeBrandContext, setActiveBrandContext] = React.useState<any>(null)
 
   const supabase = React.useMemo(
     () => createClient(
@@ -1141,6 +1152,43 @@ export function DataTableTrends({ onTabChange, session }: {
     ),
     []
   )
+
+  // Fetch brand details for context
+  const fetchBrandDetails = React.useCallback(async (brandId: string) => {
+    if (brandId === 'all') {
+      // Use user's default brand for context
+      if (userBrandId) {
+        const { data: brandData } = await supabase
+          .from('brands')
+          .select('*')
+          .eq('brand_id', userBrandId)
+          .single()
+        
+        if (brandData) {
+          setActiveBrandContext(brandData)
+          // Dispatch event to update chat context
+          window.dispatchEvent(new CustomEvent('brandContextChanged', { 
+            detail: { brand: brandData } 
+          }))
+        }
+      }
+    } else {
+      // Fetch specific brand
+      const { data: brandData } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('brand_id', parseInt(brandId))
+        .single()
+      
+      if (brandData) {
+        setActiveBrandContext(brandData)
+        // Dispatch event to update chat context
+        window.dispatchEvent(new CustomEvent('brandContextChanged', { 
+          detail: { brand: brandData } 
+        }))
+      }
+    }
+  }, [supabase, userBrandId])
 
   // Fetch user's brand ID and product count
   React.useEffect(() => {
@@ -1199,7 +1247,11 @@ export function DataTableTrends({ onTabChange, session }: {
         return
       }
       
-      const response = await fetch('/api/catalog/products', {
+      const url = selectedBrandId && selectedBrandId !== 'all' 
+        ? `/api/catalog/products?brand_id=${selectedBrandId}`
+        : '/api/catalog/products'
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1225,7 +1277,7 @@ export function DataTableTrends({ onTabChange, session }: {
       setCatalogLoading(false)
       fetchingCatalogRef.current = false
     }
-  }, [session, supabase])
+  }, [session, supabase, selectedBrandId])
 
   // Debug catalog count
   React.useEffect(() => {
@@ -1328,13 +1380,17 @@ export function DataTableTrends({ onTabChange, session }: {
     }
   }, [supabase, fetchTrends, fetchCatalogProducts, session])
 
-  // Fetch catalog products when session is available
+  // Fetch catalog products when session is available or brand filter changes
   React.useEffect(() => {
-    if (session && userBrandId && catalogProducts.length === 0 && !catalogLoading) {
+    if (session && userBrandId) {
       console.log('Session and brand available, fetching catalog...')
       fetchCatalogProducts()
+      // Fetch brand details for AI context
+      fetchBrandDetails(selectedBrandId)
+      // Refresh trends with brand filter
+      fetchTrends()
     }
-  }, [session, userBrandId])
+  }, [session, userBrandId, selectedBrandId, fetchBrandDetails, fetchTrends])
 
   const handleUpdateTrend = React.useCallback((updatedTrend: Trend) => {
     // Update locally without refetching
@@ -1427,11 +1483,13 @@ export function DataTableTrends({ onTabChange, session }: {
   const fetchInventoryCount = React.useCallback(async () => {
     if (!userBrandId) return
     
+    const brandIdToUse = selectedBrandId === 'all' ? userBrandId : parseInt(selectedBrandId)
+    
     try {
       const { count, error } = await supabase
         .from('recommendations')
         .select('*', { count: 'exact', head: true })
-        .eq('brand_id', userBrandId)
+        .eq('brand_id', brandIdToUse)
         .eq('is_active', true)
       
       if (!error && count !== null) {
@@ -1440,7 +1498,7 @@ export function DataTableTrends({ onTabChange, session }: {
     } catch (error) {
       console.error('Error fetching inventory count:', error)
     }
-  }, [userBrandId, supabase])
+  }, [userBrandId, selectedBrandId, supabase])
 
   React.useEffect(() => {
     if (userBrandId) {
@@ -1468,7 +1526,7 @@ export function DataTableTrends({ onTabChange, session }: {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ brand_id: userBrandId })
+        body: JSON.stringify({ brand_id: selectedBrandId === 'all' ? userBrandId : selectedBrandId })
       })
 
       console.log('Response status:', response.status)
@@ -1516,7 +1574,7 @@ export function DataTableTrends({ onTabChange, session }: {
       setGenerating(false)
       setGenerationProgress("")
     }
-  }, [userBrandId])
+  }, [userBrandId, selectedBrandId])
 
   // Get current catalog sort label
   const getCurrentCatalogSortLabel = () => {
@@ -1563,6 +1621,25 @@ export function DataTableTrends({ onTabChange, session }: {
         {generating && generationProgress && (
           <div className="text-sm text-muted-foreground animate-pulse">
             {generationProgress}
+          </div>
+        )}
+        
+        {/* Active Brand Context Indicator */}
+        {activeBrandContext && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg border">
+            <Badge variant="secondary" className="gap-1">
+              <Building2 className="h-3 w-3" />
+              AI Context
+            </Badge>
+            <span className="text-sm">
+              <span className="text-muted-foreground">Using brand context:</span>{' '}
+              <span className="font-medium">{activeBrandContext.brand_name}</span>
+            </span>
+            <div className="ml-auto text-xs text-muted-foreground">
+              {activeBrandContext.target_gender && `${activeBrandContext.target_gender} • `}
+              {activeBrandContext.target_age_min && activeBrandContext.target_age_max && 
+                `Ages ${activeBrandContext.target_age_min}-${activeBrandContext.target_age_max}`}
+            </div>
           </div>
         )}
         
@@ -1649,42 +1726,57 @@ export function DataTableTrends({ onTabChange, session }: {
             </DropdownMenu>
               )}
               {activeTab === 'catalog' && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <ColumnsIcon className="mr-2 h-4 w-4" />
-                      <span className="hidden lg:inline">{getCurrentCatalogSortLabel()}</span>
-                      <span className="lg:hidden">Sort</span>
-                      <ChevronDownIcon className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'product_name', desc: false }])}>
-                      Product Name
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'variant_sku', desc: false }])}>
-                      SKU
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: false }])}>
-                      Price (Low to High)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: true }])}>
-                      Price (High to Low)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'revenue_last_30d', desc: true }])}>
-                      Revenue (High to Low)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'inventory_velocity', desc: true }])}>
-                      Velocity (High to Low)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'category_hierarchy', desc: false }])}>
-                      Category
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'created_at', desc: true }])}>
-                      Date Added (Newest First)
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <>
+                  <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="All Brands" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Brands</SelectItem>
+                      {availableBrands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <ColumnsIcon className="mr-2 h-4 w-4" />
+                        <span className="hidden lg:inline">{getCurrentCatalogSortLabel()}</span>
+                        <span className="lg:hidden">Sort</span>
+                        <ChevronDownIcon className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'product_name', desc: false }])}>
+                        Product Name
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'variant_sku', desc: false }])}>
+                        SKU
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: false }])}>
+                        Price (Low to High)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: true }])}>
+                        Price (High to Low)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'revenue_last_30d', desc: true }])}>
+                        Revenue (High to Low)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'inventory_velocity', desc: true }])}>
+                        Velocity (High to Low)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'category_hierarchy', desc: false }])}>
+                        Category
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'created_at', desc: true }])}>
+                        Date Added (Newest First)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
               {activeTab === 'inventory' && (
                 <>
@@ -1895,7 +1987,7 @@ export function DataTableTrends({ onTabChange, session }: {
               {session?.user && userBrandId ? (
                 <InventoryActionsTable 
                   ref={inventoryTableRef}
-                  brandId={userBrandId} 
+                  brandId={selectedBrandId === 'all' ? userBrandId : parseInt(selectedBrandId)} 
                   session={session}
                   onRecommendationsGenerated={fetchInventoryCount}
                 />

@@ -307,7 +307,7 @@ export default function DashboardPage() {
                         {recommendationCount > 0 && (
                           <Badge variant="outline" className="gap-1">
                             <Lightbulb className="h-3 w-3" />
-                            {recommendationCount} recommendations
+                            {recommendationCount} actions
                           </Badge>
                         )}
                         {autoRunEnabled && countdown && activeTab === 'trends' && (

@@ -91,7 +91,8 @@ export function ChatSidebar({
     setUploadedFiles,
     createNewChat,
     loadChat,
-    currentUser
+    currentUser,
+    activeBrandContext
   } = useGlobalChat()
   
   // Get username from current user
@@ -187,7 +188,8 @@ export function ChatSidebar({
           body: JSON.stringify({
             messages: [...messages, userMessage],
             tool: 'image',
-            userEmail: currentUser?.email
+            userEmail: currentUser?.email,
+            brandContext: activeBrandContext
           }),
         });
       }
@@ -225,7 +227,8 @@ export function ChatSidebar({
           body: JSON.stringify({
             messages: [...messages, userMessage],
             webSearch: { results: searchData.results },
-            userEmail: currentUser?.email
+            userEmail: currentUser?.email,
+            brandContext: activeBrandContext
           }),
         });
       }
@@ -252,7 +255,8 @@ export function ChatSidebar({
           body: JSON.stringify({
             messages: [...messages, userMessage],
             fileContents: fileContents.filter(Boolean) as any[],
-            userEmail: currentUser?.email
+            userEmail: currentUser?.email,
+            brandContext: activeBrandContext
           }),
         });
       } 
@@ -266,7 +270,8 @@ export function ChatSidebar({
           },
           body: JSON.stringify({
             messages: [...messages, userMessage],
-            userEmail: currentUser?.email
+            userEmail: currentUser?.email,
+            brandContext: activeBrandContext
           }),
         });
       }
@@ -461,6 +466,8 @@ export function ChatSidebar({
         },
         body: JSON.stringify({
           messages: conversationMessages,
+          userEmail: currentUser?.email,
+          brandContext: activeBrandContext
         }),
       })
       
@@ -522,6 +529,8 @@ export function ChatSidebar({
         },
         body: JSON.stringify({
           messages: conversationMessages,
+          userEmail: currentUser?.email,
+          brandContext: activeBrandContext
         }),
       })
       
