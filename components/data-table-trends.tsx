@@ -87,19 +87,20 @@ import {
 } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import axios from "axios"
 import { Checkbox } from "@/components/ui/checkbox"
 import { InventoryActionsTable } from "@/components/inventory-actions-table"
 import { getTrendDisplayName } from "@/lib/format-utils"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 import { HydrationWrapper } from "@/components/hydration-wrapper"
 import { formatDate, formatRelativeDate } from "@/lib/date-utils"
+import { supabase } from "@/lib/supabase"
 
 interface Trend {
   trend_id: number
   trend_identifier: string
   trend_category: string
   trend_description?: string
+  trend_region?: string
   momentum_score: number
   velocity: number
   lifecycle_stage: string
@@ -150,6 +151,17 @@ const columns: ColumnDef<Trend>[] = [
         >
           <div className="flex items-center gap-2">
             <span className="font-medium">{displayName}</span>
+            {row.original.trend_region && (
+              <Badge variant="secondary" className="text-xs uppercase">
+                {row.original.trend_region === 'brazil' ? 'BR' :
+                 row.original.trend_region === 'india' ? 'IN' :
+                 row.original.trend_region === 'usa' ? 'US' :
+                 row.original.trend_region === 'europe' ? 'EU' :
+                 row.original.trend_region === 'asia' ? 'AS' :
+                 row.original.trend_region === 'global' ? 'GL' :
+                 row.original.trend_region}
+              </Badge>
+            )}
             {isWatchlisted && (
               <BookmarkIcon className="h-3 w-3 text-primary fill-primary" />
             )}
@@ -450,31 +462,28 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
       const trendName = getTrendDisplayName(trend)
       const prompt = `Hyperrealistic professional B2B fashion photography showcasing ${trendName} trend. ${trend.trend_description || ''} Style: ${trend.trend_category}, ${trend.lifecycle_stage} trend. Luxury commercial fashion photography, ultra high-end quality, photorealistic detail, professional studio lighting, fashion magazine quality, premium brand aesthetic, 8K resolution, award-winning editorial photography.`
       
-      const response = await axios.post(
-        'https://api.openai.com/v1/images/generations',
-        {
-          model: 'dall-e-3',
-          prompt: prompt.slice(0, 1000), // DALL-E 3 has a 1000 char limit
-          n: 1,
-          size: '1024x1024',
-          quality: 'standard',
-          style: 'natural'
+      const response = await fetch('/api/images/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+        body: JSON.stringify({ prompt })
+      })
       
-      if (response.data && response.data.data && response.data.data[0]) {
-        setGeneratedImage(response.data.data[0].url)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate image')
+      }
+      
+      const data = await response.json()
+      
+      if (data.url) {
+        setGeneratedImage(data.url)
         toast.success('Image generated successfully')
       }
     } catch (error: any) {
       console.error('Error generating image:', error)
-      toast.error('Failed to generate image: ' + (error.response?.data?.error?.message || error.message))
+      toast.error('Failed to generate image: ' + error.message)
     } finally {
       setGeneratingImage(false)
     }
@@ -773,31 +782,28 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
     try {
       const prompt = `Hyperrealistic professional B2B fashion photography of ${product.product_name}. ${product.product_description || ''} Category: ${product.category}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
       
-      const response = await axios.post(
-        'https://api.openai.com/v1/images/generations',
-        {
-          model: 'dall-e-3',
-          prompt: prompt.slice(0, 1000),
-          n: 1,
-          size: '1024x1024',
-          quality: 'standard',
-          style: 'natural'
+      const response = await fetch('/api/images/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+        body: JSON.stringify({ prompt })
+      })
       
-      if (response.data && response.data.data && response.data.data[0]) {
-        setGeneratedImage(response.data.data[0].url)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate image')
+      }
+      
+      const data = await response.json()
+      
+      if (data.url) {
+        setGeneratedImage(data.url)
         toast.success('Image generated successfully')
       }
     } catch (error: any) {
       console.error('Error generating image:', error)
-      toast.error('Failed to generate image: ' + (error.response?.data?.error?.message || error.message))
+      toast.error('Failed to generate image: ' + error.message)
     } finally {
       setGeneratingImage(false)
     }
@@ -1426,7 +1432,8 @@ export function DataTableTrends({ onTabChange, session }: {
       'momentum_score': 'Momentum Score',
       'velocity': 'Velocity',
       'social_reach': 'Social Reach',
-      'risk_score': 'Risk Score'
+      'risk_score': 'Risk Score',
+      'trend_region': 'Region'
     }
     return sortMap[sortField] || 'Sort by'
   }
@@ -1658,7 +1665,7 @@ export function DataTableTrends({ onTabChange, session }: {
 
   return (
     <HydrationWrapper>
-    <>
+    <div suppressHydrationWarning>
       <div className="space-y-4">
         {/* Progress message for recommendations */}
         {generating && generationProgress && (
@@ -1688,7 +1695,7 @@ export function DataTableTrends({ onTabChange, session }: {
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="flex items-center justify-between mb-4">
-            <TabsList className="grid w-fit grid-cols-3">
+            <TabsList className="flex">
               <TabsTrigger value="trends" className="flex items-center gap-2">
               Trend Signals
                 {data.length > 0 && (
@@ -1764,6 +1771,9 @@ export function DataTableTrends({ onTabChange, session }: {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSorting([{ id: 'risk_score', desc: false }])}>
                   Risk Score (Low to High)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSorting([{ id: 'trend_region', desc: false }])}>
+                  Region (A-Z)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -2039,7 +2049,7 @@ export function DataTableTrends({ onTabChange, session }: {
         onUpdateTrend={handleUpdateTrend}
         />
       </div>
-    </>
+    </div>
     </HydrationWrapper>
   )
 }

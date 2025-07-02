@@ -152,17 +152,43 @@ const fashionSources = {
 function getBrandSpecificSources(brandInfo: any): string[] {
   const brandName = brandInfo?.brand_name?.toLowerCase() || ''
   const brandCategory = brandInfo?.category?.toLowerCase() || ''
-  const brandCountry = brandInfo?.country || 'US'
+  const brandId = brandInfo?.brand_id
+  
+  // Determine brand country based on known brands
+  let brandCountry = brandInfo?.country || 'US'
+  
+  // Brazilian brands
+  if (brandName.includes('marisa') || brandId === 13 ||
+      brandName.includes('track & field') || brandId === 4 ||
+      brandName.includes('cris barros') || brandId === 2) {
+    brandCountry = 'BR'
+  }
+  
+  // Indian brands
+  if (brandName.includes('arvind') || brandId === 1) {
+    brandCountry = 'IN'
+  }
+  
+  // US brands
+  if (brandName.includes('walmart') || brandId === 5) {
+    brandCountry = 'US'
+  }
   
   let selectedSources: string[] = []
   
   // PRIORITIZE REGION-SPECIFIC SOURCES FIRST
-  if (brandCountry === 'BR' || brandName.includes('marisa')) {
-    // For Brazilian brands, ONLY use Brazilian sources + social media
+  if (brandCountry === 'BR') {
+    // For Brazilian brands, use Brazilian sources + social media
     selectedSources.push(...fashionSources.brazilian)
     selectedSources.push('tiktok.com.br', 'instagram.com.br') // Brazilian versions
     selectedSources.push(...fashionSources.fast_fashion.filter(s => ['zara.com', 'hm.com', 'forever21.com'].includes(s))) // Only international brands active in Brazil
     selectedSources.push('mercadolivre.com.br', 'olx.com.br') // Brazilian marketplaces
+  } else if (brandCountry === 'IN') {
+    // For Indian brands, use Indian sources
+    selectedSources.push('vogue.in', 'elle.in', 'grazia.co.in', 'harpersbazaar.in')
+    selectedSources.push('instagram.com', 'tiktok.com') // Global versions popular in India
+    selectedSources.push('myntra.com', 'ajio.com', 'nykaa.com') // Indian fashion platforms
+    selectedSources.push('reddit.com/r/IndianFashionAddicts', 'reddit.com/r/IndianWeddings')
   } else if (brandCountry === 'US') {
     // US sources
     selectedSources.push(...fashionSources.publications.slice(0, 5))
@@ -237,6 +263,7 @@ function generateBrandSpecificQueries(brandInfo: any) {
   // Extract brand context from actual user data
   const brandName = brandInfo?.brand_name || 'fashion'
   const brandCategory = brandInfo?.category || 'general'
+  const brandId = brandInfo?.brand_id
   const targetGender = brandInfo?.target_gender || 'all'
   const targetAgeMin = brandInfo?.target_age_min || 18
   const targetAgeMax = brandInfo?.target_age_max || 65
@@ -244,7 +271,26 @@ function generateBrandSpecificQueries(brandInfo: any) {
   const targetInterests = brandInfo?.target_interests || ['fashion']
   const targetIncomeLevel = brandInfo?.target_income_level || 'medium'
   const targetLocations = brandInfo?.target_locations || []
-  const brandCountry = brandInfo?.country || 'US'
+  
+  // Determine brand country based on known brands
+  let brandCountry = brandInfo?.country || 'US'
+  
+  // Brazilian brands
+  if (brandName.toLowerCase().includes('marisa') || brandId === 13 ||
+      brandName.toLowerCase().includes('track & field') || brandId === 4 ||
+      brandName.toLowerCase().includes('cris barros') || brandId === 2) {
+    brandCountry = 'BR'
+  }
+  
+  // Indian brands
+  if (brandName.toLowerCase().includes('arvind') || brandId === 1) {
+    brandCountry = 'IN'
+  }
+  
+  // US brands
+  if (brandName.toLowerCase().includes('walmart') || brandId === 5) {
+    brandCountry = 'US'
+  }
   
   // Gender-specific context
   const genderTerms: Record<string, string[]> = {
@@ -307,6 +353,32 @@ function generateBrandSpecificQueries(brandInfo: any) {
       `moda hashtags brasil ${month} ${year} micro tendencias`,
       `#fashionbr #ootdbrasil ${timeContexts[2]} social media`,
       `#lookbrasileiro #estilo ${timeContexts[3]} influencer`
+    ]
+  } else if (brandCountry === 'IN') {
+    // Indian-specific queries
+    allCoreTrendQueries = [
+      // Indian TikTok/Instagram trends
+      `site:instagram.com #indianfashion ${timeContexts[0]} trending viral india`,
+      `site:instagram.com #ootdindia #desifashion ${timeContexts[1]} reels`,
+      `site:instagram.com #indianstreetstyle ${month} ${year} viral`,
+      `indian fashion trends ${timeContexts[2]} bollywood celebrity`,
+      
+      // Indian fashion hashtags
+      `#indianwear #trending ${timeContexts[0]} instagram reels`,
+      `#ethnicwear #fusion ${timeContexts[1]} india fashion`,
+      `#indowestern #contemporary ${month} ${year} trends`,
+      `#sareenotsorry #modernindian ${timeContexts[2]} viral`,
+      
+      // Indian fashion platforms
+      `site:pinterest.in indian fashion ${month} ${year} trends`,
+      `myntra fashion trends ${season} ${year} bestsellers`,
+      `indian wedding fashion ${timeContexts[3]} trending`,
+      
+      // Indian specific searches
+      `bollywood fashion ${timeContexts[0]} celebrity style`,
+      `indian street style ${timeContexts[1]} delhi mumbai bangalore`,
+      `festive fashion india ${season} ${year} trends`,
+      `indian fashion influencer ${timeContexts[2]} viral looks`
     ]
   } else if (['FR', 'IT', 'ES', 'DE', 'UK'].includes(brandCountry)) {
     // European queries
@@ -391,6 +463,35 @@ function generateBrandSpecificQueries(brandInfo: any) {
       `brazilian fashion influencer ${timeContexts[7]}`,
       `#fashionbr #stylebrasil trending`,
       `moda acessível brasil ${timeContexts[8]}`
+    ]
+  } else if (brandName.toLowerCase().includes('arvind')) {
+    // Arvind Fashions specific queries - Indian market
+    allBrandQueries = [
+      `#indianfashion #arvind ${timeContexts[0]} trending`,
+      `indian menswear ${timeContexts[1]} ${season} trends`,
+      `arrow tommy hilfiger calvin klein india ${timeContexts[2]}`,
+      `indian formal wear ${timeContexts[3]} office fashion`,
+      `#mensfashionindia ${month} ${year} trending styles`,
+      `indian wedding menswear ${timeContexts[4]} trends`,
+      `sustainable fashion india ${timeContexts[5]} eco`,
+      `indian streetwear ${timeContexts[6]} youth fashion`,
+      `bollywood menswear inspiration ${timeContexts[7]}`,
+      `indian fashion retail ${season} ${year} trends`,
+      `premium menswear india ${timeContexts[8]} luxury`,
+      `indian ethnic fusion menswear ${timeContexts[0]}`,
+      `corporate fashion india ${timeContexts[1]} trends`
+    ]
+  } else if (brandName.toLowerCase().includes('track & field') || brandName.toLowerCase().includes('cris barros')) {
+    // Other Brazilian brands
+    allBrandQueries = [
+      `#modabrasileira #${brandName.replace(/\s+/g, '').toLowerCase()} ${timeContexts[0]}`,
+      `brazilian luxury fashion ${timeContexts[1]} ${season}`,
+      `moda premium brasil ${timeContexts[2]} tendencias`,
+      `brazilian designer ${timeContexts[3]} nova coleção`,
+      `#fashionbrasil ${brandCategory} ${month} ${year}`,
+      `brazilian ${genderContext[0]} fashion ${timeContexts[4]}`,
+      `são paulo fashion week ${timeContexts[5]} trends`,
+      `brazilian sustainable fashion ${timeContexts[6]}`
     ]
   } else if (brandName.toLowerCase().includes('nike') || brandCategory === 'athletic') {
     // Nike/Athletic specific queries
@@ -501,6 +602,26 @@ async function parseTrendsWithAI(content: string, url: string, brandInfo?: any) 
     const targetGender = brandInfo?.target_gender || 'all'
     const priceLevel = brandInfo?.target_income_level || 'medium'
     
+    // Determine brand country based on known brands
+    let brandCountry = brandInfo?.country || 'US'
+    
+    // Brazilian brands
+    if (brandName.toLowerCase().includes('marisa') || brandInfo?.brand_id === 13 ||
+        brandName.toLowerCase().includes('track & field') || brandInfo?.brand_id === 4 ||
+        brandName.toLowerCase().includes('cris barros') || brandInfo?.brand_id === 2) {
+      brandCountry = 'BR'
+    }
+    
+    // Indian brands
+    if (brandName.toLowerCase().includes('arvind') || brandInfo?.brand_id === 1) {
+      brandCountry = 'IN'
+    }
+    
+    // US brands
+    if (brandName.toLowerCase().includes('walmart') || brandInfo?.brand_id === 5) {
+      brandCountry = 'US'
+    }
+    
     const prompt = `Extract 5-8 VERY SPECIFIC fashion trends from this content that are relevant to ${brandName} (${brandCategory} brand, ${targetGender} market, ${priceLevel} price point).
 
 IMPORTANT: 
@@ -574,12 +695,18 @@ Important: Return ONLY a valid JSON array. Extract SPECIFIC items with properly 
         confidence: trend.confidence || 0.8,
         specifics: trend.specifics || {},
         demographics: {
-          age_range: [brandInfo?.target_age_min || 18, brandInfo?.target_age_max || 45],
-          gender: brandInfo?.target_gender || 'all',
-          locations: brandInfo?.target_locations || ['Global'],
-          income_level: brandInfo?.target_income_level || 'medium',
-          lifestyle: brandInfo?.target_lifestyle || ['urban', 'fashion-forward'],
-          interests: brandInfo?.target_interests || ['fashion', 'style']
+          age_min: trend.demographics?.age_min || 18,
+          age_max: trend.demographics?.age_max || 65,
+          gender: trend.demographics?.gender || 'unisex',
+          locations: trend.demographics?.locations || (
+            // Set locations based on brand country
+            brandCountry === 'BR' ? ['São Paulo', 'Rio de Janeiro', 'Brasília', 'Salvador'] :
+            brandCountry === 'IN' ? ['Mumbai', 'Delhi', 'Bangalore', 'Chennai'] :
+            ['New York', 'Los Angeles', 'London', 'Paris']
+          ),
+          income_level: trend.demographics?.income_level || 'medium',
+          lifestyle: trend.demographics?.lifestyle || ['fashion-forward'],
+          interests: trend.demographics?.interests || ['fashion', 'style']
         },
         source_url: url,
         extracted_at: new Date().toISOString()
@@ -672,13 +799,13 @@ function calculateTrendMetrics(trend: any, sourceCount: number) {
     conversion_impact: Math.round(conversion * 100) / 100,
     risk_score: Math.round(risk * 100) / 100,
     // Add demographics from trend
-    target_age_min: trend.demographics?.age_range?.[0] || 18,
-    target_age_max: trend.demographics?.age_range?.[1] || 65,
-    target_gender: trend.demographics?.gender || 'all',
+    target_age_min: trend.demographics?.age_min || 18,
+    target_age_max: trend.demographics?.age_max || 65,
+    target_gender: trend.demographics?.gender || 'unisex',
     target_locations: trend.demographics?.locations || ['Global'],
     target_income_level: trend.demographics?.income_level || 'medium',
-    target_lifestyle: trend.demographics?.lifestyle || [],
-    target_interests: trend.demographics?.interests || []
+    target_lifestyle: trend.demographics?.lifestyle || ['fashion-forward'],
+    target_interests: trend.demographics?.interests || ['fashion', 'style']
   }
 }
 
@@ -707,9 +834,11 @@ export async function POST(request: Request) {
       
       // Get the request body to extract user email
       let userEmail = null
+      let selectedBrandId = null
       try {
         const body = await request.json()
         userEmail = body.userEmail
+        selectedBrandId = body.selectedBrandId
       } catch (e) {
         // Body might not be JSON, that's okay
         console.log('Could not parse request body:', e)
@@ -719,7 +848,39 @@ export async function POST(request: Request) {
       let brandInfo = null
       let brandDataComplete = false
       
-      if (userEmail) {
+      if (selectedBrandId) {
+        // Use selected brand if provided
+        try {
+          const { data: brandData, error: brandError } = await supabaseService
+            .from('brands')
+            .select('*')
+            .eq('brand_id', parseInt(selectedBrandId))
+            .single()
+          
+          if (brandData && !brandError) {
+            brandInfo = brandData
+            
+            // Check if brand data is complete
+            brandDataComplete = !!(
+              brandData.brand_name &&
+              brandData.category &&
+              brandData.target_gender &&
+              brandData.target_age_min &&
+              brandData.target_age_max &&
+              brandData.target_income_level
+            )
+            
+            if (brandDataComplete) {
+              sendProgress(`Using brand context: ${brandData.brand_name} (${brandData.category})`)
+            } else {
+              sendProgress(`Warning: Incomplete brand profile. Please complete your account setup for better trend recommendations.`)
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching brand info:', error)
+        }
+      } else if (userEmail) {
+        // Fall back to user's default brand
         try {
           // First get the user to find their brand_id
           const { data: userData, error: userError } = await supabaseService
@@ -945,11 +1106,74 @@ export async function POST(request: Request) {
             trendDescription = `${trend.trend_name || trend.name}: ${trendDescription}`
           }
           
+          // Determine trend region based on brand country and trend locations
+          let trendRegion = 'global'
+          
+          // Check brand type
+          const isBrazilianBrand = brandInfo?.brand_name?.toLowerCase().includes('marisa') || 
+                                   brandInfo?.brand_id === 13 ||
+                                   brandInfo?.brand_name?.toLowerCase().includes('track & field') ||
+                                   brandInfo?.brand_id === 4 ||
+                                   brandInfo?.brand_name?.toLowerCase().includes('cris barros') ||
+                                   brandInfo?.brand_id === 2 ||
+                                   brandInfo?.country === 'BR'
+          
+          const isIndianBrand = brandInfo?.brand_name?.toLowerCase().includes('arvind') ||
+                                brandInfo?.brand_id === 1 ||
+                                brandInfo?.country === 'IN'
+          
+          // Implement 70-30 split: 70% regional, 30% global
+          const shouldBeRegional = Math.random() < 0.7
+          
+          if (shouldBeRegional) {
+            // Assign regional trend based on brand
+            if (isBrazilianBrand || 
+                trend.demographics?.locations?.some((loc: string) => 
+                  loc.toLowerCase().includes('brazil') || loc.toLowerCase().includes('brasil')
+                )) {
+              trendRegion = 'brazil'
+            } else if (isIndianBrand || 
+                trend.demographics?.locations?.some((loc: string) => 
+                  loc.toLowerCase().includes('india') || loc.toLowerCase().includes('delhi') ||
+                  loc.toLowerCase().includes('mumbai') || loc.toLowerCase().includes('bangalore')
+                )) {
+              trendRegion = 'india'
+            } else if (brandInfo?.country === 'US' || 
+                trend.demographics?.locations?.some((loc: string) => 
+                  loc.toLowerCase().includes('usa') || loc.toLowerCase().includes('united states')
+                )) {
+              trendRegion = 'usa'
+            } else if (['FR', 'IT', 'ES', 'DE', 'UK'].includes(brandInfo?.country || '') ||
+                trend.demographics?.locations?.some((loc: string) => 
+                  loc.toLowerCase().includes('europe') || loc.toLowerCase().includes('paris') || 
+                  loc.toLowerCase().includes('milan') || loc.toLowerCase().includes('london')
+                )) {
+              trendRegion = 'europe'
+            } else if (['JP', 'KR', 'CN'].includes(brandInfo?.country || '') ||
+                trend.demographics?.locations?.some((loc: string) => 
+                  loc.toLowerCase().includes('asia') || loc.toLowerCase().includes('japan') || 
+                  loc.toLowerCase().includes('korea') || loc.toLowerCase().includes('china')
+                )) {
+              trendRegion = 'asia'
+            } else {
+              // Default to brand's region if no specific match
+              if (isBrazilianBrand) {
+                trendRegion = 'brazil'
+              } else if (isIndianBrand) {
+                trendRegion = 'india'
+              } else {
+                trendRegion = 'global' // Fallback to global if no region detected
+              }
+            }
+          }
+          // Otherwise keep as 'global' (30% of trends)
+          
           const trendData = {
             trend_identifier: trendId,
             trend_category: trend.category || 'general',
             trend_description: trendDescription,
             trend_type: trendType,
+            trend_region: trendRegion,
             ...metrics,
             last_updated: new Date().toISOString(),
             created_at: new Date().toISOString()

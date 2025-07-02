@@ -234,7 +234,8 @@ export default function DashboardPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          userEmail: user?.email
+          userEmail: user?.email,
+          selectedBrandId: selectedBrandId
         })
       })
       
@@ -344,7 +345,7 @@ export default function DashboardPage() {
                 <div className="px-4 lg:px-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h1 className="text-2xl font-semibold">
+                      <h1 className="text-xl font-medium">
                         {activeTab === 'trends' && 'Live Fashion Trends'}
                         {activeTab === 'catalog' && 'Catalog Matches'}
                         {activeTab === 'inventory' && 'Inventory Actions'}

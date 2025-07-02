@@ -226,32 +226,30 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const prompt = `Hyperrealistic professional B2B fashion photography of ${action.product.product_name}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
+      const prompt = `Hyperrealistic professional B2B fashion photography of ${action.product.product_name}. Stock status: ${action.product.stock_status || 'In Stock'}. Showing ${action.recommendation_action} strategy. Luxury commercial fashion photography, ultra high-end quality, photorealistic detail, professional studio lighting, fashion magazine quality, premium brand aesthetic, 8K resolution, award-winning editorial photography.`
       
-      const response = await fetch('https://api.openai.com/v1/images/generations', {
+      const response = await fetch('/api/images/generate', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: 'dall-e-3',
-          prompt: prompt.slice(0, 1000),
-          n: 1,
-          size: '1024x1024',
-          quality: 'standard',
-          style: 'natural'
-        })
+        body: JSON.stringify({ prompt })
       })
       
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate image')
+      }
+      
       const data = await response.json()
-      if (data.data?.[0]?.url) {
-        setGeneratedImage(data.data[0].url)
+      
+      if (data.url) {
+        setGeneratedImage(data.url)
         toast.success('Image generated successfully')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating image:', error)
-      toast.error('Failed to generate image')
+      toast.error('Failed to generate image: ' + error.message)
     } finally {
       setGeneratingImage(false)
     }

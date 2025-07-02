@@ -73,7 +73,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
       <SidebarTrigger />
       <div className="flex items-center gap-4 flex-1">
-        <h1 className="text-lg font-semibold">Looki Trend Intelligence</h1>
+        <h1 className="text-base font-medium">Looki Trend Intelligence</h1>
         
         {/* Brand Selector */}
         <div className="ml-auto flex items-center gap-2">

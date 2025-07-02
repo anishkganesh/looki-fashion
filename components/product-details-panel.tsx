@@ -123,25 +123,34 @@ ${productAttributes?.url ? `Product URL: ${productAttributes.url}` : ''}`
   }
 
   const handleGenerateImage = async () => {
+    if (!product) return
+    
     setGeneratingImage(true)
     try {
-      const response = await fetch('/api/generate-image', {
+      const prompt = `Hyperrealistic professional B2B fashion photography of ${product.product_name}. ${product.attributes?.description || ''} Category: ${product.category || 'N/A'}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
+      
+      const response = await fetch('/api/images/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: `${product?.product_name}, ${product?.color || ''} color, ${product?.category} product, professional product photography, white background`,
-          productName: product?.product_name
-        })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt })
       })
-
-      if (!response.ok) throw new Error('Failed to generate image')
-
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate image')
+      }
+      
       const data = await response.json()
-      setGeneratedImage(data.imageUrl)
-      toast.success("Product image generated!")
-    } catch (error) {
+      
+      if (data.url) {
+        setGeneratedImage(data.url)
+        toast.success('Image generated successfully')
+      }
+    } catch (error: any) {
       console.error('Error generating image:', error)
-      toast.error("Failed to generate image")
+      toast.error('Failed to generate image: ' + error.message)
     } finally {
       setGeneratingImage(false)
     }

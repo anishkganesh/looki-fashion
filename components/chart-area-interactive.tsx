@@ -318,7 +318,7 @@ export function ChartAreaInteractive({ selectedBrandId, onLoadComplete }: { sele
     <Card className="@container/card" ref={chartContext.ref as any}>
       <CardHeader className="relative">
         <div className="flex items-center gap-1">
-          <CardTitle>Product-Trend Correlation</CardTitle>
+          <CardTitle className="text-xl font-medium">Product-Trend Correlation</CardTitle>
           <CalculationTooltip
             title={showingRevenue ? "Revenue Calculation" : "Alignment Calculation"}
             value={showingRevenue ? "Σ(price × inventory)" : "Average %"}
