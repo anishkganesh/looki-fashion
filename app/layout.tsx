@@ -21,11 +21,9 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.avif', type: 'image/avif' },
-      { url: '/favicon.png', type: 'image/png' },
-      { url: '/favicon.ico', type: 'image/x-icon' },
     ],
-    shortcut: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    shortcut: '/favicon.avif',
+    apple: '/favicon.avif',
   },
   openGraph: {
     title: "Looki - Fashion Trend Intelligence Platform",
@@ -48,6 +46,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${GeistSans.variable}`} suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.avif" type="image/avif" />
+        <link rel="shortcut icon" href="/favicon.avif" type="image/avif" />
+        <link rel="apple-touch-icon" href="/favicon.avif" />
+      </head>
       <body
         className={cn(
           "bg-background font-sans antialiased",

@@ -76,7 +76,7 @@ export function CatalogImportProvider({ children }: { children: React.ReactNode 
         .select('*')
         .eq('brand_id', brandId)
         .in('status', ['pending', 'processing', 'paused'])
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle() // Use maybeSingle instead of single to avoid errors when no rows
 
