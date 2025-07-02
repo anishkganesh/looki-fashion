@@ -8,7 +8,7 @@ import { SiteHeader } from "../../components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ChatLayout } from "@/components/chat-layout"
 import { useRequireAuth } from "@/lib/auth-utils"
-import { Loader2, Clock, Database, StopCircle, PlayCircle, CheckCircle2 } from "lucide-react"
+import { Loader2, Clock, Database, StopCircle, PlayCircle, CheckCircle2, Lightbulb } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -36,46 +36,63 @@ export default function DashboardPage() {
   const [countdown, setCountdown] = useState<string>("")
   const [catalogIntegrated, setCatalogIntegrated] = useState(false)
   const [productCount, setProductCount] = useState(0)
+  const [recommendationCount, setRecommendationCount] = useState(0)
   const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory'>('trends')
 
   // Check catalog integration status
-  useEffect(() => {
-    const checkCatalogStatus = async () => {
-      if (!user) return
+  const checkCatalogStatus = async () => {
+    if (!user) return
+    
+    try {
+      // Get user's brand
+      const { data: userData } = await supabase
+        .from('usr')
+        .select('brand_id')
+        .eq('email', user.email)
+        .single()
       
-      try {
-        // Get user's brand
-        const { data: userData } = await supabase
-          .from('usr')
-          .select('brand_id')
-          .eq('email', user.email)
+      if (userData?.brand_id) {
+        // Check if catalog is integrated
+        const { data: brandData } = await supabase
+          .from('brands')
+          .select('has_catalog_integrated')
+          .eq('brand_id', userData.brand_id)
           .single()
         
-        if (userData?.brand_id) {
-          // Check if catalog is integrated
-          const { data: brandData } = await supabase
-            .from('brands')
-            .select('has_catalog_integrated')
-            .eq('brand_id', userData.brand_id)
-            .single()
-          
-          setCatalogIntegrated(brandData?.has_catalog_integrated || false)
-          
-          // Get product count
-          const { count } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('brand_id', userData.brand_id)
-          
-          setProductCount(count || 0)
-        }
-      } catch (error) {
-        console.error('Error checking catalog status:', error)
+        setCatalogIntegrated(brandData?.has_catalog_integrated || false)
+        
+        // Get product count
+        const { count } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .eq('brand_id', userData.brand_id)
+        
+        setProductCount(count || 0)
+        
+        // Get recommendation count
+        const { count: recCount } = await supabase
+          .from('recommendations')
+          .select('*', { count: 'exact', head: true })
+          .eq('brand_id', userData.brand_id)
+          .eq('is_active', true)
+        
+        setRecommendationCount(recCount || 0)
       }
+    } catch (error) {
+      console.error('Error checking catalog status:', error)
     }
-    
+  }
+  
+  useEffect(() => {
     checkCatalogStatus()
   }, [user])
+  
+  // Refresh recommendation count when inventory tab is active
+  useEffect(() => {
+    if (activeTab === 'inventory') {
+      checkCatalogStatus()
+    }
+  }, [activeTab])
 
   // Load auto-run state from localStorage
   useEffect(() => {
@@ -285,6 +302,12 @@ export default function DashboardPage() {
                           <Badge variant="outline" className="gap-1">
                             <Database className="h-3 w-3" />
                             {productCount} products
+                          </Badge>
+                        )}
+                        {recommendationCount > 0 && (
+                          <Badge variant="outline" className="gap-1">
+                            <Lightbulb className="h-3 w-3" />
+                            {recommendationCount} recommendations
                           </Badge>
                         )}
                         {autoRunEnabled && countdown && activeTab === 'trends' && (

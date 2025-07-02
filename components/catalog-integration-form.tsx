@@ -30,6 +30,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
   CheckCircle, 
   AlertCircle, 
@@ -43,7 +45,10 @@ import {
   Clock,
   AlertTriangle,
   Globe,
-  Link
+  Link,
+  FileText,
+  Eye,
+  Upload
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
@@ -72,8 +77,11 @@ export function CatalogIntegrationForm() {
   const [currentTab, setCurrentTab] = useState("overview")
   const [useProductLimit, setUseProductLimit] = useState(false)
   const [productLimit, setProductLimit] = useState("1000")
-  const [importMethod, setImportMethod] = useState<"api" | "website">("api")
+  const [importMethod, setImportMethod] = useState<"api" | "website" | "manual">("api")
   const [websiteUrl, setWebsiteUrl] = useState("")
+  const [manualData, setManualData] = useState("")
+  const [previewProducts, setPreviewProducts] = useState<any[]>([])
+  const [showPreview, setShowPreview] = useState(false)
   
   const [alert, setAlert] = useState<{
     type: "success" | "error" | "info" | null;
@@ -119,6 +127,33 @@ export function CatalogIntegrationForm() {
 
 
 
+  const handlePreviewProducts = async () => {
+    if (!manualData.trim()) return
+    
+    try {
+      const response = await fetch('/api/catalog/import/manual/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: manualData })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to parse products')
+      }
+      
+      const { products } = await response.json()
+      setPreviewProducts(products)
+      setShowPreview(true)
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: "Failed to parse product data. Please check the format."
+      })
+    }
+  }
+
   const handleStartImport = async () => {
     setAlert({ type: null, message: "" })
     setIsStarting(true)
@@ -137,12 +172,46 @@ export function CatalogIntegrationForm() {
 
       const brandId = userData.brand_id
 
-      // Validate website URL if using website method
+      // Validate inputs based on method
       if (importMethod === 'website' && !websiteUrl) {
         throw new Error('Please enter a website URL')
       }
+      if (importMethod === 'manual' && !manualData.trim()) {
+        throw new Error('Please paste product data')
+      }
 
-      // Start the import process
+      // For manual import, handle differently (instant, no background job)
+      if (importMethod === 'manual') {
+        const response = await fetch('/api/catalog/import/manual', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            brandId: brandId,
+            data: manualData,
+            productLimit: useProductLimit ? parseInt(productLimit) : null
+          })
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to import products')
+        }
+
+        const result = await response.json()
+        setAlert({
+          type: "success",
+          message: `Successfully imported ${result.imported} products!`
+        })
+        
+        // Clear the form
+        setManualData("")
+        loadImportHistory()
+        return
+      }
+
+      // Start the import process for API/website methods
       const importProgress = await startImport(brandId, importMethod === 'api' ? 'marisa_api' : 'website_crawl')
 
       // Trigger the appropriate import
@@ -327,7 +396,7 @@ export function CatalogIntegrationForm() {
               {/* Import Method Selection */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Import Method</Label>
-                <RadioGroup value={importMethod} onValueChange={(v) => setImportMethod(v as "api" | "website")}>
+                <RadioGroup value={importMethod} onValueChange={(v) => setImportMethod(v as "api" | "website" | "manual")}>
                   <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
                     <RadioGroupItem value="api" id="api" />
                     <Label htmlFor="api" className="flex-1 cursor-pointer">
@@ -349,6 +418,18 @@ export function CatalogIntegrationForm() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         Extract products from any e-commerce website (less accurate, may miss data)
+                      </p>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="manual" id="manual" />
+                    <Label htmlFor="manual" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Manual Entry</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Paste HTML, JSON, or text data - AI will extract and format products
                       </p>
                     </Label>
                   </div>
@@ -380,6 +461,40 @@ export function CatalogIntegrationForm() {
                 </div>
               )}
 
+              {/* Manual Data Input */}
+              {importMethod === "manual" && (
+                <div className="space-y-2">
+                  <Label htmlFor="manual-data" className="text-sm font-medium">Product Data</Label>
+                  <Textarea
+                    id="manual-data"
+                    placeholder="Paste HTML, JSON, or text data here..."
+                    value={manualData}
+                    onChange={(e) => setManualData(e.target.value)}
+                    className="font-mono text-sm min-h-[200px]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Supports: HTML from product pages, JSON arrays, or structured text
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreviewProducts}
+                      disabled={!manualData.trim()}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Preview Products
+                    </Button>
+                  </div>
+                  <Alert className="border-blue-500/50">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <AlertDescription className="text-xs">
+                      AI will automatically extract product information including name, price, color, size, and other attributes.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Process Overview</h4>
                 <ul className="text-xs text-muted-foreground space-y-1.5">
@@ -392,7 +507,7 @@ export function CatalogIntegrationForm() {
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Continue in background if you navigate away</li>
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Track progress in real-time</li>
                     </>
-                  ) : (
+                  ) : importMethod === "website" ? (
                     <>
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Crawl website and extract product information</li>
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Process pages and identify products</li>
@@ -400,6 +515,15 @@ export function CatalogIntegrationForm() {
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Generate missing fields with defaults</li>
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Import in batches of 100 products</li>
                       <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>May take longer depending on website</li>
+                    </>
+                  ) : (
+                    <>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>AI extracts products from pasted data</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Preview extracted products before import</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Instant import with all fields populated</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Supports HTML, JSON, or text formats</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Perfect for small batches or testing</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>No background processing needed</li>
                     </>
                   )}
                 </ul>
@@ -595,6 +719,79 @@ export function CatalogIntegrationForm() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Preview Extracted Products</DialogTitle>
+            <DialogDescription>
+              Review the products extracted from your data before importing
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {previewProducts.length > 0 ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Found {previewProducts.length} products
+                </p>
+                <div className="space-y-2">
+                  {previewProducts.map((product, index) => (
+                    <Card key={index} className="p-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Product Name</Label>
+                          <p className="font-medium">{product.name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Price</Label>
+                          <p className="font-medium">{product.currency || '$'}{product.price || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Color</Label>
+                          <p>{product.color || 'Default'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Size</Label>
+                          <p>{product.size || 'One Size'}</p>
+                        </div>
+                        {product.sku && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">SKU</Label>
+                            <p className="font-mono text-xs">{product.sku}</p>
+                          </div>
+                        )}
+                        {product.description && (
+                          <div className="col-span-2">
+                            <Label className="text-xs text-muted-foreground">Description</Label>
+                            <p className="text-xs line-clamp-2">{product.description}</p>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setShowPreview(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => {
+                    setShowPreview(false)
+                    handleStartImport()
+                  }}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import {previewProducts.length} Products
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No products found in the data
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -188,12 +188,13 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
 
   const handleApplyRecommendation = async () => {
     try {
+      console.log('Applying recommendation:', action.recommendation_id)
+      
       const { data, error } = await supabase
         .from('recommendations')
         .update({ 
-          applied_at: new Date().toISOString(),
-          status: 'applied',
-          is_applied: true
+          is_applied: true,
+          updated_at: new Date().toISOString()
         })
         .eq('recommendation_id', action.recommendation_id)
         .select()
@@ -203,16 +204,19 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
         throw error
       }
       
+      console.log('Update result:', data)
+      
       setApplied(true)
       
       // Update the action object to reflect the change
       if (action) {
-        action.applied_at = new Date().toISOString()
-        action.status = 'applied'
         action.is_applied = true
       }
       
       toast.success('Recommendation applied successfully')
+      
+      // Trigger a refresh of the recommendations table
+      window.dispatchEvent(new CustomEvent('refreshRecommendations'))
     } catch (error) {
       console.error('Error applying recommendation:', error)
       toast.error('Failed to apply recommendation')
@@ -701,6 +705,16 @@ export const InventoryActionsTable = React.forwardRef<
 
   React.useEffect(() => {
     fetchRecommendations()
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      fetchRecommendations()
+    }
+    window.addEventListener('refreshRecommendations', handleRefresh)
+    
+    return () => {
+      window.removeEventListener('refreshRecommendations', handleRefresh)
+    }
   }, [fetchRecommendations])
 
   const columns: ColumnDef<InventoryAction>[] = [
