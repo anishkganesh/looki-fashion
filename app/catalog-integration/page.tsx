@@ -19,8 +19,8 @@ export default function CatalogIntegrationPage() {
             Back to Dashboard
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold">Integrate Your Catalog</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl font-semibold">Integrate Your Catalog</h1>
+        <p className="text-sm text-muted-foreground">
           Upload your product catalog or connect via API to start getting trend-based recommendations
         </p>
       </div>

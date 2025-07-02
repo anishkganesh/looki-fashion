@@ -69,22 +69,25 @@ import {
 import { toast } from "sonner"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
+import { getTrendDisplayName } from "@/lib/format-utils"
 
 interface InventoryAction {
   recommendation_id: number
   product_id: number
   trend_id: number | null
   matched_trend_id?: number | null
-  recommendation_action: 'promote' | 'strong_promote' | 'discount' | 'restock' | 'discontinue' | 'bundle' | 'hold'
+  recommendation_action: 'promote' | 'strong_promote' | 'markdown' | 'restock_urgent' | 'phase_out' | 'hold' | 'discount' | 'restock' | 'discontinue' | 'bundle'
   confidence_score: number
   alignment_score: number | null
   alignment_factors: {
-    semantic_similarity: number
     category_match: number
     demographic_alignment: number
     seasonality_match: number
     price_alignment: number
     lifecycle_compatibility: number
+    style_match: number
+    trend_momentum: number
   } | null
   reasons: Array<{
     reason_type: string
@@ -93,9 +96,11 @@ interface InventoryAction {
     impact_score: number
     supporting_data?: any
   }> | null
+  recommendation_reasons?: string | null
   created_at: string
   applied_at: string | null
   status: string | null
+  is_applied?: boolean
   product: {
     product_id: number
     product_name: string
@@ -110,27 +115,36 @@ interface InventoryAction {
     trend_identifier: string
     trend_category: string
     lifecycle_stage: string
+    trend_description?: string
   } | null
 }
 
 const actionIcons: Record<string, React.ReactNode> = {
   promote: <TrendingUpIcon className="h-4 w-4 text-blue-600" />,
   strong_promote: <RocketIcon className="h-4 w-4 text-purple-600" />,
+  markdown: <TagIcon className="h-4 w-4 text-green-600" />,
+  restock_urgent: <PackageIcon className="h-4 w-4 text-orange-600" />,
+  phase_out: <XCircleIcon className="h-4 w-4 text-red-600" />,
+  hold: <PauseIcon className="h-4 w-4 text-gray-600" />,
+  // Legacy mappings
   discount: <TagIcon className="h-4 w-4 text-green-600" />,
   restock: <PackageIcon className="h-4 w-4 text-orange-600" />,
   discontinue: <XCircleIcon className="h-4 w-4 text-red-600" />,
-  bundle: <LinkIcon className="h-4 w-4 text-purple-600" />,
-  hold: <PauseIcon className="h-4 w-4 text-gray-600" />
+  bundle: <LinkIcon className="h-4 w-4 text-purple-600" />
 }
 
 const actionLabels: Record<string, string> = {
   promote: "Promote",
   strong_promote: "Strong Promote",
+  markdown: "Markdown",
+  restock_urgent: "Urgent Restock",
+  phase_out: "Phase Out",
+  hold: "Hold",
+  // Legacy mappings
   discount: "Discount",
   restock: "Restock",
   discontinue: "Discontinue",
-  bundle: "Bundle",
-  hold: "Hold"
+  bundle: "Bundle"
 }
 
 const actionColors: Record<string, string> = {
@@ -164,7 +178,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   // Reset state when action changes
   React.useEffect(() => {
     if (action) {
-      setApplied(action.applied_at ? true : false)
+      setApplied(action.applied_at || action.is_applied ? true : false)
       setGeneratedImage(null)
       setGeneratingImage(false)
     }
@@ -178,7 +192,8 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
         .from('recommendations')
         .update({ 
           applied_at: new Date().toISOString(),
-          status: 'applied'
+          status: 'applied',
+          is_applied: true
         })
         .eq('recommendation_id', action.recommendation_id)
         .select()
@@ -194,6 +209,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
       if (action) {
         action.applied_at = new Date().toISOString()
         action.status = 'applied'
+        action.is_applied = true
       }
       
       toast.success('Recommendation applied successfully')
@@ -206,7 +222,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const prompt = `Product photography for ${action.product.product_name}. Professional e-commerce photography, white background, high quality.`
+      const prompt = `Hyperrealistic professional B2B fashion photography of ${action.product.product_name}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
       
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -399,64 +415,86 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
                     </div>
                   </div>
                   
-                  {/* Alignment Factors */}
+                  {/* Alignment Factors - Grid Layout */}
                   {action.alignment_factors && (
-                    <div className="space-y-2 mt-4">
-                      <Label className="text-xs text-muted-foreground">Alignment Breakdown</Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Semantic Similarity</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={action.alignment_factors.semantic_similarity} className="w-20" />
-                            <span className="text-xs font-medium w-12 text-right">
-                              {Math.round(action.alignment_factors.semantic_similarity)}%
-                            </span>
+                    <div className="mt-4">
+                      <Label className="text-sm font-medium mb-3">Alignment Breakdown</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Category Match</span>
+                              <span className="text-sm font-medium">
+                                {Math.round(action.alignment_factors.category_match || 0)}%
+                              </span>
+                            </div>
+                            <Progress value={action.alignment_factors.category_match || 0} className="h-2" />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Style Match</span>
+                              <span className="text-sm font-medium">
+                                {Math.round(action.alignment_factors.style_match || 0)}%
+                              </span>
+                            </div>
+                            <Progress value={action.alignment_factors.style_match || 0} className="h-2" />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Demographics</span>
+                              <span className="text-sm font-medium">
+                                {Math.round(action.alignment_factors.demographic_alignment || 0)}%
+                              </span>
+                            </div>
+                            <Progress value={action.alignment_factors.demographic_alignment || 0} className="h-2" />
                           </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Category Match</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={action.alignment_factors.category_match} className="w-20" />
-                            <span className="text-xs font-medium w-12 text-right">
-                              {Math.round(action.alignment_factors.category_match)}%
-                            </span>
+                        
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Price Alignment</span>
+                              <span className="text-sm font-medium">
+                                {Math.round(action.alignment_factors.price_alignment || 0)}%
+                              </span>
+                            </div>
+                            <Progress value={action.alignment_factors.price_alignment || 0} className="h-2" />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Seasonality</span>
+                              <span className="text-sm font-medium">
+                                {Math.round(action.alignment_factors.seasonality_match || 0)}%
+                              </span>
+                            </div>
+                            <Progress value={action.alignment_factors.seasonality_match || 0} className="h-2" />
                           </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Lifecycle Compatibility</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={action.alignment_factors.lifecycle_compatibility} className="w-20" />
-                            <span className="text-xs font-medium w-12 text-right">
-                              {Math.round(action.alignment_factors.lifecycle_compatibility)}%
+                      </div>
+                      
+                      {/* Trend Momentum and Lifecycle */}
+                      <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Trend Momentum</span>
+                            <span className="text-sm font-medium">
+                              {Math.round(action.alignment_factors.trend_momentum || 0)}%
                             </span>
                           </div>
+                          <Progress value={action.alignment_factors.trend_momentum || 0} className="h-2" />
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Seasonality Match</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={action.alignment_factors.seasonality_match} className="w-20" />
-                            <span className="text-xs font-medium w-12 text-right">
-                              {Math.round(action.alignment_factors.seasonality_match)}%
+                        
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Lifecycle Stage</span>
+                            <span className="text-sm font-medium">
+                              {Math.round(action.alignment_factors.lifecycle_compatibility || 0)}%
                             </span>
                           </div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Demographic Alignment</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={action.alignment_factors.demographic_alignment} className="w-20" />
-                            <span className="text-xs font-medium w-12 text-right">
-                              {Math.round(action.alignment_factors.demographic_alignment)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Price Alignment</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={action.alignment_factors.price_alignment} className="w-20" />
-                            <span className="text-xs font-medium w-12 text-right">
-                              {Math.round(action.alignment_factors.price_alignment)}%
-                            </span>
-                          </div>
+                          <Progress value={action.alignment_factors.lifecycle_compatibility || 0} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -494,18 +532,28 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
               </div>
               
               {/* Recommendation Reasons */}
-              {action.reasons && action.reasons.length > 0 && (
+              {(action.recommendation_reasons || (action.reasons && action.reasons.length > 0)) && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Recommendation Reasons</Label>
                   <div className="mt-2 space-y-1">
-                    {action.reasons.map((reason, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <span className="text-xs text-muted-foreground mt-0.5">•</span>
-                        <p className="text-sm text-muted-foreground">
-                          {reason.reason_description}
+                    {action.recommendation_reasons ? (
+                      // Display text-based reasons
+                      action.recommendation_reasons.split('\n').map((reason, index) => (
+                        <p key={index} className="text-sm text-muted-foreground">
+                          {reason}
                         </p>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      // Fallback to structured reasons
+                      action.reasons?.map((reason, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <span className="text-xs text-muted-foreground mt-0.5">•</span>
+                          <p className="text-sm text-muted-foreground">
+                            {reason.reason_description}
+                          </p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -559,58 +607,92 @@ export const InventoryActionsTable = React.forwardRef<
       
       const { data: recommendations, error } = await supabase
         .from('recommendations')
-        .select(`
-          *,
-          product:products!recommendations_product_id_fkey(
-            product_id,
-            product_code,
-            product_name,
-            current_price,
-            current_inventory_level,
-            stock_status,
-            category:product_categories(category_name)
-          ),
-          trend:trends!matched_trend_id(*),
-          reasons:recommendation_reasons(*)
-        `)
+        .select('*')
         .eq('brand_id', brandId)
         .eq('is_active', true)
         .order('confidence_score', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching recommendations:', error)
+        throw error
+      }
 
-      // Fetch product images separately
-      const productIds = recommendations?.map(r => r.product?.product_id).filter(Boolean) || []
-      const { data: images } = await supabase
-        .from('product_images')
-        .select('product_id, image_url')
+      // Fetch related products and trends separately
+      const productIds = recommendations?.map(r => r.product_id).filter(Boolean) || []
+      const trendIds = recommendations?.map(r => r.matched_trend_id).filter(Boolean) || []
+
+      // Fetch products
+      const { data: products } = await supabase
+        .from('products')
+        .select('product_id, variant_sku, product_name, current_price, current_inventory_level, stock_status')
         .in('product_id', productIds)
-        .eq('is_primary', true)
 
-      // Group images by product
+      // Fetch trends
+      const { data: trends } = await supabase
+        .from('trends')
+        .select('trend_id, trend_identifier, trend_category, lifecycle_stage, trend_description')
+        .in('trend_id', trendIds)
+
+      // Create lookup maps
+      const productMap = new Map(products?.map(p => [p.product_id, p]) || [])
+      const trendMap = new Map(trends?.map(t => [t.trend_id, t]) || [])
+
+      // Fetch product images separately (skip if no products)
       const imageMap = new Map()
-      images?.forEach(img => {
-        if (!imageMap.has(img.product_id)) {
-          imageMap.set(img.product_id, [])
-        }
-        imageMap.get(img.product_id).push(img.image_url)
-      })
+      if (productIds.length > 0) {
+        const { data: images } = await supabase
+          .from('product_images')
+          .select('product_id, image_url')
+          .in('product_id', productIds)
+          .eq('is_primary', true)
 
-      // Transform data
+        // Group images by product
+        images?.forEach((img: any) => {
+          if (!imageMap.has(img.product_id)) {
+            imageMap.set(img.product_id, [])
+          }
+          imageMap.get(img.product_id).push(img.image_url)
+        })
+      }
+
+      // Transform data - map products and trends back to recommendations
       const transformedData = recommendations?.map(rec => {
+        const product = productMap.get(rec.product_id)
+        const trend = trendMap.get(rec.matched_trend_id)
+        
         return {
           ...rec,
-          product: {
-            ...rec.product,
-            category: rec.product?.category?.[0]?.category_name,
-            images: imageMap.get(rec.product?.product_id) || []
-          }
+          product: product ? {
+            product_id: product.product_id,
+            product_name: product.product_name,
+            product_code: product.variant_sku || '',
+            current_price: product.current_price,
+            current_inventory_level: product.current_inventory_level,
+            stock_status: product.stock_status,
+            images: imageMap.get(product.product_id) || []
+          } : {
+            product_id: rec.product_id,
+            product_name: 'Unknown Product',
+            product_code: 'N/A',
+            current_price: 0,
+            current_inventory_level: 0,
+            stock_status: 'Unknown',
+            images: []
+          },
+          trend: trend || null
         }
       }) || []
 
+      console.log(`Loaded ${transformedData.length} recommendations`)
       setData(transformedData)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching recommendations:', error)
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       toast.error('Failed to load inventory actions')
     } finally {
       setLoading(false)
@@ -669,8 +751,11 @@ export const InventoryActionsTable = React.forwardRef<
         
         return (
           <div>
-            <p className="font-medium capitalize">
-              {trend.trend_identifier.replace(/-/g, ' ')}
+            <p className="font-medium">
+              {getTrendDisplayName({ 
+                trend_identifier: trend.trend_identifier, 
+                trend_description: trend.trend_description 
+              })}
             </p>
             <Badge 
               variant="secondary" 
@@ -692,7 +777,26 @@ export const InventoryActionsTable = React.forwardRef<
     },
     {
       accessorKey: "alignment_score",
-      header: "Match Score",
+      header: ({ column }) => (
+        <div className="flex items-center gap-1">
+          <span>Match Score</span>
+          <CalculationTooltip
+            title="Alignment Score Calculation"
+            value="0-100%"
+            steps={[
+              { label: "Category Match", value: "25%", formula: "product vs trend category" },
+              { label: "Style Match", value: "25%", formula: "style attributes alignment" },
+              { label: "Price Alignment", value: "12%", formula: "price point compatibility" },
+              { label: "Seasonality Match", value: "12%", formula: "seasonal relevance" },
+              { label: "Demographic Alignment", value: "12%", formula: "target audience overlap" },
+              { label: "Lifecycle Compatibility", value: "10%", formula: "trend stage vs product stage" },
+              { label: "Trend Momentum", value: "4%", formula: "trend velocity score" }
+            ]}
+            description="Weighted average with curve grading to ensure proper distribution of actions"
+            size="sm"
+          />
+        </div>
+      ),
       size: 200,
       cell: ({ row }) => {
         const score = row.original.alignment_score
@@ -701,33 +805,33 @@ export const InventoryActionsTable = React.forwardRef<
         if (!score) return <span className="text-muted-foreground">-</span>
         
         return (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="text-2xl font-medium text-primary">{score}%</div>
             {factors && (
-              <div className="grid grid-cols-2 gap-x-1 gap-y-0.5 text-xs">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-muted-foreground">Semantic:</span>
-                  <span className="font-medium">{Math.round(factors.semantic_similarity)}%</span>
-                </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-muted-foreground">Category:</span>
-                  <span className="font-medium">{Math.round(factors.category_match)}%</span>
+                  <span className="font-medium">{Math.round(factors.category_match || 0)}%</span>
                 </div>
                 <div className="flex items-center justify-between gap-1">
-                  <span className="text-muted-foreground">Demographic:</span>
-                  <span className="font-medium">{Math.round(factors.demographic_alignment)}%</span>
-                </div>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-muted-foreground">Seasonal:</span>
-                  <span className="font-medium">{Math.round(factors.seasonality_match)}%</span>
+                  <span className="text-muted-foreground">Style:</span>
+                  <span className="font-medium">{Math.round(factors.style_match || 0)}%</span>
                 </div>
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-muted-foreground">Price:</span>
-                  <span className="font-medium">{Math.round(factors.price_alignment)}%</span>
+                  <span className="font-medium">{Math.round(factors.price_alignment || 0)}%</span>
+                </div>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-muted-foreground">Seasonal:</span>
+                  <span className="font-medium">{Math.round(factors.seasonality_match || 0)}%</span>
+                </div>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-muted-foreground">Demographics:</span>
+                  <span className="font-medium">{Math.round(factors.demographic_alignment || 0)}%</span>
                 </div>
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-muted-foreground">Lifecycle:</span>
-                  <span className="font-medium">{Math.round(factors.lifecycle_compatibility)}%</span>
+                  <span className="font-medium">{Math.round(factors.lifecycle_compatibility || 0)}%</span>
                 </div>
               </div>
             )}
@@ -752,14 +856,28 @@ export const InventoryActionsTable = React.forwardRef<
       accessorKey: "confidence_score",
       header: ({ column }) => {
         return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-8 px-2"
-          >
-            Confidence
-            <ArrowUpIcon className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="h-8 px-2"
+            >
+              Confidence
+              <ArrowUpIcon className="ml-2 h-4 w-4" />
+            </Button>
+            <CalculationTooltip
+              title="Confidence Score"
+              value="0-100%"
+              steps={[
+                { label: "Trend Momentum", value: "40%", formula: "trend velocity × lifecycle stage" },
+                { label: "Product Performance", value: "30%", formula: "sales history × inventory turnover" },
+                { label: "Market Signals", value: "20%", formula: "competitor actions × market demand" },
+                { label: "Historical Accuracy", value: "10%", formula: "past recommendation success rate" }
+              ]}
+              description="AI confidence in the recommended action based on multiple data points"
+              size="sm"
+            />
+          </div>
         )
       },
       cell: ({ row }) => {
@@ -776,15 +894,27 @@ export const InventoryActionsTable = React.forwardRef<
       accessorKey: "reasons",
       header: "Primary Reason",
       cell: ({ row }) => {
+        const recommendation_reasons = row.original.recommendation_reasons
         const reasons = row.original.reasons
-        if (!reasons || reasons.length === 0) return <span className="text-muted-foreground">-</span>
         
-        const primaryReason = reasons[0]
-        return (
-          <p className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
-            {primaryReason.reason_description}
-          </p>
-        )
+        if (recommendation_reasons) {
+          // Get first line of text-based reasons
+          const firstReason = recommendation_reasons.split('\n')[0]?.replace('• ', '')
+          return (
+            <p className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
+              {firstReason || '-'}
+            </p>
+          )
+        } else if (reasons && reasons.length > 0) {
+          const primaryReason = reasons[0]
+          return (
+            <p className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
+              {primaryReason.reason_description}
+            </p>
+          )
+        }
+        
+        return <span className="text-muted-foreground">-</span>
       },
     },
   ]

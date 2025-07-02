@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const [countdown, setCountdown] = useState<string>("")
   const [catalogIntegrated, setCatalogIntegrated] = useState(false)
   const [productCount, setProductCount] = useState(0)
-  const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory' | 'forecast'>('trends')
+  const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory'>('trends')
 
   // Check catalog integration status
   useEffect(() => {
@@ -153,8 +153,12 @@ export default function DashboardPage() {
       const response = await fetch('/api/trends/scrape', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session?.access_token || ''}`
-        }
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userEmail: user?.email
+        })
       })
       
       if (!response.ok) {
@@ -261,25 +265,29 @@ export default function DashboardPage() {
                         {activeTab === 'trends' && 'Live Fashion Trends'}
                         {activeTab === 'catalog' && 'Catalog Matches'}
                         {activeTab === 'inventory' && 'Inventory Actions'}
-                        {activeTab === 'forecast' && 'Trend Forecasts'}
                       </h1>
                       <p className="text-sm text-muted-foreground">
-                        {activeTab === 'trends' && 'Real-time fashion trend analysis from global sources'}
+                        {activeTab === 'trends' && 'Real-time fashion trend analysis from global sources (Active & Emerging)'}
                         {activeTab === 'catalog' && 'Your integrated product catalog with trend analysis'}
                         {activeTab === 'inventory' && 'Recommended inventory actions based on trends'}
-                        {activeTab === 'forecast' && 'AI-powered trend predictions and forecasts'}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
                       {/* Status Indicators */}
                       <div className="flex items-center gap-3 text-sm">
-                        {agentStatus.totalTrends !== undefined && (activeTab === 'trends' || activeTab === 'forecast') && (
+                        {agentStatus.totalTrends !== undefined && (
                           <Badge variant="outline" className="gap-1">
                             <Database className="h-3 w-3" />
                             {agentStatus.totalTrends} trends
                           </Badge>
                         )}
-                        {autoRunEnabled && countdown && (activeTab === 'trends' || activeTab === 'forecast') && (
+                        {catalogIntegrated && productCount > 0 && (
+                          <Badge variant="outline" className="gap-1">
+                            <Database className="h-3 w-3" />
+                            {productCount} products
+                          </Badge>
+                        )}
+                        {autoRunEnabled && countdown && activeTab === 'trends' && (
                           <Badge variant="secondary" className="gap-1">
                             <Clock className="h-3 w-3" />
                             Next run: {countdown}
@@ -288,7 +296,7 @@ export default function DashboardPage() {
                       </div>
                       
                       {/* Action Buttons */}
-                      {(activeTab === 'trends' || activeTab === 'forecast') && (
+                      {activeTab === 'trends' && (
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -328,7 +336,7 @@ export default function DashboardPage() {
                   </div>
                   
                   {/* Progress Message */}
-                  {progressMessage && (activeTab === 'trends' || activeTab === 'forecast') && (
+                  {progressMessage && activeTab === 'trends' && (
                     <div className="text-sm text-muted-foreground animate-pulse">
                       {progressMessage}
                     </div>

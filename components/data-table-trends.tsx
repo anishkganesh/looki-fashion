@@ -77,6 +77,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CalculationTooltip, CALCULATION_FORMULAS } from "@/components/ui/calculation-tooltip"
 import {
   Tooltip,
   TooltipContent,
@@ -88,6 +89,7 @@ import { useRouter } from "next/navigation"
 import axios from "axios"
 import { Checkbox } from "@/components/ui/checkbox"
 import { InventoryActionsTable } from "@/components/inventory-actions-table"
+import { getTrendDisplayName } from "@/lib/format-utils"
 
 interface Trend {
   trend_id: number
@@ -124,23 +126,33 @@ const columns: ColumnDef<Trend>[] = [
     accessorKey: "trend_identifier",
     header: "Trend Name",
     cell: ({ row, table }) => {
-      const name = row.original.trend_identifier.replace(/-/g, ' ')
+      const displayName = getTrendDisplayName(row.original)
       const description = row.original.trend_description
       const isWatchlisted = row.original.watchlist
+      
+      // Extract the actual description part (after the name prefix if present)
+      let cleanDescription = description
+      if (description && description.includes(':')) {
+        const parts = description.split(':')
+        if (parts.length > 1) {
+          cleanDescription = parts.slice(1).join(':').trim()
+        }
+      }
+      
       return (
         <div 
           className="flex flex-col cursor-pointer hover:text-primary"
           onClick={() => (table.options.meta as any)?.onRowClick?.(row.original)}
         >
           <div className="flex items-center gap-2">
-            <span className="font-medium capitalize">{name}</span>
+            <span className="font-medium">{displayName}</span>
             {isWatchlisted && (
               <BookmarkIcon className="h-3 w-3 text-primary fill-primary" />
             )}
           </div>
-          {description && (
+          {cleanDescription && (
             <span className="text-xs text-muted-foreground line-clamp-2 max-w-md">
-              {description}
+              {cleanDescription}
             </span>
           )}
         </div>
@@ -161,7 +173,13 @@ const columns: ColumnDef<Trend>[] = [
     header: "Status",
     cell: ({ row }) => {
       const stage = row.original.lifecycle_stage
+      const trendType = row.original.trend_type
+      const isEmerging = trendType === 'forecast'
+      
       const getIcon = () => {
+        if (isEmerging) {
+          return <Clock className="h-3 w-3" />
+        }
         switch (stage) {
           case 'emerging':
           case 'growing':
@@ -175,6 +193,9 @@ const columns: ColumnDef<Trend>[] = [
         }
       }
       const getVariant = () => {
+        if (isEmerging) {
+          return 'outline'
+        }
         switch (stage) {
           case 'emerging':
           case 'growing':
@@ -189,16 +210,37 @@ const columns: ColumnDef<Trend>[] = [
         }
       }
       return (
-        <Badge variant={getVariant()} className="capitalize gap-1">
-          {getIcon()}
-          {stage}
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge variant={getVariant()} className="capitalize gap-1 w-fit">
+            {getIcon()}
+            {stage}
+          </Badge>
+          {isEmerging && (
+            <span className="text-xs text-muted-foreground">Emerging Trend</span>
+          )}
+        </div>
       )
     },
   },
   {
     accessorKey: "momentum_score",
-    header: "Momentum",
+    header: ({ column }) => (
+      <div className="flex items-center gap-1">
+        <span>Momentum</span>
+        <CalculationTooltip
+          title="Momentum Score"
+          value="0-100"
+          steps={CALCULATION_FORMULAS.momentum.getSteps({
+            baseMomentum: 50,
+            todayBonus: 15,
+            sourceCount: 3,
+            variance: 5
+          })}
+          description={CALCULATION_FORMULAS.momentum.description}
+          size="sm"
+        />
+      </div>
+    ),
     cell: ({ row }) => {
       const score = row.original.momentum_score
       const color = score > 70 ? 'text-green-600' : score > 40 ? 'text-yellow-600' : 'text-red-600'
@@ -207,7 +249,23 @@ const columns: ColumnDef<Trend>[] = [
   },
   {
     accessorKey: "velocity",
-    header: "Velocity",
+    header: ({ column }) => (
+      <div className="flex items-center gap-1">
+        <span>Velocity</span>
+        <CalculationTooltip
+          title="Velocity Score"
+          value="0-30"
+          steps={CALCULATION_FORMULAS.velocity.getSteps({
+            baseVelocity: 8,
+            sourceCount: 3,
+            sourceBoost: 9,
+            randomFactor: 2
+          })}
+          description={CALCULATION_FORMULAS.velocity.description}
+          size="sm"
+        />
+      </div>
+    ),
     cell: ({ row }) => {
       const velocity = row.original.velocity
       return (
@@ -226,7 +284,22 @@ const columns: ColumnDef<Trend>[] = [
   },
   {
     accessorKey: "adoption_rate",
-    header: "Adoption",
+    header: ({ column }) => (
+      <div className="flex items-center gap-1">
+        <span>Adoption</span>
+        <CalculationTooltip
+          title="Adoption Rate"
+          value="0-100%"
+          steps={CALCULATION_FORMULAS.adoption.getSteps({
+            baseAdoption: "20%",
+            momentumFactor: "20%",
+            momentum: 50
+          })}
+          description={CALCULATION_FORMULAS.adoption.description}
+          size="sm"
+        />
+      </div>
+    ),
     cell: ({ row }) => {
       const rate = row.original.adoption_rate
       return <span>{(rate * 100).toFixed(0)}%</span>
@@ -234,7 +307,23 @@ const columns: ColumnDef<Trend>[] = [
   },
   {
     accessorKey: "social_reach",
-    header: "Social Reach",
+    header: ({ column }) => (
+      <div className="flex items-center gap-1">
+        <span>Social Reach</span>
+        <CalculationTooltip
+          title="Social Reach"
+          value="50K-1M+"
+          steps={CALCULATION_FORMULAS.socialReach.getSteps({
+            baseReach: 50000,
+            platform: "varies",
+            momentumBoost: 500000,
+            variance: 50000
+          })}
+          description={CALCULATION_FORMULAS.socialReach.description}
+          size="sm"
+        />
+      </div>
+    ),
     cell: ({ row }) => {
       const reach = row.original.social_reach
       const formatted = reach > 1000000 
@@ -247,20 +336,58 @@ const columns: ColumnDef<Trend>[] = [
   },
   {
     accessorKey: "risk_score",
-    header: "Risk",
+    header: ({ column }) => (
+      <div className="flex items-center gap-1">
+        <span>Risk</span>
+        <CalculationTooltip
+          title="Risk Score"
+          value="0-30%"
+          steps={CALCULATION_FORMULAS.risk.getSteps({
+            baseRisk: "20%",
+            randomFactor: "10%",
+            total: "30%"
+          })}
+          description={CALCULATION_FORMULAS.risk.description}
+          size="sm"
+        />
+      </div>
+    ),
     cell: ({ row }) => {
       const risk = row.original.risk_score
       const percentage = (risk * 100).toFixed(0)
-      return <span>{percentage}%</span>
+      return (
+        <span className={risk > 0.3 ? 'text-red-600' : risk > 0.15 ? 'text-yellow-600' : 'text-green-600'}>
+          {percentage}%
+        </span>
+      )
     },
   },
   {
     accessorKey: "conversion_impact",
-    header: "Impact",
+    header: ({ column }) => (
+      <div className="flex items-center gap-1">
+        <span>Impact</span>
+        <CalculationTooltip
+          title="Conversion Impact"
+          value="0-50%"
+          steps={CALCULATION_FORMULAS.conversion.getSteps({
+            baseConversion: "8%",
+            momentumImpact: "10%",
+            adoptionImpact: "5%"
+          })}
+          description={CALCULATION_FORMULAS.conversion.description}
+          size="sm"
+        />
+      </div>
+    ),
     cell: ({ row }) => {
       const impact = row.original.conversion_impact
       const percentage = (impact * 100).toFixed(0)
-      return <span>{percentage}%</span>
+      return (
+        <span className={impact > 0.3 ? 'text-green-600' : impact > 0.15 ? 'text-yellow-600' : 'text-gray-600'}>
+          {percentage}%
+        </span>
+      )
     },
   },
   {
@@ -316,8 +443,8 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const trendName = trend.trend_identifier.replace(/-/g, ' ')
-      const prompt = `Fashion photography showcasing ${trendName} trend. ${trend.trend_description || ''} Style: ${trend.trend_category}, ${trend.lifecycle_stage} trend. High fashion editorial photography, professional lighting, realistic.`
+      const trendName = getTrendDisplayName(trend)
+      const prompt = `Hyperrealistic professional B2B fashion photography showcasing ${trendName} trend. ${trend.trend_description || ''} Style: ${trend.trend_category}, ${trend.lifecycle_stage} trend. Luxury commercial fashion photography, ultra high-end quality, photorealistic detail, professional studio lighting, fashion magazine quality, premium brand aesthetic, 8K resolution, award-winning editorial photography.`
       
       const response = await axios.post(
         'https://api.openai.com/v1/images/generations',
@@ -331,7 +458,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
         },
         {
           headers: {
-            'Authorization': `Bearer REDACTED_OPENAI_KEY`,
+            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
             'Content-Type': 'application/json'
           }
         }
@@ -382,7 +509,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
 
   const handleAddContext = () => {
     // Format trend data as context
-    const contextData = `Context from Trend: ${trend.trend_identifier.replace(/-/g, ' ')}\n` +
+    const contextData = `Context from Trend: ${getTrendDisplayName(trend)}\n` +
       `Category: ${trend.trend_category}\n` +
       `Lifecycle Stage: ${trend.lifecycle_stage}\n` +
       `Momentum Score: ${trend.momentum_score.toFixed(1)}\n` +
@@ -413,7 +540,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[540px] sm:max-w-[540px] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="capitalize">{trend.trend_identifier.replace(/-/g, ' ')}</SheetTitle>
+          <SheetTitle>{getTrendDisplayName(trend)}</SheetTitle>
           <SheetDescription>
             {trend.trend_description}
           </SheetDescription>
@@ -640,7 +767,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const prompt = `Product photography for ${product.product_name}. ${product.product_description || ''} Category: ${product.category}. Professional e-commerce photography, white background, high quality.`
+      const prompt = `Hyperrealistic professional B2B fashion photography of ${product.product_name}. ${product.product_description || ''} Category: ${product.category}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
       
       const response = await axios.post(
         'https://api.openai.com/v1/images/generations',
@@ -654,7 +781,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
         },
         {
           headers: {
-            'Authorization': `Bearer REDACTED_OPENAI_KEY`,
+            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
             'Content-Type': 'application/json'
           }
         }
@@ -678,7 +805,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `product-${product.product_code}.json`
+    a.download = `product-${product.variant_sku}.json`
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Product data exported')
@@ -687,13 +814,17 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
   const handleAddContext = () => {
     // Format product data as context
     const contextData = `Context from Product: ${product.product_name}\n` +
-      `SKU: ${product.product_code}\n` +
-      `Category: ${product.category}\n` +
-      `Price: $${product.current_price}\n` +
+      `SKU: ${product.variant_sku}\n` +
+      `Category: ${product.category_hierarchy}\n` +
+      `Price: ${product.currency === 'BRL' ? 'R$' : product.currency === 'USD' ? '$' : product.currency} ${product.current_price}\n` +
       `Stock Status: ${product.stock_status}\n` +
       `Inventory: ${product.current_inventory_level || 0} units\n` +
+      `Days of Supply: ${product.days_of_supply || 0} days\n` +
       `Color: ${product.color || 'N/A'}\n` +
-      `Description: ${product.product_description || 'N/A'}`;
+      `Size: ${product.size || 'N/A'}\n` +
+      `Revenue (30d): ${product.currency === 'BRL' ? 'R$' : product.currency === 'USD' ? '$' : product.currency} ${product.revenue_last_30d || 0}\n` +
+      `Units Sold (30d): ${product.units_sold_last_30d || 0}\n` +
+      `Description: ${product.description || 'N/A'}`;
     
     // Dispatch event to add context to chat
     window.dispatchEvent(new CustomEvent('addChatContext', { 
@@ -717,7 +848,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
         <SheetHeader>
           <SheetTitle>{product.product_name}</SheetTitle>
           <SheetDescription>
-            SKU: {product.product_code}
+            SKU: {product.variant_sku} • {product.color} • Size {product.size}
           </SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-6">
@@ -771,7 +902,13 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.open(`https://www.adidas.com/us/search?q=${encodeURIComponent(product.product_code)}`, '_blank')}
+                    onClick={() => {
+                      if (product.api_data?.url) {
+                        window.open(product.api_data.url, '_blank')
+                      } else {
+                        window.open(`https://www.google.com/search?q=${encodeURIComponent(product.product_name)}`, '_blank')
+                      }
+                    }}
                   >
                     <ExternalLinkIcon className="h-4 w-4" />
                   </Button>
@@ -810,22 +947,22 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm text-muted-foreground">Category</Label>
-              <p className="font-medium">{product.category}</p>
+              <p className="font-medium">{product.category_hierarchy?.split('/').join(' > ') || 'Uncategorized'}</p>
             </div>
             <div>
-              <Label className="text-sm text-muted-foreground">Brand</Label>
-              <p className="font-medium">{product.brand_name || 'N/A'}</p>
+              <Label className="text-sm text-muted-foreground">Product Code</Label>
+              <p className="font-medium">{product.product_code}</p>
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">Current Price</Label>
               <p className="font-medium">
-                {product.currency === 'USD' ? '$' : product.currency} {product.current_price?.toFixed(2)}
+                {product.currency === 'USD' ? '$' : product.currency === 'BRL' ? 'R$' : product.currency} {product.current_price?.toFixed(2)}
               </p>
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">Original Price</Label>
               <div className="font-medium">
-                {product.currency === 'USD' ? '$' : product.currency} {product.original_price?.toFixed(2)}
+                {product.currency === 'USD' ? '$' : product.currency === 'BRL' ? 'R$' : product.currency} {product.original_price?.toFixed(2)}
                 {product.discount_percentage > 0 && (
                   <Badge variant="outline" className="ml-2 text-xs">
                     -{product.discount_percentage}%
@@ -845,60 +982,114 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
               </div>
             </div>
             <div>
-              <Label className="text-sm text-muted-foreground">Inventory Level</Label>
-              <p className="font-medium">{product.current_inventory_level || 0} units</p>
+              <Label className="text-sm text-muted-foreground">Inventory</Label>
+              <p className="font-medium">{product.current_inventory_level || 0} units • {product.days_of_supply || 0}d supply</p>
             </div>
             <div>
-              <Label className="text-sm text-muted-foreground">Color</Label>
-              <p className="font-medium">{product.color || 'N/A'}</p>
+              <Label className="text-sm text-muted-foreground">Velocity</Label>
+              <p className="font-medium">{product.inventory_velocity?.toFixed(1) || 0}/day</p>
             </div>
             <div>
-              <Label className="text-sm text-muted-foreground">Material</Label>
-              <p className="font-medium">{product.material || 'N/A'}</p>
+              <Label className="text-sm text-muted-foreground">Revenue (30d)</Label>
+              <p className="font-medium">
+                {product.currency === 'USD' ? '$' : product.currency === 'BRL' ? 'R$' : product.currency} {product.revenue_last_30d?.toFixed(2) || 0}
+              </p>
             </div>
           </div>
           
-          {product.size_range && product.size_range.length > 0 && (
+          <Separator />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm text-muted-foreground">Units Sold (30d)</Label>
+              <p className="font-medium">{product.units_sold_last_30d || 0}</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Conversion Rate</Label>
+              <p className="font-medium">{product.conversion_rate?.toFixed(1) || 0}%</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Return Rate</Label>
+              <p className="font-medium">{product.return_rate?.toFixed(1) || 0}%</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Margin</Label>
+              <p className="font-medium">{product.margin_percentage?.toFixed(1) || 0}%</p>
+            </div>
+          </div>
+          
+          {product.style_attributes && Object.keys(product.style_attributes).length > 0 && (
             <>
               <Separator />
               <div>
-                <Label className="text-sm text-muted-foreground">Available Sizes</Label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {product.size_range.map((size: string) => (
-                    <Badge key={size} variant="secondary">
-                      {size}
-                    </Badge>
+                <Label className="text-sm text-muted-foreground">Style Attributes</Label>
+                <div className="mt-2 space-y-1 text-sm">
+                  {Object.entries(product.style_attributes).map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="text-muted-foreground capitalize min-w-[120px]">{key.replace(/_/g, ' ')}:</span>
+                      <span className="font-medium">{String(value)}</span>
+                    </div>
                   ))}
                 </div>
               </div>
             </>
           )}
           
-          {product.product_description && (
+          {product.material_attributes && Object.keys(product.material_attributes).length > 0 && (
             <>
               <Separator />
               <div>
-                <Label className="text-sm text-muted-foreground">Description</Label>
-                <p className="mt-2 text-sm">{product.product_description}</p>
+                <Label className="text-sm text-muted-foreground">Material Information</Label>
+                <div className="mt-2 space-y-1 text-sm">
+                  {product.material_attributes.primary_material && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground min-w-[120px]">Primary Material:</span>
+                      <span className="font-medium capitalize">{product.material_attributes.primary_material}</span>
+                    </div>
+                  )}
+                  {product.material_attributes.material_composition && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground min-w-[120px]">Composition:</span>
+                      <span className="font-medium">{product.material_attributes.material_composition}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
           
-          <Separator />
+          {product.description && (
+            <>
+              <Separator />
+              <div>
+                <Label className="text-sm text-muted-foreground">Description</Label>
+                <p className="mt-2 text-sm">{product.description}</p>
+              </div>
+            </>
+          )}
           
-          <div>
-            <Label className="text-sm text-muted-foreground mb-2">Product Details</Label>
-            <div className="space-y-2 mt-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Gender</span>
-                <span className="font-medium">{product.gender || 'Unisex'}</span>
+          {product.target_demographics && (
+            <>
+              <Separator />
+              <div>
+                <Label className="text-sm text-muted-foreground mb-2">Target Demographics</Label>
+                <div className="space-y-1 mt-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground min-w-[120px]">Gender:</span>
+                    <span className="font-medium capitalize">{product.target_demographics.target_gender || 'Unisex'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground min-w-[120px]">Age Range:</span>
+                    <span className="font-medium">{product.target_demographics.target_age_min || 18}-{product.target_demographics.target_age_max || 65}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground min-w-[120px]">Income Level:</span>
+                    <span className="font-medium capitalize">{product.target_demographics.target_income_level || 'Medium'}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Season</span>
-                <span className="font-medium">{product.season || 'All Season'}</span>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
           
           <Separator />
           
@@ -913,7 +1104,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
 }
 
 export function DataTableTrends({ onTabChange, session }: { 
-  onTabChange?: (tab: 'trends' | 'catalog' | 'inventory' | 'forecast') => void
+  onTabChange?: (tab: 'trends' | 'catalog' | 'inventory') => void
   session?: any
 }) {
   const [data, setData] = React.useState<Trend[]>([])
@@ -926,7 +1117,7 @@ export function DataTableTrends({ onTabChange, session }: {
   const [rowSelection, setRowSelection] = React.useState({})
   const [selectedTrend, setSelectedTrend] = React.useState<Trend | null>(null)
   const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory' | 'forecast'>('trends')
+  const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory'>('trends')
   const [searchQuery, setSearchQuery] = React.useState("")
   const [catalogProducts, setCatalogProducts] = React.useState<any[]>([])
   const [catalogLoading, setCatalogLoading] = React.useState(false)
@@ -985,15 +1176,26 @@ export function DataTableTrends({ onTabChange, session }: {
     fetchUserBrandId()
   }, [session, supabase])
 
+  // Add ref to prevent duplicate fetches
+  const fetchingCatalogRef = React.useRef(false)
+  
   // Fetch catalog products
   const fetchCatalogProducts = React.useCallback(async () => {
+    // Prevent duplicate fetches
+    if (fetchingCatalogRef.current || catalogLoading) {
+      console.log('Already fetching catalog products, skipping...')
+      return
+    }
+    
     try {
+      fetchingCatalogRef.current = true
       setCatalogLoading(true)
       console.log('Fetching catalog products, session:', session)
       
       if (!session?.access_token) {
         console.error('No session found')
         setCatalogLoading(false)
+        fetchingCatalogRef.current = false
         return
       }
       
@@ -1011,75 +1213,8 @@ export function DataTableTrends({ onTabChange, session }: {
         const result = await response.json()
         console.log('Catalog products result:', result)
         
-        // Fetch additional attributes for each product
-        if (result.products && result.products.length > 0) {
-          const productIds = result.products.map((p: any) => p.product_id)
-          
-          // Fetch product attributes
-          const { data: attributes } = await supabase
-            .from('product_attributes')
-            .select('*')
-            .in('product_id', productIds)
-          
-          // Fetch product colors
-          const { data: colors } = await supabase
-            .from('product_colors')
-            .select('product_id, color_name')
-            .in('product_id', productIds)
-          
-          // Fetch product categories for gender info
-          const { data: categories } = await supabase
-            .from('product_categories')
-            .select('product_id, category_path')
-            .in('product_id', productIds)
-          
-          // Map attributes to products
-          const attributesMap = new Map()
-          attributes?.forEach(attr => {
-            if (!attributesMap.has(attr.product_id)) {
-              attributesMap.set(attr.product_id, {})
-            }
-            // Store all attributes by name
-            attributesMap.get(attr.product_id)[attr.attribute_name] = attr.attribute_value
-          })
-          
-          const colorsMap = new Map()
-          colors?.forEach(color => {
-            if (!colorsMap.has(color.product_id)) {
-              colorsMap.set(color.product_id, [])
-            }
-            colorsMap.get(color.product_id).push(color.color_name)
-          })
-          
-          const categoriesMap = new Map()
-          categories?.forEach(cat => {
-            categoriesMap.set(cat.product_id, cat.category_path)
-          })
-          
-          // Enhance products with additional data
-          const enhancedProducts = result.products.map((product: any) => {
-            const attrs = attributesMap.get(product.product_id) || {}
-            const productColors = colorsMap.get(product.product_id) || []
-            const categoryPath = categoriesMap.get(product.product_id) || ''
-            
-            // Extract gender from category path (e.g., "Women/Clothing" -> "Women")
-            const gender = categoryPath.split('/')[0] || product.gender
-            
-            return {
-              ...product,
-              color: productColors.join(', ') || product.color || 'N/A',
-              gender: gender || 'Unisex',
-              average_rating: attrs.average_rating ? parseFloat(attrs.average_rating) : null,
-              description: attrs.description || null,
-              reviews_count: attrs.reviews_count ? parseInt(attrs.reviews_count) : null,
-              attributes: attrs
-            }
-          })
-          
-          setCatalogProducts(enhancedProducts)
-        } else {
-          setCatalogProducts(result.products || [])
-        }
+        // Set products directly since we don't have related tables
+        setCatalogProducts(result.products || [])
       } else {
         const error = await response.text()
         console.error('Catalog fetch error:', error)
@@ -1088,6 +1223,7 @@ export function DataTableTrends({ onTabChange, session }: {
       console.error('Error fetching catalog products:', error)
     } finally {
       setCatalogLoading(false)
+      fetchingCatalogRef.current = false
     }
   }, [session, supabase])
 
@@ -1194,11 +1330,11 @@ export function DataTableTrends({ onTabChange, session }: {
 
   // Fetch catalog products when session is available
   React.useEffect(() => {
-    if (session && userBrandId) {
+    if (session && userBrandId && catalogProducts.length === 0 && !catalogLoading) {
       console.log('Session and brand available, fetching catalog...')
       fetchCatalogProducts()
     }
-  }, [session, userBrandId, fetchCatalogProducts])
+  }, [session, userBrandId])
 
   const handleUpdateTrend = React.useCallback((updatedTrend: Trend) => {
     // Update locally without refetching
@@ -1227,17 +1363,10 @@ export function DataTableTrends({ onTabChange, session }: {
   const filteredData = React.useMemo(() => {
     console.log('Total data length:', data.length)
     console.log('Active tab:', activeTab)
-    console.log('Sample trend type:', data[0]?.trend_type)
     
     if (activeTab === 'trends') {
-      // Show all trends that are not explicitly forecast
-      const filtered = data.filter(trend => trend.trend_type !== 'forecast')
-      console.log('Filtered signal trends:', filtered.length)
-      return filtered
-    } else if (activeTab === 'forecast') {
-      const filtered = data.filter(trend => trend.trend_type === 'forecast')
-      console.log('Filtered forecast trends:', filtered.length)
-      return filtered
+      // Show all trends (both signals and forecasts)
+      return data
     }
     return data
   }, [data, activeTab])
@@ -1280,7 +1409,7 @@ export function DataTableTrends({ onTabChange, session }: {
 
   // Update parent when tab changes
   const handleTabChange = (value: string) => {
-    const tab = value as 'trends' | 'catalog' | 'inventory' | 'forecast'
+    const tab = value as 'trends' | 'catalog' | 'inventory'
     setActiveTab(tab)
     
     // Refresh catalog when switching to catalog tab
@@ -1342,11 +1471,35 @@ export function DataTableTrends({ onTabChange, session }: {
         body: JSON.stringify({ brand_id: userBrandId })
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to generate recommendations')
-      }
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
 
-      const result = await response.json()
+      // Check if response has content before parsing
+      const responseText = await response.text()
+      
+      console.log('Response text:', responseText)
+      
+      if (!responseText) {
+        console.error('Empty response from API')
+        throw new Error('Server returned empty response')
+      }
+      
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse response:', responseText)
+        console.error('Parse error:', parseError)
+        throw new Error('Invalid response format from server')
+      }
+      
+      console.log('Parsed result:', result)
+      
+      if (!response.ok) {
+        console.error('API Error:', result)
+        console.error('Error details:', result.error, result.message, result.type)
+        throw new Error(result.error || result.message || 'Failed to generate recommendations')
+      }
       toast.success(`Generated ${result.recommendations_count} recommendations`)
       
       // Refresh inventory count
@@ -1371,10 +1524,11 @@ export function DataTableTrends({ onTabChange, session }: {
     const sortField = catalogSorting[0].id
     const sortMap: Record<string, string> = {
       'product_name': 'Product Name',
-      'product_code': 'SKU',
+      'variant_sku': 'SKU',
       'current_price': 'Price',
-      'category': 'Category',
-      'stock_status': 'Stock Status',
+      'revenue_last_30d': 'Revenue',
+      'inventory_velocity': 'Velocity',
+      'category_hierarchy': 'Category',
       'created_at': 'Date Added'
     }
     return sortMap[sortField] || 'Sort by'
@@ -1414,12 +1568,12 @@ export function DataTableTrends({ onTabChange, session }: {
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="flex items-center justify-between mb-4">
-            <TabsList className="grid w-fit grid-cols-4">
+            <TabsList className="grid w-fit grid-cols-3">
               <TabsTrigger value="trends" className="flex items-center gap-2">
               Trend Signals
-                {data.filter(t => t.trend_type !== 'forecast').length > 0 && (
+                {data.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                    {data.filter(t => t.trend_type !== 'forecast').length}
+                    {data.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -1439,29 +1593,8 @@ export function DataTableTrends({ onTabChange, session }: {
               </Badge>
                 )}
             </TabsTrigger>
-              <TabsTrigger value="forecast" className="flex items-center gap-2">
-              Trend Forecasts
-                {data.filter(t => t.trend_type === 'forecast').length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                    {data.filter(t => t.trend_type === 'forecast').length}
-                </Badge>
-              )}
-            </TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
-              {/* Status Badges */}
-              <div className="flex items-center gap-2 text-sm">
-                <Badge variant="outline" className="gap-1">
-                  <Database className="h-3 w-3" />
-                  {data.length} trends
-                </Badge>
-                {productCount > 0 && (
-                  <Badge variant="outline" className="gap-1">
-                    <PackageIcon className="h-3 w-3" />
-                    {productCount} products
-                  </Badge>
-                )}
-              </div>
               
               {/* Universal Search Bar */}
               <div className="relative">
@@ -1470,8 +1603,7 @@ export function DataTableTrends({ onTabChange, session }: {
                   placeholder={
                     activeTab === 'trends' ? "Search trends..." :
                     activeTab === 'catalog' ? "Search products..." :
-                    activeTab === 'inventory' ? "Search inventory..." :
-                    "Search forecasts..."
+                    "Search inventory..."
                   }
                   value={searchQuery}
                   onChange={(e) => {
@@ -1530,7 +1662,7 @@ export function DataTableTrends({ onTabChange, session }: {
                     <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'product_name', desc: false }])}>
                       Product Name
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'product_code', desc: false }])}>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'variant_sku', desc: false }])}>
                       SKU
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: false }])}>
@@ -1539,11 +1671,14 @@ export function DataTableTrends({ onTabChange, session }: {
                     <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'current_price', desc: true }])}>
                       Price (High to Low)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'category', desc: false }])}>
-                      Category
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'revenue_last_30d', desc: true }])}>
+                      Revenue (High to Low)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'stock_status', desc: false }])}>
-                      Stock Status
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'inventory_velocity', desc: true }])}>
+                      Velocity (High to Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'category_hierarchy', desc: false }])}>
+                      Category
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setCatalogSorting([{ id: 'created_at', desc: true }])}>
                       Date Added (Newest First)
@@ -1614,10 +1749,6 @@ export function DataTableTrends({ onTabChange, session }: {
                   </Button>
                 </>
               )}
-            <Button variant="outline" size="sm">
-              <PlusIcon className="mr-2 h-4 w-4" />
-              <span className="hidden lg:inline">Add Section</span>
-            </Button>
           </div>
         </div>
         <div className="w-full">
@@ -1776,130 +1907,6 @@ export function DataTableTrends({ onTabChange, session }: {
                 </div>
               )}
           </TabsContent>
-          
-          <TabsContent value="forecast" className="flex flex-col gap-4 m-0 p-0">
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => {
-                        return (
-                          <TableHead key={header.id}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
-                          </TableHead>
-                        )
-                      })}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody className="font-sans">
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
-                        No forecast trends found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex items-center justify-between px-4">
-              <div className="flex-1 text-sm text-muted-foreground">
-                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
-                {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length)} of {filteredData.length} forecast trends
-              </div>
-              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="rows-per-page-forecast" className="text-sm font-medium">
-                    Rows per page
-                  </Label>
-                  <Select
-                    value={`${table.getState().pagination.pageSize}`}
-                    onValueChange={(value) => {
-                      table.setPageSize(Number(value))
-                    }}
-                  >
-                    <SelectTrigger className="w-20" id="rows-per-page-forecast">
-                      <SelectValue placeholder={table.getState().pagination.pageSize} />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      {[10, 20, 30, 40, 50].map((pageSize) => (
-                        <SelectItem key={pageSize} value={`${pageSize}`}>
-                          {pageSize}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex w-fit items-center justify-center text-sm font-medium">
-                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.setPageIndex(0)}
-                    disabled={!table.getCanPreviousPage()}
-                  >
-                    <ChevronsLeftIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to first page</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                  >
-                    <ChevronLeftIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to previous page</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                  >
-                    <ChevronRightIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to next page</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                    disabled={!table.getCanNextPage()}
-                  >
-                    <ChevronsRightIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to last page</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
         </div>
       </Tabs>
       
@@ -1931,10 +1938,10 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
 
   const columns: ColumnDef<any>[] = [
     {
-      accessorKey: "product_code",
+      accessorKey: "variant_sku",
       header: "SKU",
       cell: ({ row }) => (
-        <div className="font-mono text-sm">{row.getValue("product_code")}</div>
+        <div className="font-mono text-sm">{row.getValue("variant_sku")}</div>
       ),
     },
     {
@@ -1942,27 +1949,32 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
       header: "Product",
       cell: ({ row, table }) => {
         const product = row.original
+        const images = product.images || []
+        const hasImage = images.length > 0
         
         return (
           <div 
             className="flex items-center gap-3 cursor-pointer hover:text-primary"
             onClick={() => (table.options.meta as any)?.onRowClick?.(row.original)}
           >
-            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
-              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {hasImage ? (
+                <img 
+                  src={images[0]} 
+                  alt={product.product_name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <ImageIcon className={`h-5 w-5 text-muted-foreground ${hasImage ? 'hidden' : ''}`} />
             </div>
             <div className="max-w-[300px]">
               <div className="font-medium truncate">{product.product_name}</div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {product.color && product.color !== 'N/A' && (
-                  <span>Color: {product.color}</span>
-                )}
-                {product.gender && product.gender !== 'Unisex' && (
-                  <>
-                    {product.color && product.color !== 'N/A' && <span>•</span>}
-                    <span>{product.gender}</span>
-                  </>
-                )}
+                <span>{product.color} • {product.size}</span>
               </div>
             </div>
           </div>
@@ -1970,13 +1982,14 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
       },
     },
     {
-      accessorKey: "category",
+      accessorKey: "category_hierarchy",
       header: "Category",
       cell: ({ row }) => {
-        const category = row.getValue("category") as string
+        const category = row.getValue("category_hierarchy") as string
+        const displayCategory = category?.split('/').pop() || 'Uncategorized'
         return (
           <Badge variant="secondary">
-            {category}
+            {displayCategory}
           </Badge>
         )
       },
@@ -1995,14 +2008,16 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
             <div className="font-medium">
               {currency === 'USD' ? '$' : currency} {price.toFixed(2)}
             </div>
-            {discount > 0 && (
+            {originalPrice && originalPrice > price && (
               <div className="flex items-center gap-2 text-xs">
                 <span className="line-through text-muted-foreground">
-                  ${originalPrice.toFixed(2)}
+                  {currency === 'USD' ? '$' : currency} {originalPrice.toFixed(2)}
                 </span>
-                <Badge variant="outline" className="text-xs">
-                  -{discount}%
-                </Badge>
+                {discount > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    -{discount}%
+                  </Badge>
+                )}
               </div>
             )}
           </div>
@@ -2010,36 +2025,33 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
       },
     },
     {
-      accessorKey: "average_rating",
-      header: "Rating",
+      accessorKey: "inventory_velocity",
+      header: ({ column }) => (
+        <div className="flex items-center gap-1">
+          <span>Velocity</span>
+          <CalculationTooltip
+            title="Inventory Velocity"
+            value="Units/Day"
+            steps={[
+              { label: "Units Sold (30d)", value: "units_sold_last_30d", formula: "Total units sold in last 30 days" },
+              { label: "Days", value: "30", formula: "Time period" },
+              { label: "Velocity", value: "units/day", formula: "units_sold / days" }
+            ]}
+            description="Rate at which inventory is moving"
+            size="sm"
+          />
+        </div>
+      ),
       cell: ({ row }) => {
-        const rating = row.original.average_rating
-        const reviewCount = row.original.reviews_count
-        
-        if (!rating) {
-          return <span className="text-muted-foreground text-sm">No ratings</span>
-        }
+        const velocity = parseFloat(row.getValue("inventory_velocity") || "0")
+        const unitsLast30d = row.original.units_sold_last_30d || 0
         
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <StarIcon 
-                  key={i} 
-                  className={`h-3 w-3 ${
-                    i < Math.floor(rating)
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
-                  }`}
-                />
-              ))}
-              <span className="text-sm font-medium ml-1">{rating.toFixed(1)}</span>
+            <div className="font-medium">{velocity.toFixed(1)}/day</div>
+            <div className="text-xs text-muted-foreground">
+              {unitsLast30d} units/30d
             </div>
-            {reviewCount && (
-              <div className="text-xs text-muted-foreground">
-                {reviewCount} reviews
-              </div>
-            )}
           </div>
         )
       },
@@ -2050,6 +2062,7 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
       cell: ({ row }) => {
         const status = row.getValue("stock_status") as string
         const inventory = row.original.current_inventory_level
+        const daysOfSupply = row.original.days_of_supply
         
         return (
           <div className="space-y-1">
@@ -2059,18 +2072,53 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
             >
               {status}
             </Badge>
-            {inventory > 0 && (
-              <div className="text-xs text-muted-foreground">
-                {inventory} units
-              </div>
-            )}
+            <div className="text-xs text-muted-foreground">
+              {inventory} units • {daysOfSupply}d supply
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "revenue_last_30d",
+      header: "Revenue (30d)",
+      cell: ({ row }) => {
+        const revenue = parseFloat(row.getValue("revenue_last_30d") || "0")
+        const currency = row.original.currency || 'BRL'
+        const conversionRate = row.original.conversion_rate || 0
+        
+        return (
+          <div className="space-y-1">
+            <div className="font-medium">
+              {currency === 'USD' ? '$' : currency === 'BRL' ? 'R$' : currency} {revenue.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {conversionRate.toFixed(1)}% conv
+            </div>
           </div>
         )
       },
     },
     {
       accessorKey: "trend_match_score",
-      header: "Trend Match",
+      header: ({ column }) => (
+        <div className="flex items-center gap-1">
+          <span>Trend Match</span>
+          <CalculationTooltip
+            title="Trend Match Score"
+            value="0-100%"
+            steps={[
+              { label: "Category Match", value: "30%", formula: "product category vs trending categories" },
+              { label: "Style Attributes", value: "25%", formula: "color, pattern, silhouette alignment" },
+              { label: "Price Alignment", value: "20%", formula: "price point vs trend demographics" },
+              { label: "Seasonality", value: "15%", formula: "seasonal relevance score" },
+              { label: "Brand Fit", value: "10%", formula: "brand positioning alignment" }
+            ]}
+            description="Measures how well a product aligns with current fashion trends"
+            size="sm"
+          />
+        </div>
+      ),
       cell: ({ row }) => {
         // Generate a stable trend match score based on product ID
         // In production, this would come from actual trend matching algorithm

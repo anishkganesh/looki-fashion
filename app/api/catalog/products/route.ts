@@ -35,48 +35,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User brand not found' }, { status: 404 })
     }
 
-    // Fetch products with categories, colors, and images
-    const { data: products, error, count } = await supabase
-      .from('products')
-      .select(`
-        *,
-        product_categories (
-          category_name,
-          category_path
-        ),
-        product_colors (
-          color_name,
-          is_primary
-        ),
-        product_images (
-          image_url,
-          is_primary,
-          image_order
-        )
-      `, { count: 'exact' })
-      .eq('brand_id', userData.brand_id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching products:', error)
-      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
+    // First, try to fetch just the products without joins to isolate the issue
+    console.log('Fetching products for brand_id:', userData.brand_id)
+    
+    let products = []
+    let count = 0
+    
+    try {
+      // Fetch all products without joins since the related tables don't exist
+      const { data: fetchedProducts, error: productsError, count: productCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact' })
+        .eq('brand_id', userData.brand_id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(3000) // Increase limit to get all products
+      
+      if (productsError) {
+        console.error('Error fetching products:', productsError)
+        throw productsError
+      }
+      
+      console.log(`Found ${productCount} products for brand ${userData.brand_id}`)
+      
+      products = fetchedProducts || []
+      count = productCount || 0
+      
+    } catch (queryError) {
+      console.error('Database query error:', queryError)
+      return NextResponse.json({ 
+        error: 'Database query failed', 
+        details: queryError instanceof Error ? queryError.message : 'Unknown error'
+      }, { status: 500 })
     }
-
-    // Transform data
-    const transformedProducts = products?.map(product => ({
-      ...product,
-      category: product.product_categories?.[0]?.category_name || 'Uncategorized',
-      color: product.product_colors?.find((c: any) => c.is_primary)?.color_name || 
-             product.product_colors?.[0]?.color_name || 'N/A',
-      images: product.product_images
-        ?.sort((a: any, b: any) => a.image_order - b.image_order)
-        ?.map((img: any) => img.image_url) || []
-    })) || []
 
     return NextResponse.json({ 
       success: true, 
-      products: transformedProducts,
+      products: products || [],
       count: count || 0
     })
   } catch (error) {

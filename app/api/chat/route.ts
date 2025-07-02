@@ -1,4 +1,5 @@
 import openaiClient from '@/lib/openai';
+import { supabaseService } from '@/lib/supabase-service';
 
 export async function POST(req: Request) {
   console.log("Chat API called");
@@ -7,7 +8,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Request type:", body.tool ? body.tool : "chat", "Request body:", JSON.stringify(body).substring(0, 200) + "...");
     
-    const { messages, tool, webSearch, fileContents, fileType, fileName } = body;
+    const { messages, tool, webSearch, fileContents, fileType, fileName, userEmail } = body;
     
     // Handle image generation request
     if (tool === 'image') {
@@ -62,6 +63,34 @@ export async function POST(req: Request) {
       }
     }
     
+    // Fetch user's brand info if email provided
+    let brandContext = '';
+    if (userEmail) {
+      try {
+        // First get the user to find their brand_id
+        const { data: userData } = await supabaseService
+          .from('usr')
+          .select('brand_id')
+          .eq('email', userEmail)
+          .single();
+        
+        if (userData?.brand_id) {
+          // Then get the brand details
+          const { data: brandData } = await supabaseService
+            .from('brands')
+            .select('*')
+            .eq('brand_id', userData.brand_id)
+            .single();
+          
+          if (brandData) {
+            brandContext = `\n\nContext about the user's brand:\n- Brand Name: ${brandData.brand_name}\n- Category: ${brandData.category}\n- Description: ${brandData.description || 'Not provided'}\n- Target Audience: ${brandData.target_gender || 'all'} aged ${brandData.target_age_min || 18}-${brandData.target_age_max || 65}\n- Income Level: ${brandData.target_income_level || 'medium'}\n- Locations: ${brandData.target_locations?.join(', ') || 'Global'}\n- Founded: ${brandData.founded_year || 'Unknown'}\n- Website: ${brandData.website || 'Not provided'}`;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching brand info:', error);
+      }
+    }
+    
     // Add system message if it doesn't exist
     const systemMessageExists = messages.some((m: { role: string }) => m.role === 'system');
     const finalMessages = [...messages];
@@ -69,8 +98,14 @@ export async function POST(req: Request) {
     if (!systemMessageExists) {
       finalMessages.unshift({
         role: 'system',
-        content: 'You are Looki AI, a helpful assistant specializing in fashion trend intelligence. You can provide information, analyze files, and help with trend-related queries. When web search results are provided to you, use them to answer questions, but do not mention "searching the web" unless you actually receive search results. Focus on providing clear, actionable insights.'
+        content: `You are Looki AI, a helpful assistant specializing in fashion trend intelligence. You can provide information, analyze files, and help with trend-related queries. When web search results are provided to you, use them to answer questions, but do not mention "searching the web" unless you actually receive search results. Focus on providing clear, actionable insights.${brandContext}`
       });
+    } else if (brandContext) {
+      // If system message exists, append brand context to it
+      const systemMsgIndex = finalMessages.findIndex(m => m.role === 'system');
+      if (systemMsgIndex !== -1) {
+        finalMessages[systemMsgIndex].content += brandContext;
+      }
     }
     
     // Add file content to the messages if provided

@@ -12,6 +12,65 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!
 })
 
+// Helper function for fuzzy matching of trend names
+function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '')
+  
+  // If either string is very short, use exact match
+  if (s1.length < 3 || s2.length < 3) {
+    return s1 === s2 ? 1 : 0
+  }
+  
+  // Check if one contains the other
+  if (s1.includes(s2) || s2.includes(s1)) {
+    return 0.9
+  }
+  
+  // Calculate Levenshtein distance
+  const matrix = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null))
+  
+  for (let i = 0; i <= s1.length; i++) matrix[0][i] = i
+  for (let j = 0; j <= s2.length; j++) matrix[j][0] = j
+  
+  for (let j = 1; j <= s2.length; j++) {
+    for (let i = 1; i <= s1.length; i++) {
+      if (s1[i - 1] === s2[j - 1]) {
+        matrix[j][i] = matrix[j - 1][i - 1]
+      } else {
+        matrix[j][i] = Math.min(
+          matrix[j - 1][i] + 1,
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i - 1] + 1
+        )
+      }
+    }
+  }
+  
+  const distance = matrix[s2.length][s1.length]
+  const maxLength = Math.max(s1.length, s2.length)
+  return 1 - (distance / maxLength)
+}
+
+// Find similar trends using fuzzy matching
+function findSimilarTrend(trendName: string, existingTrends: Map<string, any>): string | null {
+  const threshold = 0.85 // Increased to 85% to allow more similar trends
+  
+  for (const [id, trend] of existingTrends) {
+    // Compare with trend name
+    if (trend.trend_name) {
+      const similarity = calculateSimilarity(trendName, trend.trend_name)
+      if (similarity >= threshold) return id
+    }
+    
+    // Compare with identifier
+    const idSimilarity = calculateSimilarity(trendName, trend.trend_identifier || id)
+    if (idSimilarity >= threshold) return id
+  }
+  
+  return null
+}
+
 // Progress update helper
 function createProgressStream() {
   const encoder = new TextEncoder()
@@ -39,63 +98,340 @@ function createProgressStream() {
   return { stream, sendProgress, close }
 }
 
-// Diverse source pools to rotate through
+// Comprehensive source pools for trend discovery
 const fashionSources = {
-  publications: ['vogue.com', 'harpersbazaar.com', 'elle.com', 'wwd.com', 'businessoffashion.com', 'fashionista.com'],
-  social: ['instagram.com', 'tiktok.com', 'pinterest.com', 'twitter.com'],
-  retail: ['ssense.com', 'net-a-porter.com', 'farfetch.com', 'matchesfashion.com'],
-  streetwear: ['hypebeast.com', 'highsnobiety.com', 'complex.com', 'grailed.com'],
-  athletic: ['nike.com', 'adidas.com', 'puma.com', 'underarmour.com', 'lululemon.com']
+  // Traditional fashion media
+  publications: ['vogue.com', 'harpersbazaar.com', 'elle.com', 'wwd.com', 'businessoffashion.com', 'fashionista.com', 'refinery29.com', 'glamour.com', 'cosmopolitan.com', 'marieclaire.com'],
+  
+  // Social media platforms - where trends are born
+  social: ['tiktok.com', 'instagram.com', 'pinterest.com', 'twitter.com', 'youtube.com', 'reddit.com/r/fashion', 'reddit.com/r/streetwear', 'reddit.com/r/femalefashionadvice', 'reddit.com/r/malefashionadvice', 'tumblr.com'],
+  
+  // Celebrity and entertainment news
+  celebrity: ['tmz.com', 'eonline.com', 'perezhilton.com', 'justjared.com', 'dailymail.co.uk/tvshowbiz', 'hollywoodreporter.com', 'variety.com', 'billboard.com', 'rollingstone.com'],
+  
+  // Fashion events and runway
+  events: ['fashionweekdaily.com', 'nowfashion.com', 'livingly.com', 'style.com', 'fashionweekonline.com', 'vogue.com/fashion-shows'],
+  
+  // Trend forecasting and analytics
+  trends: ['wgsn.com', 'trendhunter.com', 'trendstop.com', 'fashionsnoops.com', 'stylus.com', 'lyst.com', 'tagwalk.com', 'launchmetrics.com'],
+  
+  // Retail and shopping
+  retail: ['ssense.com', 'net-a-porter.com', 'farfetch.com', 'matchesfashion.com', 'shopbop.com', 'revolve.com', 'asos.com', 'nordstrom.com'],
+  
+  // Streetwear and youth culture
+  streetwear: ['hypebeast.com', 'highsnobiety.com', 'complex.com', 'grailed.com', 'sneakernews.com', 'kicksonfire.com', 'nicekicks.com'],
+  
+  // Athletic and sportswear
+  athletic: ['nike.com', 'adidas.com', 'puma.com', 'underarmour.com', 'lululemon.com', 'gymshark.com', 'athleta.com', 'outdoor-voices.com'],
+  
+  // Regional sources
+  brazilian: ['vogue.com.br', 'elle.com.br', 'glamour.globo.com', 'harpersbazaar.uol.com.br', 'marieclaire.globo.com', 'ffw.uol.com.br'],
+  asian: ['vogue.jp', 'elle.kr', 'fashionsnap.com', 'wear.jp', 'fashionpress.jp'],
+  european: ['vogue.fr', 'vogue.it', 'elle.fr', 'grazia.it', 'lofficiel.com'],
+  
+  // Fast fashion monitoring
+  fast_fashion: ['zara.com', 'hm.com', 'forever21.com', 'uniqlo.com', 'mango.com', 'shein.com', 'boohoo.com', 'prettylittlething.com'],
+  
+  // Luxury brands
+  luxury: ['burberry.com', 'gucci.com', 'louisvuitton.com', 'chanel.com', 'dior.com', 'prada.com', 'balenciaga.com', 'bottegaveneta.com'],
+  
+  // Technology and innovation
+  tech: ['techcrunch.com', 'theverge.com', 'wired.com', 'engadget.com', 'digitaltrends.com'],
+  
+  // Sustainability
+  sustainability: ['fashionrevolution.org', 'goodonyou.eco', 'eco-age.com', 'sustainablefashion.com', 'remake.world'],
+  
+  // Music and concert influence
+  music: ['coachella.com', 'pitchfork.com', 'nme.com', 'stereogum.com', 'consequenceofsound.net', 'brooklynvegan.com'],
+  
+  // Influencer platforms
+  influencer: ['liketoknow.it', '21buttons.com', 'rewardstyle.com', 'shopstyle.com']
 }
 
-// Get random sources for diversity
-function getRandomSources(category: string, count: number = 2): string[] {
-  const sources = fashionSources[category as keyof typeof fashionSources] || []
-  return sources.sort(() => Math.random() - 0.5).slice(0, count)
+// Get brand-specific sources
+function getBrandSpecificSources(brandInfo: any): string[] {
+  const brandName = brandInfo?.brand_name?.toLowerCase() || ''
+  const brandCategory = brandInfo?.category?.toLowerCase() || ''
+  const brandCountry = brandInfo?.country || 'US'
+  
+  let selectedSources: string[] = []
+  
+  // Add brand-specific sources
+  if (brandName.includes('marisa') || brandCountry === 'BR') {
+    selectedSources.push(...fashionSources.brazilian)
+    selectedSources.push(...fashionSources.fast_fashion)
+  }
+  
+  if (brandName.includes('nike') || brandCategory.includes('athletic')) {
+    selectedSources.push(...fashionSources.athletic)
+    selectedSources.push(...fashionSources.streetwear)
+  }
+  
+  if (brandCategory.includes('luxury') || brandInfo?.target_income_level === 'high') {
+    selectedSources.push(...fashionSources.luxury)
+    selectedSources.push(...fashionSources.publications.slice(0, 3))
+  }
+  
+  if (brandCategory.includes('sustainable') || brandInfo?.target_interests?.includes('sustainability')) {
+    selectedSources.push(...fashionSources.sustainability)
+  }
+  
+  // Always add social media for real-time trends
+  selectedSources.push(...fashionSources.social)
+  
+  // Add general fashion sources
+  selectedSources.push(...fashionSources.publications.slice(0, 4))
+  selectedSources.push(...fashionSources.retail.slice(0, 3))
+  
+  // Remove duplicates and return
+  return [...new Set(selectedSources)]
 }
 
-// Generate brand-specific search queries
+// Generate comprehensive trend search queries
 function generateBrandSpecificQueries(brandInfo: any) {
   const currentDate = new Date()
   const month = currentDate.toLocaleDateString('en-US', { month: 'long' })
   const year = currentDate.getFullYear()
+  const week = Math.ceil((currentDate.getDate() + new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay()) / 7)
   const season = getSeason()
   const nextSeason = getNextSeason()
+  const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' })
   
-  // Default brand context (can be customized based on user's brand)
-  const brandContext = brandInfo?.brand_name?.toLowerCase() || 'fashion'
-  const brandCategory = brandInfo?.industry || 'general'
+  // Add randomization to get different results each time
+  const randomSeed = Math.random()
   
-  // Tailor queries based on brand type
-  let queries = []
+  // Time-based contexts for ultra-recent trends - shuffle for variety
+  const timeContexts = [
+    `today ${dayOfWeek}`,
+    `this week ${month} ${year}`,
+    `${month} ${week} week ${year}`,
+    `latest ${month} ${year}`,
+    `new today`,
+    `just dropped`,
+    `trending now`,
+    `viral today`,
+    `breaking`,
+    `hot right now`,
+    `${month} ${year} trends`,
+    `week ${week} fashion`,
+    `newest arrivals`,
+    `fresh drops`,
+    `just launched`
+  ].sort(() => randomSeed - 0.5).slice(0, 10)
   
-  if (brandContext.includes('nike') || brandContext.includes('athletic') || brandCategory.includes('sport')) {
-    queries = [
-      `athletic wear trends ${month} ${year} sneaker culture streetwear`,
-      `${nextSeason} sportswear trends performance fashion tech fabrics`,
-      `celebrity athlete fashion ${year} sports style influencers`,
-      `sustainable athletic wear eco-friendly sports fashion ${year}`
+  // Extract brand context from actual user data
+  const brandName = brandInfo?.brand_name || 'fashion'
+  const brandCategory = brandInfo?.category || 'general'
+  const targetGender = brandInfo?.target_gender || 'all'
+  const targetAgeMin = brandInfo?.target_age_min || 18
+  const targetAgeMax = brandInfo?.target_age_max || 65
+  const targetLifestyle = brandInfo?.target_lifestyle || []
+  const targetInterests = brandInfo?.target_interests || ['fashion']
+  const targetIncomeLevel = brandInfo?.target_income_level || 'medium'
+  const targetLocations = brandInfo?.target_locations || []
+  const brandCountry = brandInfo?.country || 'US'
+  
+  // Gender-specific context
+  const genderTerms: Record<string, string[]> = {
+    female: ['women', 'womens', 'ladies', 'female', 'girl', 'feminine'],
+    male: ['men', 'mens', 'guys', 'male', 'masculine'],
+    all: ['unisex', 'gender-neutral', 'everyone']
+  }
+  const genderContext = genderTerms[targetGender as string] || genderTerms.all
+  
+  // Age-specific context with more granularity
+  let ageContext: string[] = []
+  if (targetAgeMax <= 18) {
+    ageContext = ['teen', 'teenager', 'high school', 'young']
+  } else if (targetAgeMin >= 18 && targetAgeMax <= 25) {
+    ageContext = ['gen z', 'college', 'university', 'young adult']
+  } else if (targetAgeMin >= 25 && targetAgeMax <= 35) {
+    ageContext = ['millennial', 'young professional', 'career']
+  } else if (targetAgeMin >= 35 && targetAgeMax <= 45) {
+    ageContext = ['established', 'professional', 'family']
+  } else if (targetAgeMin >= 45) {
+    ageContext = ['mature', 'sophisticated', 'executive', 'luxury']
+  }
+  
+  // Price-specific terms
+  const priceTerms: Record<string, string[]> = {
+    high: ['luxury', 'designer', 'premium', 'haute couture', 'exclusive'],
+    medium: ['contemporary', 'mid-range', 'accessible luxury', 'premium casual'],
+    low: ['affordable', 'budget', 'value', 'fast fashion', 'bargain']
+  }
+  const priceContext = priceTerms[targetIncomeLevel as string] || priceTerms.medium
+  
+  // Location-specific context
+  const locationContext = targetLocations.length > 0 ? targetLocations[0] : brandCountry
+  
+  // Core trend discovery queries - focus on micro-trends and hashtags
+  // Randomize query selection for diversity
+  const allCoreTrendQueries = [
+    // TikTok hashtag trends - varied
+    `site:tiktok.com #fashion ${timeContexts[0]} trending viral`,
+    `site:tiktok.com #ootd #styleinspo ${timeContexts[1]} fyp`,
+    `site:tiktok.com #fashiontrends ${month} ${year} viral`,
+    `site:tiktok.com fashion challenge ${timeContexts[2]} trend`,
+    `site:tiktok.com style hack ${timeContexts[3]} viral`,
+    `site:tiktok.com fashion finds ${timeContexts[4]}`,
+    
+    // Instagram hashtag trends - varied
+    `site:instagram.com #fashion #trending ${timeContexts[0]}`,
+    `site:instagram.com #streetstyle #fashionista ${timeContexts[1]}`,
+    `site:instagram.com fashion reels trending ${timeContexts[2]}`,
+    `site:instagram.com outfit ideas ${month} ${year}`,
+    `site:instagram.com fashion inspo ${timeContexts[3]}`,
+    
+    // Reddit micro-communities - expanded
+    `site:reddit.com/r/fashion "trending" "viral" ${timeContexts[0]}`,
+    `site:reddit.com/r/streetwear "cop or drop" ${timeContexts[1]}`,
+    `site:reddit.com/r/womensstreetwear trending ${timeContexts[2]}`,
+    `site:reddit.com/r/malefashion ${month} ${year}`,
+    `site:reddit.com fashion advice trending ${timeContexts[3]}`,
+    
+    // Pinterest trends
+    `site:pinterest.com fashion trends ${month} ${year}`,
+    `site:pinterest.com outfit aesthetic ${season} ${year}`,
+    `site:pinterest.com style board trending ${timeContexts[0]}`,
+    
+    // Twitter/X trends
+    `site:twitter.com fashion trending ${timeContexts[0]}`,
+    `site:x.com style viral ${timeContexts[1]}`,
+    
+    // Hashtag aggregation - more variety
+    `#fashion #viral #trending ${timeContexts[0]} tiktok instagram`,
+    `fashion hashtags trending ${month} ${year} micro trends`,
+    `microtrends fashion ${timeContexts[2]} social media`,
+    `fashion movement ${timeContexts[3]} gen z millennial`,
+    `style trend alert ${timeContexts[4]} influencer`,
+    
+    // Emerging platform trends
+    `fashion trends threads app ${timeContexts[0]}`,
+    `style trending youtube shorts ${timeContexts[1]}`,
+    `fashion viral BeReal ${month} ${year}`
+  ]
+  
+  // Focus on high-yield sources first
+  const highYieldQueries = allCoreTrendQueries.filter(q => 
+    q.includes('tiktok.com') || 
+    q.includes('instagram.com') || 
+    q.includes('pinterest.com') ||
+    q.includes('#fashion #viral #trending')
+  )
+  
+  const otherQueries = allCoreTrendQueries.filter(q => !highYieldQueries.includes(q))
+  
+  // Prioritize high-yield sources
+  const coreTrendQueries = [
+    ...highYieldQueries.sort(() => Math.random() - 0.5).slice(0, 6),
+    ...otherQueries.sort(() => Math.random() - 0.5).slice(0, 4)
+  ]
+  
+  // Brand-specific query generation - enhanced with more variety
+  let allBrandQueries = []
+  
+  if (brandName.toLowerCase().includes('marisa')) {
+    // Marisa Lojas specific queries - expanded and varied
+    allBrandQueries = [
+      `site:tiktok.com.br #modafeminina #marisalojas ${timeContexts[0]}`,
+      `site:instagram.com.br #lookdodia #modabrasileira ${timeContexts[1]}`,
+      `"marisa lojas" #fashion #trending brasil ${timeContexts[2]}`,
+      `#modafeminina #tendencias brasil ${month} ${year} viral`,
+      `brazilian fashion hashtags tiktok ${timeContexts[0]} #moda`,
+      `moda brasileira ${season} ${year} tendencias`,
+      `fashion brasil ${timeContexts[3]} nova coleção`,
+      `estilo brasileiro ${month} ${year} trends`,
+      `#modabrasil #ootdbrasil ${timeContexts[4]}`,
+      `brazilian street style ${timeContexts[5]}`,
+      `moda feminina brasil microtrends ${timeContexts[6]}`,
+      `tendencias moda brasil ${nextSeason} ${year}`,
+      `brazilian fashion influencer ${timeContexts[7]}`,
+      `#fashionbr #stylebrasil trending`,
+      `moda acessível brasil ${timeContexts[8]}`
     ]
-  } else if (brandContext.includes('luxury') || brandCategory.includes('luxury')) {
-    queries = [
-      `luxury fashion trends ${season} ${year} haute couture designer`,
-      `high-end accessories trends ${year} luxury handbags jewelry`,
-      `celebrity red carpet fashion ${month} ${year} luxury brands`,
-      `${nextSeason} luxury fashion forecast designer collections`
+  } else if (brandName.toLowerCase().includes('nike') || brandCategory === 'athletic') {
+    // Nike/Athletic specific queries
+    allBrandQueries = [
+      `${brandName} ${timeContexts[0]} sneaker drops releases`,
+      `athletic wear technology ${timeContexts[1]} innovation fabric`,
+      `${brandName} athlete collaborations ${month} ${year} new`,
+      `sportswear trends ${genderContext[0]} ${timeContexts[2]} fitness`,
+      `sneakerhead culture ${timeContexts[3]} ${brandName} releases`,
+      `athleisure street style ${timeContexts[4]} ${locationContext}`,
+      `performance wear innovation ${season} ${year} ${brandName}`,
+      `sustainable athletic ${brandName} ${timeContexts[5]} eco`
+    ]
+  } else if (brandCategory === 'womenswear') {
+    allBrandQueries = [
+      `#womensfashion #ootd ${timeContexts[0]} trending viral`,
+      `site:tiktok.com #fashion #womenstyle ${timeContexts[1]}`,
+      `site:instagram.com #fashionista #styleinspo women ${timeContexts[2]}`,
+      `#${season}fashion #womensclothing ${locationContext} trending`,
+      `fashion hashtags women ${priceContext[0]} ${timeContexts[0]}`
+    ]
+  } else if (brandCategory === 'menswear') {
+    allBrandQueries = [
+      `men fashion ${timeContexts[0]} ${priceContext[0]} style`,
+      `menswear ${timeContexts[1]} ${locationContext} street looks`,
+      `male fashion influencer ${timeContexts[2]} outfit inspiration`,
+      `${season} ${year} men clothing ${priceContext[1]} trends`,
+      `men ${ageContext[0]} style ${timeContexts[3]} fashion`,
+      `men ${targetLifestyle.join(' ')} fashion ${timeContexts[4]}`,
+      `men streetwear ${timeContexts[5]} ${priceContext[0]}`,
+      `men business casual ${timeContexts[6]} ${year} trends`
+    ]
+  } else if (brandCategory === 'accessories') {
+    allBrandQueries = [
+      `accessories ${timeContexts[0]} ${priceContext[0]} trending`,
+      `handbag trends ${timeContexts[1]} ${genderContext[0]} new`,
+      `jewelry fashion ${timeContexts[2]} ${season} ${year}`,
+      `shoes footwear ${timeContexts[3]} ${priceContext[1]} latest`,
+      `belt wallet accessories ${timeContexts[4]} ${ageContext[0]}`,
+      `designer accessories ${timeContexts[5]} ${locationContext}`,
+      `sustainable accessories ${timeContexts[6]} eco friendly`,
+      `tech accessories fashion ${timeContexts[7]} innovative`
+    ]
+  } else if (brandCategory === 'beauty') {
+    allBrandQueries = [
+      `beauty trends ${timeContexts[0]} makeup skincare new`,
+      `${locationContext} beauty influencer ${timeContexts[1]} looks`,
+      `tiktok beauty ${timeContexts[2]} viral products ${year}`,
+      `${season} ${year} beauty trends ${priceContext[0]} products`,
+      `clean beauty ${timeContexts[3]} sustainable ${genderContext[0]}`,
+      `beauty tech innovation ${timeContexts[4]} devices tools`,
+      `instagram beauty ${timeContexts[5]} ${ageContext[0]} trends`,
+      `skincare routine ${timeContexts[6]} ${priceContext[1]} products`
     ]
   } else {
-    // General fashion queries
-    queries = [
-      `fashion trends ${month} ${year} street style viral tiktok`,
-      `${nextSeason} fashion trends forecast upcoming styles ${year}`,
-      `celebrity fashion ${month} ${year} influencer style trends`,
-      `sustainable fashion trends ${year} eco-friendly materials`,
-      `emerging fashion designers ${year} new brands to watch`
+    // Generic but still specific queries
+    allBrandQueries = [
+      `${brandCategory} fashion ${timeContexts[0]} ${priceContext[0]} trends`,
+      `${locationContext} ${brandCategory} ${timeContexts[1]} street style`,
+      `${genderContext[0]} ${brandCategory} ${timeContexts[2]} instagram looks`,
+      `${season} ${year} ${brandCategory} ${priceContext[1]} new arrivals`,
+      `${ageContext[0]} ${brandCategory} fashion ${timeContexts[3]} trending`,
+      `${targetLifestyle.join(' ')} ${brandCategory} ${timeContexts[4]} style`,
+      `sustainable ${brandCategory} ${timeContexts[5]} eco fashion`,
+      `tiktok ${brandCategory} ${timeContexts[6]} viral ${year}`
     ]
   }
   
-  // Limit to 5 queries for speed
-  return queries.slice(0, 5)
+  // Platform queries already included in core and brand queries
+  const platformQueries: string[] = []
+  
+  // Shuffle brand queries and select varied ones - reduced for speed
+  const brandQueries = allBrandQueries.length > 0 
+    ? allBrandQueries.sort(() => Math.random() - 0.5).slice(0, 5) // Reduced from 10 to 5
+    : []
+  
+  // Combine all queries - optimized for more trends
+  const allQueries = [...coreTrendQueries, ...brandQueries]
+    .map(q => q.replace(/\s+/g, ' ').trim())
+    .filter((q, index, self) => self.indexOf(q) === index) // Remove duplicates
+    .sort(() => Math.random() - 0.5) // Final shuffle
+    .slice(0, 12) // 12 queries for balance of speed and coverage
+  
+  return allQueries
 }
 
 function getSeason() {
@@ -114,27 +450,54 @@ function getNextSeason() {
   return 'spring'
 }
 
-// Parse trends using OpenAI - optimized for speed
-async function parseTrendsWithAI(content: string, url: string, brandContext?: string) {
+// Parse trends using OpenAI - upgraded to GPT-4 for better extraction
+async function parseTrendsWithAI(content: string, url: string, brandInfo?: any) {
   try {
-    const prompt = `Extract 5-8 specific fashion trends from this content. Focus on actual items/styles relevant to ${brandContext || 'fashion brands'}.
+    const brandName = brandInfo?.brand_name || 'fashion'
+    const brandCategory = brandInfo?.category || 'general'
+    const targetGender = brandInfo?.target_gender || 'all'
+    const priceLevel = brandInfo?.target_income_level || 'medium'
+    
+    const prompt = `Extract 5-8 VERY SPECIFIC fashion trends from this content that are relevant to ${brandName} (${brandCategory} brand, ${targetGender} market, ${priceLevel} price point).
 
-Content: ${content.slice(0, 2500)}
+IMPORTANT: 
+1. Focus on micro-trends and hashtag-driven trends
+2. Look for specific hashtags, viral challenges, and niche fashion movements
+3. Format trend names properly with correct spacing (e.g., "Dark Academia Style" not "darkacademia")
+4. Include hashtags where relevant but ensure the name is readable
+
+Content: ${content.slice(0, 3500)}
+Source: ${url}
 
 For each trend, provide a JSON array with these exact fields:
-- name: Specific trend name (2-4 words, e.g., "Oversized Blazers", "Neon Running Shoes")
-- description: Brief description (1-2 sentences about what it is and why it's trending)
-- category: One of: color, pattern, silhouette, fabric, accessory, footwear, lifestyle, tech, general
-- is_forecast: true if it's upcoming/predicted for next season, false if currently trending
-- relevance: 0.7-1.0 for how relevant to ${brandContext || 'fashion'}
+- name: Properly formatted trend name with correct spacing. Examples:
+  - "Miu Miu Ballet Flats" (not "MiuMiuBalletFlats")
+  - "#DarkAcademia Aesthetic" (hashtag + proper spacing)
+  - "Y2K Low Rise Jeans" (not "Y2KLowRiseJeans")
+  - "Coastal Grandmother Style" (not "coastalgrandmotherstyle")
+- description: Include relevant hashtags, platform where it's trending (1-2 sentences)
+- category: One of: hashtag-trend, micro-trend, aesthetic, viral-item, challenge, subculture-style, platform-specific, color, pattern, silhouette, general
+- is_forecast: true if future/upcoming, false otherwise
+- relevance: 0.5-1.0 based on brand fit (be generous)
+- confidence: 0.5-1.0 based on trend strength
+- specifics: Object with fields like:
+  - hashtags: ["#fashion", "#trending", etc]
+  - platforms: ["tiktok", "instagram", "reddit"]
+  - engagement: "1M views", "50K posts" if mentioned
+  - brands: [specific brands mentioned]
+  - colors: [exact colors/colorways]
+  - price_range: "$X-Y" if mentioned
+  - influencers: [specific people/accounts]
+  - viral_platform: "tiktok"/"instagram"/etc
+  - originator: who/what started this trend
 
-Important: Return ONLY a valid JSON array, no other text.`
+Important: Return ONLY a valid JSON array. Extract SPECIFIC items with properly formatted names, not general categories.`
 
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.6,
-      max_tokens: 1000
+      temperature: 0.7,
+      max_tokens: 1500
     })
     
     let trendsJson = response.choices[0].message.content?.trim() || '[]'
@@ -155,24 +518,28 @@ Important: Return ONLY a valid JSON array, no other text.`
       return []
     }
     
-    // Add default demographics and validate
+    // Add brand-specific demographics and validate
     return trends
       .filter(trend => trend.name && trend.category) // Must have at least name and category
       .slice(0, 8) // Max 8 trends per source
       .map((trend: any) => ({
         name: trend.name,
-        description: trend.description || `${trend.name} is trending in ${brandContext || 'fashion'}`,
+        description: trend.description || `${trend.name} is trending in ${brandName}`,
         category: trend.category || 'general',
         is_forecast: trend.is_forecast === true,
         relevance: trend.relevance || 0.8,
+        confidence: trend.confidence || 0.8,
+        specifics: trend.specifics || {},
         demographics: {
-          age_range: [18, 45],
-          gender: 'all',
-          locations: ['New York', 'Los Angeles', 'London', 'Paris', 'Tokyo'],
-          income_level: 'medium',
-          lifestyle: ['urban', 'fashion-forward'],
-          interests: ['fashion', 'style']
-        }
+          age_range: [brandInfo?.target_age_min || 18, brandInfo?.target_age_max || 45],
+          gender: brandInfo?.target_gender || 'all',
+          locations: brandInfo?.target_locations || ['Global'],
+          income_level: brandInfo?.target_income_level || 'medium',
+          lifestyle: brandInfo?.target_lifestyle || ['urban', 'fashion-forward'],
+          interests: brandInfo?.target_interests || ['fashion', 'style']
+        },
+        source_url: url,
+        extracted_at: new Date().toISOString()
       }))
   } catch (error) {
     console.error('AI parsing error:', error)
@@ -180,80 +547,108 @@ Important: Return ONLY a valid JSON array, no other text.`
   }
 }
 
-// Calculate trend metrics
+// Calculate trend metrics with real-time adjustments
 function calculateTrendMetrics(trend: any, sourceCount: number) {
   const now = new Date()
   
-  // Base momentum on whether it's forecast or current
-  const baseMomentum = trend.is_forecast ? 30 : 60
-  const momentum = Math.min(100, baseMomentum + (sourceCount * 10) + Math.random() * 20)
+  // Check if trend has viral indicators
+  const hasViralIndicators = trend.specifics?.viral_platform || 
+    trend.description?.toLowerCase().includes('viral') ||
+    trend.description?.toLowerCase().includes('trending') ||
+    trend.description?.toLowerCase().includes('tiktok') ||
+    trend.description?.toLowerCase().includes('instagram')
   
-  // Velocity (rate of growth) - lower for forecasts
-  const baseVelocity = trend.is_forecast ? 3 : 8
-  const velocity = baseVelocity + (sourceCount * 2) + Math.random() * 5
+  // Base momentum on recency and viral status
+  let baseMomentum = 50
+  if (hasViralIndicators) baseMomentum = 75
+  if (trend.extracted_at && new Date(trend.extracted_at).getDate() === now.getDate()) baseMomentum += 15
+  if (sourceCount > 3) baseMomentum += 10
   
-  // Lifecycle stage based on forecast status and momentum
+  const momentum = Math.min(100, baseMomentum + (sourceCount * 5) + Math.random() * 10)
+  
+  // Velocity - higher for viral/recent trends
+  const baseVelocity = hasViralIndicators ? 15 : 8
+  const velocity = Math.min(30, baseVelocity + (sourceCount * 3) + Math.random() * 5)
+  
+  // Lifecycle stage based on real indicators
   let lifecycle = 'emerging'
-  if (trend.is_forecast) {
-    lifecycle = 'emerging'
-  } else if (momentum > 80) {
+  if (hasViralIndicators && momentum > 85) {
     lifecycle = 'viral'
-  } else if (momentum > 60) {
+  } else if (momentum > 75) {
     lifecycle = 'growing'
-  } else if (momentum > 40) {
+  } else if (momentum > 60) {
     lifecycle = 'peak'
+  } else if (momentum > 40) {
+    lifecycle = 'established'
   }
   
-  // Adoption rate (0-1) - lower for forecasts
-  const adoption = trend.is_forecast 
-    ? Math.min(0.3, 0.05 + (momentum / 100) * 0.2)
-    : Math.min(1, 0.2 + (momentum / 100) * 0.5)
+  // Adoption rate - based on specifics
+  const hasInfluencers = trend.specifics?.influencers?.length > 0
+  const baseAdoption = hasInfluencers ? 0.4 : 0.2
+  const adoption = Math.min(1, baseAdoption + (momentum / 100) * 0.4)
   
-  // Social reach - vary by demographic and forecast status
-  const demographicMultiplier = trend.demographics?.age_range?.[0] < 25 ? 1.5 : 1
-  const forecastMultiplier = trend.is_forecast ? 0.3 : 1
-  const socialReach = Math.floor((10000 + (momentum * 5000) + Math.random() * 50000) * demographicMultiplier * forecastMultiplier)
+  // Social reach - use real data if available
+  let socialReach = 50000
+  if (hasViralIndicators) socialReach = 500000
+  if (trend.specifics?.viral_platform === 'tiktok') socialReach = 1000000
+  if (trend.specifics?.viral_platform === 'instagram') socialReach = 750000
+  socialReach = Math.floor(socialReach + (momentum * 10000) + Math.random() * 100000)
   
-  // Risk score (0-1) - higher for forecasts
-  const risk = trend.is_forecast 
-    ? 0.4 + Math.random() * 0.3 
-    : 0.1 + Math.random() * 0.2
+  // Risk score - lower for established brands/trends
+  const hasBrandMentions = trend.specifics?.brands?.length > 0
+  const risk = hasBrandMentions ? 0.1 + Math.random() * 0.1 : 0.2 + Math.random() * 0.2
   
-  // Conversion impact (0-1)
-  const conversion = trend.is_forecast
-    ? 0.02 + (momentum / 100) * 0.08 + Math.random() * 0.05
-    : 0.05 + (momentum / 100) * 0.15 + Math.random() * 0.1
+  // Conversion impact - higher for specific items with prices
+  const hasPriceInfo = trend.specifics?.price_range
+  const baseConversion = hasPriceInfo ? 0.15 : 0.08
+  const conversion = Math.min(0.5, baseConversion + (momentum / 100) * 0.2 + (adoption * 0.1))
   
-  // Peak prediction - further out for forecasts
-  const daysToPeak = trend.is_forecast
-    ? Math.floor(60 + (1 - velocity / 30) * 120) // 60-180 days for forecasts
-    : Math.floor(30 + (1 - velocity / 30) * 60)  // 30-90 days for current trends
+  // Peak prediction - much shorter for viral trends
+  let daysToPeak = 14 // Default 2 weeks
+  if (hasViralIndicators) daysToPeak = 7 // 1 week for viral
+  if (lifecycle === 'viral') daysToPeak = 3 // Already viral, peak soon
+  if (lifecycle === 'peak') daysToPeak = 0 // Already at peak
+  
+  daysToPeak = Math.max(0, daysToPeak + Math.floor(Math.random() * 7 - 3)) // Add some variance
   const peakDate = new Date(now.getTime() + daysToPeak * 24 * 60 * 60 * 1000)
   
-  // Decline prediction (60-180 days after peak)
-  const daysToDecline = Math.floor(60 + Math.random() * 120)
+  // Decline prediction - shorter cycles for fast fashion
+  const daysToDecline = hasViralIndicators ? 30 : 60 // 1-2 months after peak
   const declineDate = new Date(peakDate.getTime() + daysToDecline * 24 * 60 * 60 * 1000)
   
   return {
-    momentum_score: momentum,
-    velocity: velocity,
+    momentum_score: Math.round(momentum),
+    velocity: Math.round(velocity * 10) / 10,
     lifecycle_stage: lifecycle,
-    adoption_rate: adoption,
-    competitor_adoption: Math.random() * 0.6,
-    seasonality_factor: 0.5 + Math.random() * 0.5,
+    adoption_rate: Math.round(adoption * 100) / 100,
+    competitor_adoption: Math.round(Math.random() * 0.6 * 100) / 100,
+    seasonality_factor: Math.round((0.5 + Math.random() * 0.5) * 100) / 100,
     predicted_peak_date: peakDate.toISOString().split('T')[0],
     predicted_decline_date: declineDate.toISOString().split('T')[0],
     social_reach: socialReach,
-    conversion_impact: conversion,
-    risk_score: risk,
-    // Add demographics
+    conversion_impact: Math.round(conversion * 100) / 100,
+    risk_score: Math.round(risk * 100) / 100,
+    // Add demographics from trend
     target_age_min: trend.demographics?.age_range?.[0] || 18,
     target_age_max: trend.demographics?.age_range?.[1] || 65,
     target_gender: trend.demographics?.gender || 'all',
-    target_locations: trend.demographics?.locations || ['US'],
+    target_locations: trend.demographics?.locations || ['Global'],
     target_income_level: trend.demographics?.income_level || 'medium',
     target_lifestyle: trend.demographics?.lifestyle || [],
     target_interests: trend.demographics?.interests || []
+  }
+}
+
+// Store recently searched URLs in memory (resets on server restart)
+const recentlySearchedUrls = new Set<string>()
+const MAX_URL_HISTORY = 200 // Keep track of last 200 URLs
+
+// Clean up old URLs periodically
+function cleanupUrlHistory() {
+  if (recentlySearchedUrls.size > MAX_URL_HISTORY) {
+    const urlArray = Array.from(recentlySearchedUrls)
+    const toRemove = urlArray.slice(0, urlArray.length - MAX_URL_HISTORY)
+    toRemove.forEach(url => recentlySearchedUrls.delete(url))
   }
 }
 
@@ -267,29 +662,102 @@ export async function POST(request: Request) {
       
       sendProgress('Starting Fashion Trend Agent...')
       
-      // Get brand info (TODO: fetch from user profile)
-      const brandInfo = { brand_name: 'Nike', industry: 'athletic' } // Example
+      // Get the request body to extract user email
+      let userEmail = null
+      try {
+        const body = await request.json()
+        userEmail = body.userEmail
+      } catch (e) {
+        // Body might not be JSON, that's okay
+        console.log('Could not parse request body:', e)
+      }
+      
+      // Fetch user's brand info from database
+      let brandInfo = null
+      let brandDataComplete = false
+      
+      if (userEmail) {
+        try {
+          // First get the user to find their brand_id
+          const { data: userData, error: userError } = await supabaseService
+            .from('usr')
+            .select('brand_id')
+            .eq('email', userEmail)
+            .single()
+          
+          if (userData?.brand_id && !userError) {
+            // Then get the brand details
+            const { data: brandData, error: brandError } = await supabaseService
+              .from('brands')
+              .select('*')
+              .eq('brand_id', userData.brand_id)
+              .single()
+            
+            if (brandData && !brandError) {
+              brandInfo = brandData
+              
+              // Check if brand data is complete
+              brandDataComplete = !!(
+                brandData.brand_name &&
+                brandData.category &&
+                brandData.target_gender &&
+                brandData.target_age_min &&
+                brandData.target_age_max &&
+                brandData.target_income_level
+              )
+              
+              if (brandDataComplete) {
+                sendProgress(`Using brand context: ${brandData.brand_name} (${brandData.category})`)
+              } else {
+                sendProgress(`Warning: Incomplete brand profile. Please complete your account setup for better trend recommendations.`)
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching brand info:', error)
+        }
+      }
+      
+      // If no brand info found, use defaults
+      if (!brandInfo) {
+        brandInfo = { 
+          brand_name: 'Fashion Brand', 
+          category: 'general',
+          target_gender: 'all',
+          target_age_min: 18,
+          target_age_max: 65,
+          target_income_level: 'medium',
+          target_lifestyle: ['urban', 'fashion-forward'],
+          target_interests: ['fashion', 'style']
+        }
+        sendProgress('Using default fashion context')
+      }
       
       // Generate brand-specific queries
       const queries = generateBrandSpecificQueries(brandInfo)
       sendProgress(`Generated ${queries.length} brand-specific queries`)
       
+      // Get brand-specific sources
+      const brandSources = getBrandSpecificSources(brandInfo)
+      sendProgress(`Using ${brandSources.length} brand-relevant sources`)
+      
       const allTrends: any[] = []
-      const brandContext = brandInfo?.brand_name || 'fashion'
       const processedUrls = new Set<string>()
       
-      // Process queries sequentially for better control
+      // Process queries with better speed
       for (const query of queries) {
         sendProgress(`Searching: "${query}"...`)
         
         try {
-          // Get search results with content
+          // Get search results with content, prioritizing brand-specific sources
           const searchResult = await firecrawl.search(query, {
-            limit: 5, // 5 results per query
+            limit: 5, // Increased back to 5 for more trends
             scrapeOptions: {
               formats: ["markdown"],
-              timeout: 4000,
-              waitFor: 300
+              timeout: 1500, // Fast timeout
+              waitFor: 100, // Minimal wait
+              includeTags: ["article", "main", "section", "div"],
+              excludeTags: ["nav", "header", "footer", "aside", "script", "style"]
             }
           })
           
@@ -303,9 +771,17 @@ export async function POST(request: Request) {
           // Process each result directly (no re-scraping needed)
           for (const result of searchResult.data) {
             if (!result.url || processedUrls.has(result.url)) continue
-            processedUrls.add(result.url)
             
-            if (!result.markdown || result.markdown.length < 200) {
+            // Skip if recently searched
+            if (recentlySearchedUrls.has(result.url)) {
+              sendProgress(`Skipping recently searched: ${new URL(result.url).hostname}`)
+              continue
+            }
+            
+            processedUrls.add(result.url)
+            recentlySearchedUrls.add(result.url)
+            
+            if (!result.markdown || result.markdown.length < 100) {
               sendProgress(`Skipping ${new URL(result.url).hostname} - insufficient content`)
               continue
             }
@@ -316,7 +792,7 @@ export async function POST(request: Request) {
             const trends = await parseTrendsWithAI(
               result.markdown,
               result.url,
-              brandContext
+              brandInfo
             )
             
             if (trends.length > 0) {
@@ -334,11 +810,10 @@ export async function POST(request: Request) {
               sendProgress(`No trends extracted from ${domain}`)
             }
             
-            // Stop if we have enough trends
-            if (allTrends.length >= 30) break
+            // Continue collecting trends
           }
           
-          if (allTrends.length >= 30) break
+          // Don't break early - process all queries
         } catch (error) {
           console.error(`Search error for "${query}":`, error)
           sendProgress(`Error searching "${query}": ${error}`)
@@ -346,6 +821,10 @@ export async function POST(request: Request) {
       }
       
       sendProgress(`Extracted ${allTrends.length} raw trends`)
+      
+      if (allTrends.length < 30) {
+        sendProgress(`WARNING: Only found ${allTrends.length} trends. Continuing with what we have...`)
+      }
       
       if (allTrends.length === 0) {
         sendProgress('ERROR: No trends extracted. Please try again in a few moments.')
@@ -356,24 +835,47 @@ export async function POST(request: Request) {
         return
       }
       
-      // Deduplicate and limit to 30 trends
+      // Deduplicate using fuzzy matching and collect all sources
       const uniqueTrends = new Map<string, any>()
-      const trendSources = new Map<string, number>()
+      const trendSources = new Map<string, string[]>()
+      const trendMentions = new Map<string, number>()
       
       for (const trend of allTrends) {
-        if (uniqueTrends.size >= 30) break
+        if (uniqueTrends.size >= 50) break // Target 50 unique trends
         
-        const trendId = trend.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        // Check for similar existing trend using fuzzy matching
+        const similarTrendId = findSimilarTrend(trend.name, uniqueTrends)
         
-        if (!uniqueTrends.has(trendId)) {
-          uniqueTrends.set(trendId, trend)
-          trendSources.set(trendId, 1)
+        if (similarTrendId) {
+          // Update existing trend with new source
+          const existingTrend = uniqueTrends.get(similarTrendId)
+          const sources = trendSources.get(similarTrendId) || []
+          if (!sources.includes(trend.source_url)) {
+            sources.push(trend.source_url)
+            trendSources.set(similarTrendId, sources)
+          }
+          trendMentions.set(similarTrendId, (trendMentions.get(similarTrendId) || 1) + 1)
+          
+          // Update confidence if higher
+          if (trend.confidence > existingTrend.confidence) {
+            existingTrend.confidence = trend.confidence
+          }
         } else {
-          trendSources.set(trendId, (trendSources.get(trendId) || 1) + 1)
+          // Create a URL-safe identifier while preserving the original name
+          const trendId = trend.name.toLowerCase()
+            .replace(/^#/, '') // Remove leading hashtag for the ID
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+          
+          // Store with properly formatted trend name
+          trend.trend_name = trend.name // Preserve original formatted name
+          uniqueTrends.set(trendId, trend)
+          trendSources.set(trendId, [trend.source_url])
+          trendMentions.set(trendId, 1)
         }
       }
       
-      sendProgress(`Saving ${uniqueTrends.size} unique trends to database...`)
+      sendProgress(`Processing ${uniqueTrends.size} unique trends...`)
       
       // Insert/update trends with better error handling
       let insertedCount = 0
@@ -382,20 +884,28 @@ export async function POST(request: Request) {
       
       for (const [trendId, trend] of uniqueTrends) {
         try {
-          const sourceCount = trendSources.get(trendId) || 1
-          const metrics = calculateTrendMetrics(trend, sourceCount)
+          const sources = trendSources.get(trendId) || []
+          const mentionCount = trendMentions.get(trendId) || 1
+          const metrics = calculateTrendMetrics(trend, mentionCount)
           
           // Balance trend types - 60% signals, 40% forecasts
           const randomFactor = Math.random()
-          const shouldBeForecast = trend.is_forecast || randomFactor < 0.4
+          const shouldBeForecast = trend.is_forecast || randomFactor < 0.3
           
           const trendType = shouldBeForecast && metrics.momentum_score < 70
             ? 'forecast' : 'signal'
           
+          // Store the properly formatted name in the description
+          let trendDescription = trend.description || `${trend.name} is trending`
+          // Prepend the formatted name if not already included
+          if (!trendDescription.toLowerCase().includes(trend.name.toLowerCase())) {
+            trendDescription = `${trend.trend_name || trend.name}: ${trendDescription}`
+          }
+          
           const trendData = {
             trend_identifier: trendId,
             trend_category: trend.category || 'general',
-            trend_description: trend.description || '',
+            trend_description: trendDescription,
             trend_type: trendType,
             ...metrics,
             last_updated: new Date().toISOString(),
@@ -403,7 +913,11 @@ export async function POST(request: Request) {
           }
           
           // Log the trend being saved
-          console.log(`Saving trend: ${trendId}`, { type: trendType, category: trend.category })
+          console.log(`Saving trend: ${trendId}`, { 
+            type: trendType, 
+            category: trend.category,
+            trendData: JSON.stringify(trendData, null, 2)
+          })
           
           // Check if exists
           const { data: existing, error: selectError } = await supabaseService
@@ -419,7 +933,7 @@ export async function POST(request: Request) {
           }
           
           if (existing) {
-            // Update existing
+            // Update existing trend
             const { data: updated, error: updateError } = await supabaseService
               .from('trends')
               .update(trendData)
@@ -443,9 +957,16 @@ export async function POST(request: Request) {
               .single()
             
             if (insertError) {
-              console.error(`Error inserting trend ${trendId}:`, insertError)
-              console.error('Trend data:', trendData)
+              console.error(`Error inserting trend ${trendId}:`, {
+                error: insertError,
+                message: insertError.message,
+                details: insertError.details,
+                hint: insertError.hint,
+                code: insertError.code
+              })
+              console.error('Trend data that failed:', JSON.stringify(trendData, null, 2))
               errorCount++
+              sendProgress(`Error adding ${trend.name}: ${insertError.message}`)
             } else {
               insertedCount++
               sendProgress(`Added: ${trend.name}`)
@@ -461,6 +982,9 @@ export async function POST(request: Request) {
       const message = `Completed in ${(duration/1000).toFixed(1)}s! Added ${insertedCount} new trends, updated ${updatedCount}${errorCount > 0 ? `, ${errorCount} errors` : ''}`
       
       sendProgress(message)
+      
+      // Clean up URL history if needed
+      cleanupUrlHistory()
       
       // Send final result
       sendProgress('COMPLETE', {

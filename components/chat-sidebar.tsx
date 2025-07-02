@@ -187,6 +187,7 @@ export function ChatSidebar({
           body: JSON.stringify({
             messages: [...messages, userMessage],
             tool: 'image',
+            userEmail: currentUser?.email
           }),
         });
       }
@@ -224,6 +225,7 @@ export function ChatSidebar({
           body: JSON.stringify({
             messages: [...messages, userMessage],
             webSearch: { results: searchData.results },
+            userEmail: currentUser?.email
           }),
         });
       }
@@ -250,6 +252,7 @@ export function ChatSidebar({
           body: JSON.stringify({
             messages: [...messages, userMessage],
             fileContents: fileContents.filter(Boolean) as any[],
+            userEmail: currentUser?.email
           }),
         });
       } 
@@ -263,6 +266,7 @@ export function ChatSidebar({
           },
           body: JSON.stringify({
             messages: [...messages, userMessage],
+            userEmail: currentUser?.email
           }),
         });
       }

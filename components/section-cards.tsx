@@ -6,6 +6,7 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { useContextMenu } from "@/hooks/use-context-menu"
 import { createClient } from "@supabase/supabase-js"
 import { useRequireAuth } from "@/lib/auth-utils"
+import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
 
 export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}, ref) => {
   const { user, session } = useRequireAuth()
@@ -305,7 +306,21 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
       <div className="*:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4 grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:px-6">
         <Card className="@container/card" ref={activeTrendsContext.ref as any}>
           <CardHeader className="relative">
-            <CardDescription>Active Trends</CardDescription>
+            <div className="flex items-center gap-1">
+              <CardDescription>Active Trends</CardDescription>
+              <CalculationTooltip
+                title="Active Trends Calculation"
+                value={stats.activeTrends.value.toString()}
+                steps={[
+                  { label: "Growing Trends", value: "Count of trends with 'growing' status" },
+                  { label: "Emerging Trends", value: "Count of trends with 'emerging' status" },
+                  { label: "Time Filter", value: "Last 7 days", formula: "last_updated >= 7 days ago" },
+                  { label: "Previous Week", value: stats.activeTrends.value - stats.activeTrends.change, formula: "7-14 days ago" }
+                ]}
+                description="Counts all trends in growing or emerging lifecycle stages updated in the last week"
+                size="sm"
+              />
+            </div>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
               {stats.activeTrends.value}
             </CardTitle>
@@ -326,7 +341,21 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
         
         <Card className="@container/card" ref={alignmentContext.ref as any}>
           <CardHeader className="relative">
-            <CardDescription>Avg. Alignment Score</CardDescription>
+            <div className="flex items-center gap-1">
+              <CardDescription>Avg. Alignment Score</CardDescription>
+              <CalculationTooltip
+                title="Alignment Score Calculation"
+                value={`${stats.alignmentScore.value}%`}
+                steps={[
+                  { label: "Sum of Scores", value: "Σ(alignment_scores)", formula: "sum of all active recommendation scores" },
+                  { label: "Count", value: "Total recommendations with scores" },
+                  { label: "Average", value: `${stats.alignmentScore.value}%`, formula: "sum ÷ count" },
+                  { label: "Baseline", value: "70%", formula: "industry standard baseline" }
+                ]}
+                description="Average of all product-trend alignment scores for active recommendations"
+                size="sm"
+              />
+            </div>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
               {stats.alignmentScore.value}%
             </CardTitle>
@@ -347,7 +376,21 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
         
         <Card className="@container/card" ref={optimizationContext.ref as any}>
           <CardHeader className="relative">
-            <CardDescription>Optimization Opportunities</CardDescription>
+            <div className="flex items-center gap-1">
+              <CardDescription>Optimization Opportunities</CardDescription>
+              <CalculationTooltip
+                title="Opportunities Calculation"
+                value={stats.optimizationOpportunities.value.toString()}
+                steps={[
+                  { label: "Active Recommendations", value: "Count where is_active = true" },
+                  { label: "Brand Filter", value: "Your brand only", formula: `brand_id = ${user?.email}` },
+                  { label: "This Week", value: stats.optimizationOpportunities.value },
+                  { label: "Last Week", value: stats.optimizationOpportunities.value - stats.optimizationOpportunities.change }
+                ]}
+                description="Total count of active product recommendations for your brand"
+                size="sm"
+              />
+            </div>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
               {stats.optimizationOpportunities.value}
             </CardTitle>
@@ -368,7 +411,21 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
         
         <Card className="@container/card" ref={revenueContext.ref as any}>
           <CardHeader className="relative">
-            <CardDescription>Potential Revenue Impact</CardDescription>
+            <div className="flex items-center gap-1">
+              <CardDescription>Potential Revenue Impact</CardDescription>
+              <CalculationTooltip
+                title="Revenue Impact Calculation"
+                value={`$${stats.potentialRevenue.value.toLocaleString()}`}
+                steps={[
+                  { label: "Formula", value: "Σ(price × inventory)", formula: "for each recommended product" },
+                  { label: "Products Counted", value: "All recommended items" },
+                  { label: "Current Value", value: `$${stats.potentialRevenue.value.toLocaleString()}` },
+                  { label: "Growth Estimate", value: "20% week-over-week", formula: "industry average" }
+                ]}
+                description="Sum of (current_price × current_inventory_level) for all recommended products"
+                size="sm"
+              />
+            </div>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
               ${stats.potentialRevenue.value.toLocaleString()}
             </CardTitle>

@@ -4,6 +4,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { ChatProvider } from "@/lib/chat-context"
 import { GlobalChatProvider } from "@/lib/global-chat-context"
+import { CatalogImportProvider } from "@/lib/catalog-import-context"
+import { CatalogImportProgress } from "@/components/catalog-import-progress"
 import { Toaster } from "@/components/ui/toaster"
 import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
@@ -16,6 +18,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Looki - Fashion Trend Intelligence Platform",
   description: "Transform your fashion business with AI-powered trend intelligence. Track emerging trends, optimize inventory, and boost sales with data-driven insights.",
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     title: "Looki - Fashion Trend Intelligence Platform",
     description: "Transform your fashion business with AI-powered trend intelligence",
@@ -52,9 +59,12 @@ export default function RootLayout({
         >
           <AuthProvider>
             <GlobalChatProvider>
-              <ChatProvider>
-                {children}
-              </ChatProvider>
+              <CatalogImportProvider>
+                <ChatProvider>
+                  {children}
+                </ChatProvider>
+                <CatalogImportProgress />
+              </CatalogImportProvider>
             </GlobalChatProvider>
           </AuthProvider>
           <Toaster />

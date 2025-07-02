@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -17,70 +17,111 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { 
   CheckCircle, 
   AlertCircle, 
   RefreshCw,
   Package,
   TrendingUp,
-  DollarSign,
-  ShoppingBag,
-  Sparkles,
   Database,
-  Image as ImageIcon,
-  Info
+  Info,
+  Play,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  Globe,
+  Link
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
+import { useCatalogImport } from "@/lib/catalog-import-context"
+import { cn } from "@/lib/utils"
 
-interface ProductPreview {
-  sku: string
-  name: string
-  price: number
-  category: string
-  color: string
-  imageCount: number
-}
 
-interface ImportSummary {
-  totalProducts: number
-  totalImages: number
-  categories: string[]
-  priceRange: { min: number; max: number }
-  timestamp: string
+
+interface ImportHistory {
+  id: number
+  status: string
+  total_products: number
+  successful_products: number
+  failed_products: number
+  enriched_products: number
+  started_at: string
+  completed_at?: string
+  metadata?: any
 }
 
 export function CatalogIntegrationForm() {
   const { user } = useAuth()
-  const [isIntegrating, setIsIntegrating] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [progressText, setProgressText] = useState("")
-  const [productPreviews, setProductPreviews] = useState<ProductPreview[]>([])
-  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
+  const { importProgress, startImport } = useCatalogImport()
+  const [isStarting, setIsStarting] = useState(false)
+  const [importHistory, setImportHistory] = useState<ImportHistory[]>([])
+  const [currentTab, setCurrentTab] = useState("overview")
+  const [useProductLimit, setUseProductLimit] = useState(false)
+  const [productLimit, setProductLimit] = useState("1000")
+  const [importMethod, setImportMethod] = useState<"api" | "website">("api")
+  const [websiteUrl, setWebsiteUrl] = useState("")
   
   const [alert, setAlert] = useState<{
     type: "success" | "error" | "info" | null;
     message: string;
   }>({ type: null, message: "" })
 
-  // Calculate pagination
-  const totalPages = Math.ceil(productPreviews.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentProducts = productPreviews.slice(startIndex, endIndex)
+  // Load import history and failures on mount
+  useEffect(() => {
+    if (user) {
+      loadImportHistory()
+    }
+  }, [user])
 
-  const handleIntegrateData = async () => {
+
+
+  const loadImportHistory = async () => {
+    try {
+      // Get user's brand
+      const { data: userData } = await supabase
+        .from('usr')
+        .select('brand_id')
+        .eq('email', user!.email)
+        .single()
+
+      if (userData?.brand_id) {
+        // Get import history
+        const { data: history } = await supabase
+          .from('catalog_import_progress')
+          .select('*')
+          .eq('brand_id', userData.brand_id)
+          .order('started_at', { ascending: false })
+          .limit(10)
+
+        if (history) {
+          setImportHistory(history)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading import history:', error)
+    }
+  }
+
+
+
+
+  const handleStartImport = async () => {
     setAlert({ type: null, message: "" })
-    setIsIntegrating(true)
-    setProgress(0)
-    setProgressText("Initializing Adidas catalog integration...")
-    setProductPreviews([])
-    setImportSummary(null)
+    setIsStarting(true)
 
     try {
       // Get user's brand_id
@@ -96,454 +137,464 @@ export function CatalogIntegrationForm() {
 
       const brandId = userData.brand_id
 
-      setProgress(10)
-      setProgressText("Clearing existing product data...")
-
-      // Clear existing products for this brand
-      await supabase
-        .from('products')
-        .delete()
-        .eq('brand_id', brandId)
-
-      setProgress(20)
-      setProgressText("Fetching Adidas product catalog...")
-
-      // Fetch the CSV data
-      const response = await fetch('/api/catalog/adidas')
-      if (!response.ok) {
-        throw new Error('Failed to fetch Adidas catalog')
+      // Validate website URL if using website method
+      if (importMethod === 'website' && !websiteUrl) {
+        throw new Error('Please enter a website URL')
       }
 
-      const products = await response.json()
-      
-      setProgress(30)
-      setProgressText(`Processing ${products.length} products...`)
+      // Start the import process
+      const importProgress = await startImport(brandId, importMethod === 'api' ? 'marisa_api' : 'website_crawl')
 
-      // Process products
-      const previews: ProductPreview[] = []
-      const categories = new Set<string>()
-      let minPrice = Infinity
-      let maxPrice = 0
-      let totalImages = 0
-
-      for (let i = 0; i < products.length; i++) {
-        const product = products[i]
+      // Trigger the appropriate import
+      const endpoint = importMethod === 'api' 
+        ? '/api/catalog/marisa/bulk-import'
+        : '/api/catalog/import/website'
         
-        // Update progress
-        const currentProgress = 30 + (i / products.length) * 60
-        setProgress(currentProgress)
-        setProgressText(`Processing product ${i + 1} of ${products.length}: ${product.name}`)
-
-        try {
-          // Parse price
-          const price = parseFloat(product.selling_price) || 0
-          const originalPrice = product.original_price ? parseFloat(product.original_price) : price
-          
-          minPrice = Math.min(minPrice, price)
-          maxPrice = Math.max(maxPrice, price)
-
-          // Insert product
-          const { data: newProduct, error: productError } = await supabase
-            .from('products')
-            .insert({
-              brand_id: brandId,
-              product_code: product.sku,
-              product_name: product.name,
-              current_price: price,
-              original_price: originalPrice,
-              discount_percentage: originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0,
-              currency: product.currency || 'USD',
-              stock_status: product.availability || 'InStock',
-              current_inventory_level: product.availability === 'InStock' ? 100 : 0,
-              is_active: true,
-              // Analytics fields with defaults
-              revenue_last_30d: 0,
-              units_sold_last_30d: 0,
-              conversion_rate: 0,
-              return_rate: 0,
-              margin_percentage: 35, // Default margin for Adidas
-              inventory_velocity: 0,
-              days_of_supply: 30,
-              competitor_price_index: 1.0,
-              promotion_responsiveness: 0
-            })
-            .select()
-            .single()
-
-          if (productError || !newProduct) {
-            console.error('Error inserting product:', productError)
-            continue
+      const requestBody = importMethod === 'api'
+        ? {
+            importProgressId: importProgress.id,
+            brandId: brandId,
+            resumeFromPage: importProgress.current_page || 0,
+            productLimit: useProductLimit ? parseInt(productLimit) : null
+          }
+        : {
+            importProgressId: importProgress.id,
+            brandId: brandId,
+            websiteUrl: websiteUrl,
+            productLimit: useProductLimit ? parseInt(productLimit) : null
           }
 
-          const productId = newProduct.product_id
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      })
 
-          // Process categories from breadcrumbs
-          if (product.breadcrumbs) {
-            categories.add(product.breadcrumbs)
-            await supabase
-              .from('product_categories')
-              .insert({
-                product_id: productId,
-                category_level: 1,
-                category_name: product.category || 'Uncategorized',
-                category_path: product.breadcrumbs
-              })
-          }
-
-          // Process color
-          if (product.color) {
-            await supabase
-              .from('product_colors')
-              .insert({
-                product_id: productId,
-                color_name: product.color,
-                is_primary: true
-              })
-          }
-
-          // Process images
-          if (product.images) {
-            const imageUrls = product.images.split('~').filter((url: string) => url.trim())
-            totalImages += imageUrls.length
-
-            for (let j = 0; j < imageUrls.length; j++) {
-              await supabase
-                .from('product_images')
-                .insert({
-                  product_id: productId,
-                  image_url: imageUrls[j].trim(),
-                  image_order: j,
-                  is_primary: j === 0
-                })
-            }
-
-            // Add preview
-            if (i < products.length) { // Show all products, not just first 10
-              previews.push({
-                sku: product.sku,
-                name: product.name,
-                price: price,
-                category: product.category || 'Uncategorized',
-                color: product.color || 'N/A',
-                imageCount: imageUrls.length
-              })
-            }
-          }
-
-          // Store additional attributes
-          const attributes = [
-            { name: 'description', value: product.description },
-            { name: 'url', value: product.url },
-            { name: 'source', value: product.source },
-            { name: 'average_rating', value: product.average_rating },
-            { name: 'reviews_count', value: product.reviews_count },
-            { name: 'crawled_at', value: product.crawled_at }
-          ]
-
-          for (const attr of attributes) {
-            if (attr.value) {
-              await supabase
-                .from('product_attributes')
-                .insert({
-                  product_id: productId,
-                  attribute_name: attr.name,
-                  attribute_value: attr.value.toString(),
-                  attribute_type: 'catalog'
-                })
-            }
-          }
-
-        } catch (error) {
-          console.error(`Error processing product ${product.sku}:`, error)
-        }
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to start import')
       }
 
-      setProgress(95)
-      setProgressText("Finalizing import...")
-
-      // Set import summary
-      setImportSummary({
-        totalProducts: products.length,
-        totalImages: totalImages,
-        categories: Array.from(categories),
-        priceRange: { min: minPrice, max: maxPrice },
-        timestamp: new Date().toISOString()
-      })
-
-      setProductPreviews(previews)
-      setProgress(100)
-      setProgressText("Import completed!")
-      
-      // Update brand's catalog integration status
-      await supabase
-        .from('brands')
-        .update({ 
-          has_catalog_integrated: true,
-          catalog_integrated_at: new Date().toISOString()
-        })
-        .eq('brand_id', brandId)
-      
       setAlert({
-        type: "success",
-        message: `Successfully imported ${products.length} Adidas products into your brand catalog with ${totalImages} images!`
+        type: "info",
+        message: "Product import started! You can navigate away - the import will continue in the background."
       })
 
-    } catch (error: any) {
-      console.error('Integration error:', error)
+      // Reload history
+      loadImportHistory()
+
+    } catch (error) {
+      console.error('Import error:', error)
       setAlert({
         type: "error",
-        message: error.message || "Failed to integrate Adidas catalog"
+        message: error instanceof Error ? error.message : "Failed to start import"
       })
     } finally {
-      setIsIntegrating(false)
-      setTimeout(() => {
-        setProgress(0)
-        setProgressText("")
-      }, 2000)
+      setIsStarting(false)
     }
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { color: 'bg-gray-500', icon: Clock },
+      processing: { color: 'bg-blue-500', icon: RefreshCw },
+      completed: { color: 'bg-green-500', icon: CheckCircle },
+      failed: { color: 'bg-red-500', icon: XCircle },
+      paused: { color: 'bg-yellow-500', icon: Clock }
+    }
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
+    const Icon = config.icon
+
+    return (
+      <Badge className={cn("text-xs font-normal", config.color)} variant="secondary">
+        <Icon className="w-3 h-3 mr-1" />
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    )
+  }
+
+
+
+  const isImportActive = importProgress && ['pending', 'processing', 'enriching'].includes(importProgress.status)
+
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-medium tracking-tight">Integrate Your Catalog</h2>
+        <p className="text-sm text-muted-foreground">
+          Connect to Marisa Lojas API to import and sync your product catalog
+        </p>
+      </div>
+
+      {/* Alert */}
       {alert.type && (
-        <Alert 
-          variant={alert.type === "success" ? "success" : alert.type === "error" ? "destructive" : "info"}
-        >
-          {alert.type === "success" && <CheckCircle className="h-4 w-4" />}
-          {alert.type === "error" && <AlertCircle className="h-4 w-4" />}
-          <AlertDescription>{alert.message}</AlertDescription>
+        <Alert className={cn({
+          "border-green-500": alert.type === "success",
+          "border-red-500": alert.type === "error",
+          "border-blue-500": alert.type === "info"
+        })}>
+          <AlertDescription className="flex items-center gap-2">
+            {alert.type === "success" && <CheckCircle className="h-4 w-4 text-green-500" />}
+            {alert.type === "error" && <AlertCircle className="h-4 w-4 text-red-500" />}
+            {alert.type === "info" && <Info className="h-4 w-4 text-blue-500" />}
+            {alert.message}
+          </AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Adidas Product Catalog Integration
-          </CardTitle>
-          <CardDescription>
-            Import Adidas product catalog into your brand's inventory for analysis and benchmarking
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-lg bg-black flex items-center justify-center">
-                <span className="text-white font-bold text-lg">⚡</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">Adidas API</h3>
-                <p className="text-sm text-muted-foreground">Official product data feed</p>
-              </div>
-            </div>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Connected
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3 p-3 border rounded-lg">
-              <Package className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Products</p>
-                <p className="text-lg font-semibold">23 Sample</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 border rounded-lg">
-              <ImageIcon className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Images</p>
-                <p className="text-lg font-semibold">High Quality</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 border rounded-lg">
-              <Database className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Import Type</p>
-                <p className="text-lg font-semibold">Demo Data</p>
-              </div>
-            </div>
-          </div>
-
-          <Alert className="border-blue-200 bg-blue-50">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              This will import sample Adidas products into your brand's catalog for demonstration and analysis purposes.
-            </AlertDescription>
-          </Alert>
-
-          <Button 
-            onClick={handleIntegrateData} 
-            disabled={isIntegrating}
-            className="w-full"
-            size="lg"
-          >
-            {isIntegrating ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Integrating Data...
-              </>
-            ) : (
-              <>
-                <Database className="mr-2 h-4 w-4" />
-                Integrate Data
-              </>
-            )}
-          </Button>
-
-          {isIntegrating && (
-            <div className="space-y-2">
-              <Progress value={progress} className="w-full" />
-              <p className="text-sm text-muted-foreground text-center">
-                {progressText}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {importSummary && (
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Import Summary
-            </CardTitle>
-            <CardDescription>
-              Successfully imported Adidas products into your brand catalog
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-normal text-muted-foreground">Total Products</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total Products</p>
-                <p className="text-xl font-semibold">{importSummary.totalProducts}</p>
+            <div className="text-xl font-medium">
+              {importHistory[0]?.successful_products?.toLocaleString() || '0'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {importHistory[0]?.successful_products 
+                ? `Synced from API`
+                : 'No products yet'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-normal text-muted-foreground">Last Import</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-medium">
+              {importHistory[0] ? formatDate(importHistory[0].started_at) : 'Never'}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {importHistory[0]?.status ? getStatusBadge(importHistory[0].status) : 'No imports yet'}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-normal text-muted-foreground">Integration Status</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-medium">
+              {isImportActive ? 'Active' : 'Ready'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isImportActive 
+                ? 'Importing...'
+                : 'Ready'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="history">Import History</TabsTrigger>
+          <TabsTrigger value="coverage">Data Coverage</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-medium">Import Products</CardTitle>
+              <CardDescription className="text-sm">
+                Choose how to import your product catalog
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Import Method Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Import Method</Label>
+                <RadioGroup value={importMethod} onValueChange={(v) => setImportMethod(v as "api" | "website")}>
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="api" id="api" />
+                    <Label htmlFor="api" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Link className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">API Integration</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Direct integration with Marisa Lojas API for accurate, real-time data
+                      </p>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="website" id="website" />
+                    <Label htmlFor="website" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Website Crawling</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Extract products from any e-commerce website (less accurate, may miss data)
+                      </p>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total Images</p>
-                <p className="text-xl font-semibold">{importSummary.totalImages}</p>
+
+              {/* Website URL Input */}
+              {importMethod === "website" && (
+                <div className="space-y-2">
+                  <Label htmlFor="website-url" className="text-sm font-medium">Website URL</Label>
+                  <Input
+                    id="website-url"
+                    type="url"
+                    placeholder="https://example.com/products"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the URL of a product listing page or category page
+                  </p>
+                  <Alert className="border-yellow-500/50">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                    <AlertDescription className="text-xs">
+                      Website crawling may not capture all product data and could be blocked by some sites. 
+                      API integration is recommended for best results.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Process Overview</h4>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  {importMethod === "api" ? (
+                    <>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Connect to Marisa API and fetch products</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Process in batches of 100 for optimal performance</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Fill missing fields with intelligent defaults</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Skip unchanged products automatically</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Continue in background if you navigate away</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Track progress in real-time</li>
+                    </>
+                  ) : (
+                    <>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Crawl website and extract product information</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Process pages and identify products</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Extract available data (name, price, images)</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Generate missing fields with defaults</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>Import in batches of 100 products</li>
+                      <li className="flex items-start"><span className="text-muted-foreground/50 mr-2">•</span>May take longer depending on website</li>
+                    </>
+                  )}
+                </ul>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Categories</p>
-                <p className="text-xl font-semibold">{importSummary.categories.length}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Price Range</p>
-                <p className="text-xl font-semibold">
-                  ${importSummary.priceRange.min} - ${importSummary.priceRange.max}
+
+              <div className="bg-muted/50 p-3 rounded-md">
+                <p className="text-xs text-muted-foreground flex items-start">
+                  <Info className="w-3 h-3 mr-1.5 mt-0.5 flex-shrink-0" />
+                  Import runs in the background. Progress appears in the bottom-right corner.
                 </p>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Categories Imported:</h4>
-              <div className="flex flex-wrap gap-2">
-                {importSummary.categories.slice(0, 10).map((category, index) => (
-                  <Badge key={index} variant="secondary">
-                    {category}
-                  </Badge>
-                ))}
-                {importSummary.categories.length > 10 && (
-                  <Badge variant="outline">
-                    +{importSummary.categories.length - 10} more
-                  </Badge>
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="product-limit-toggle" className="text-sm font-medium">Test Mode</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Limit products for testing
+                    </p>
+                  </div>
+                  <Switch
+                    id="product-limit-toggle"
+                    checked={useProductLimit}
+                    onCheckedChange={setUseProductLimit}
+                  />
+                </div>
+                
+                {useProductLimit && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="product-limit" className="text-xs font-normal">Number of products</Label>
+                    <Input
+                      id="product-limit"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={productLimit}
+                      onChange={(e) => setProductLimit(e.target.value)}
+                      className="w-24 h-8 text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Max 10,000
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {productPreviews.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" />
-              Product Preview
-            </CardTitle>
-            <CardDescription>
-              Sample of imported Adidas products
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Color</TableHead>
-                  <TableHead>Images</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentProducts.map((product, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                    <TableCell className="max-w-[300px] truncate">{product.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3 text-muted-foreground" />
-                        {product.price.toFixed(2)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{product.category}</Badge>
-                    </TableCell>
-                    <TableCell>{product.color}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <ImageIcon className="h-3 w-3 text-muted-foreground" />
-                        {product.imageCount}
-                      </div>
-                    </TableCell>
+              <Button
+                onClick={handleStartImport}
+                disabled={isStarting || !!isImportActive}
+                className="w-full"
+                size="default"
+              >
+                {isStarting ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Starting Import...
+                  </>
+                ) : isImportActive ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Import in Progress...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Import
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-medium">Import History</CardTitle>
+              <CardDescription className="text-sm">
+                View your recent catalog imports
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs font-normal">Started</TableHead>
+                    <TableHead className="text-xs font-normal">Status</TableHead>
+                    <TableHead className="text-xs font-normal text-right">Total</TableHead>
+                    <TableHead className="text-xs font-normal text-right">Imported</TableHead>
+                    <TableHead className="text-xs font-normal">Duration</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1}-{Math.min(endIndex, productPreviews.length)} of {productPreviews.length} products
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      className="w-8 h-8 p-0"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
+                </TableHeader>
+                <TableBody>
+                  {importHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No import history yet
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    importHistory.map((imp) => {
+                      const duration = imp.completed_at 
+                        ? Math.round((new Date(imp.completed_at).getTime() - new Date(imp.started_at).getTime()) / 60000)
+                        : null
+                      
+                      return (
+                        <TableRow key={imp.id}>
+                          <TableCell className="text-xs">{formatDate(imp.started_at)}</TableCell>
+                          <TableCell>{getStatusBadge(imp.status)}</TableCell>
+                          <TableCell className="text-xs text-right">{imp.total_products.toLocaleString()}</TableCell>
+                          <TableCell className="text-xs text-right text-green-600">
+                            {imp.successful_products.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {duration !== null ? `${duration} min` : 'In progress'}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+        <TabsContent value="coverage" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-medium">Data Coverage</CardTitle>
+              <CardDescription className="text-sm">
+                See which fields come from the API vs default values
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {importHistory[0]?.metadata?.data_coverage ? (
+                  <>
+                    <div className="p-3 bg-muted/30 rounded-md">
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">API Fields</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {importHistory[0].metadata.data_coverage.from_api.map((field: string) => (
+                          <Badge key={field} variant="secondary" className="text-xs font-normal">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-3 bg-muted/30 rounded-md">
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Default Fields</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {importHistory[0].metadata.ai_enhanced_fields.map((field: string) => (
+                          <Badge key={field} variant="outline" className="text-xs font-normal">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            {field.replace(/_/g, ' ')}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-3 bg-muted/30 rounded-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Coverage</h4>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {importHistory[0].metadata.data_coverage.coverage_percentage}% from API
+                          </p>
+                        </div>
+                        <div className="text-2xl font-medium">
+                          {importHistory[0].metadata.data_coverage.coverage_percentage}%
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Alert className="border-muted bg-muted/30">
+                      <Info className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        Default values ensure 100% import success. Realistic estimates are used for fields like inventory and sales metrics.
+                      </AlertDescription>
+                    </Alert>
+                  </>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No import data available. Complete an import to see data coverage information.
+                  </p>
+                )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
-} 
+}

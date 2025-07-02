@@ -12,6 +12,7 @@ import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Separator } from "@/components/ui/separator"
+import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
 
 const chartConfig = {
   revenue: {
@@ -280,8 +281,29 @@ export function ChartAreaInteractive() {
   return (
     <Card className="@container/card" ref={chartContext.ref as any}>
       <CardHeader className="relative">
-        <CardTitle>Product-Trend Correlation</CardTitle>
-        <CardDescription>
+        <div className="flex items-center gap-1">
+          <CardTitle>Product-Trend Correlation</CardTitle>
+          <CalculationTooltip
+            title={showingRevenue ? "Revenue Calculation" : "Alignment Calculation"}
+            value={showingRevenue ? "Σ(price × inventory)" : "Average %"}
+            steps={showingRevenue ? [
+              { label: "Formula", value: "Σ(price × inventory)", formula: "for all recommended products" },
+              { label: "Time Period", value: timeRange === '7d' ? "7 days" : timeRange === '30d' ? "30 days" : "90 days" },
+              { label: "Data Points", value: filteredData.length.toString() },
+              { label: "Trend Line", value: "Linear regression", formula: "best fit line through points" }
+            ] : [
+              { label: "Formula", value: "Σ(scores) ÷ count", formula: "average of all alignment scores" },
+              { label: "Score Range", value: "0-100%" },
+              { label: "Time Period", value: timeRange === '7d' ? "7 days" : timeRange === '30d' ? "30 days" : "90 days" },
+              { label: "Baseline", value: "70%", formula: "industry standard" }
+            ]}
+            description={showingRevenue ? 
+              "Total potential revenue from trend-aligned inventory over time" : 
+              "Average product-trend alignment score over time"}
+            size="sm"
+          />
+        </div>
+        <CardDescription className="mt-1">
           <span className="@[540px]/card:block hidden">{description.full}</span>
           <span className="@[540px]/card:hidden">{description.short}</span>
         </CardDescription>
