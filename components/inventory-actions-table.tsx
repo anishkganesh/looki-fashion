@@ -190,7 +190,8 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
     try {
       console.log('Applying recommendation:', action.recommendation_id)
       
-      const { data, error } = await supabase
+      // First try with updated_at
+      let { data, error } = await supabase
         .from('recommendations')
         .update({ 
           is_applied: true,
@@ -198,6 +199,21 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
         })
         .eq('recommendation_id', action.recommendation_id)
         .select()
+      
+      // If error is about missing updated_at column, try without it
+      if (error && error.message && error.message.includes('updated_at')) {
+        console.log('Retrying without updated_at column')
+        const result = await supabase
+          .from('recommendations')
+          .update({ 
+            is_applied: true
+          })
+          .eq('recommendation_id', action.recommendation_id)
+          .select()
+        
+        data = result.data
+        error = result.error
+      }
       
       if (error) {
         console.error('Supabase error:', error)
