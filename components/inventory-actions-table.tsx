@@ -39,6 +39,7 @@ import {
   CheckCircle2Icon,
   RocketIcon,
   LinkIcon,
+  Check
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -190,11 +191,14 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
     try {
       console.log('Applying recommendation:', action.recommendation_id)
       
+      // Toggle applied state
+      const newAppliedState = !applied
+      
       // First try with updated_at
       let { data, error } = await supabase
         .from('recommendations')
         .update({ 
-          is_applied: true,
+          is_applied: newAppliedState,
           updated_at: new Date().toISOString()
         })
         .eq('recommendation_id', action.recommendation_id)
@@ -206,7 +210,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
         const result = await supabase
           .from('recommendations')
           .update({ 
-            is_applied: true
+            is_applied: newAppliedState
           })
           .eq('recommendation_id', action.recommendation_id)
           .select()
@@ -222,14 +226,14 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
       
       console.log('Update result:', data)
       
-      setApplied(true)
+      setApplied(newAppliedState)
       
       // Update the action object to reflect the change
       if (action) {
-        action.is_applied = true
+        action.is_applied = newAppliedState
       }
       
-      toast.success('Recommendation applied successfully')
+      toast.success(newAppliedState ? 'Recommendation applied - sales will be tracked' : 'Recommendation unapplied')
       
       // Trigger a refresh of the recommendations table
       window.dispatchEvent(new CustomEvent('refreshRecommendations'))
@@ -330,67 +334,77 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
         
         <div className="mt-6 space-y-6">
           {/* Action Icons */}
-          <div className="flex gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant={applied ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={handleApplyRecommendation}
-                    disabled={applied}
-                  >
-                    <CheckCircle2Icon className={`h-4 w-4 ${applied ? 'fill-current' : ''}`} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {applied ? 'Recommendation Applied' : 'Apply Recommendation'}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <FileDownIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export Data</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleGenerateImage}
-                    disabled={generatingImage}
-                  >
-                    {generatingImage ? (
-                      <Loader2Icon className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ImageIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Generate Image</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleAddToChat}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add to Chat</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <div>
+            <div className="flex gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleApplyRecommendation}
+                    >
+                      {applied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle2Icon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {applied ? 'Unapply Recommendation' : 'Apply Recommendation'}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={handleExport}>
+                      <FileDownIcon className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Export Data</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleGenerateImage}
+                      disabled={generatingImage}
+                    >
+                      {generatingImage ? (
+                        <Loader2Icon className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Generate Image</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleAddToChat}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Add to Chat</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {applied && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Recommendation applied and sales will be tracked
+              </p>
+            )}
           </div>
 
           {/* Product Info */}
