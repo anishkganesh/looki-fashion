@@ -118,7 +118,7 @@ export function CreditsWidget() {
                 value={percentage} 
                 className="h-1.5 mb-1"
               />
-              <Badge variant={variant} className="text-xs w-full justify-center">
+              <Badge variant={variant} className="text-xs w-full justify-center font-medium">
                 {isLow ? 'Low Credits' : 'Credits Available'}
               </Badge>
             </div>

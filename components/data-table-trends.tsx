@@ -93,6 +93,7 @@ import { InventoryActionsTable } from "@/components/inventory-actions-table"
 import { getTrendDisplayName } from "@/lib/format-utils"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 import { HydrationWrapper } from "@/components/hydration-wrapper"
+import { formatDate, formatRelativeDate } from "@/lib/date-utils"
 
 interface Trend {
   trend_id: number
@@ -673,8 +674,8 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
           <div>
             <Label className="text-sm text-muted-foreground">Predicted Timeline</Label>
             <div className="mt-2 space-y-1">
-              <p className="text-sm">Peak Date: <span className="font-medium">{new Date(trend.predicted_peak_date).toLocaleDateString()}</span></p>
-              <p className="text-sm">Decline Date: <span className="font-medium">{new Date(trend.predicted_decline_date).toLocaleDateString()}</span></p>
+              <p className="text-sm">Peak Date: <span className="font-medium">{formatDate(trend.predicted_peak_date)}</span></p>
+              <p className="text-sm">Decline Date: <span className="font-medium">{formatDate(trend.predicted_decline_date)}</span></p>
             </div>
           </div>
           
@@ -739,8 +740,8 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
           <Separator />
           
           <div className="text-sm text-muted-foreground">
-            <p>Created: {new Date(trend.created_at).toLocaleDateString()}</p>
-            <p>Last Updated: {new Date(trend.last_updated).toLocaleDateString()}</p>
+            <p>Created: {formatDate(trend.created_at)}</p>
+            <p>Last Updated: {formatDate(trend.last_updated)}</p>
           </div>
         </div>
       </SheetContent>
@@ -1097,8 +1098,8 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
           <Separator />
           
           <div className="text-sm text-muted-foreground">
-            <p>Added: {product.created_at ? new Date(product.created_at).toLocaleDateString() : 'N/A'}</p>
-            <p>Last Updated: {product.updated_at ? new Date(product.updated_at).toLocaleDateString() : 'N/A'}</p>
+            <p>Added: {formatDate(product.created_at)}</p>
+            <p>Last Updated: {formatDate(product.updated_at)}</p>
           </div>
         </div>
       </SheetContent>

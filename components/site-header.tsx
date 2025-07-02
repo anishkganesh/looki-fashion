@@ -79,8 +79,8 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
           <Select value={selectedBrandId} onValueChange={handleBrandChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Brand" className="font-semibold" />
+            <SelectTrigger className="w-[180px] font-medium">
+              <SelectValue placeholder="Select Brand" />
             </SelectTrigger>
             <SelectContent>
               {availableBrands.map((brand) => (
