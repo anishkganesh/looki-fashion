@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js"
 import { useRequireAuth } from "@/lib/auth-utils"
 import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
 
-export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}, ref) => {
+export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selectedBrandId?: string }>(({ selectedBrandId }, ref) => {
   const { user, session } = useRequireAuth()
   const [stats, setStats] = React.useState({
     activeTrends: { value: 0, change: 0, percentage: 0 },
@@ -46,7 +46,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
 
       try {
         // Check cache first
-        const cacheKey = `looki_stats_${user.email}`
+        const cacheKey = `looki_stats_${user.email}_${selectedBrandId || 'default'}`
         const cachedData = sessionStorage.getItem(cacheKey)
         const cacheTimestamp = sessionStorage.getItem(`${cacheKey}_timestamp`)
         
@@ -82,7 +82,8 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
           return
         }
 
-        const brandId = userData.brand_id
+        // Use selected brand if provided, otherwise use user's brand
+        const brandId = selectedBrandId ? parseInt(selectedBrandId) : userData.brand_id
         const now = new Date()
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
@@ -235,7 +236,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, {}>(({}
     }
 
     fetchStats()
-  }, [user, supabase])
+  }, [user, supabase, selectedBrandId])
 
   // Create context menu hooks for each card
   const activeTrendsContext = useContextMenu({

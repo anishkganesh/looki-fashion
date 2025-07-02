@@ -1134,7 +1134,7 @@ export function DataTableTrends({ onTabChange, session }: {
   const [generating, setGenerating] = React.useState(false)
   const [generationProgress, setGenerationProgress] = React.useState("")
   const inventoryTableRef = React.useRef<any>(null)
-  const [selectedBrandId, setSelectedBrandId] = React.useState<string>("all")
+  const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
   const [availableBrands, setAvailableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
     { id: "2", name: "Cris Barros" },
@@ -1198,7 +1198,7 @@ export function DataTableTrends({ onTabChange, session }: {
       try {
         const { data: userData, error: userError } = await supabase
           .from('usr')
-          .select('brand_id')
+          .select('brand_id, selected_brand')
           .eq('email', session.user.email)
           .single()
         
@@ -1215,6 +1215,20 @@ export function DataTableTrends({ onTabChange, session }: {
             .eq('is_active', true)
           
           setProductCount(prodCount || 0)
+          
+          // Load saved brand selection
+          if (userData.selected_brand && availableBrands.length > 0) {
+            const savedBrand = availableBrands.find(b => b.name === userData.selected_brand)
+            if (savedBrand) {
+              setSelectedBrandId(savedBrand.id)
+            } else {
+              // Default to user's brand if saved brand not found
+              setSelectedBrandId(userData.brand_id.toString())
+            }
+          } else if (!selectedBrandId && availableBrands.length > 0) {
+            // Default to user's brand if no selection
+            setSelectedBrandId(userData.brand_id.toString())
+          }
         }
       } catch (error) {
         console.error('Error fetching user brand:', error)
@@ -1222,7 +1236,7 @@ export function DataTableTrends({ onTabChange, session }: {
     }
     
     fetchUserBrandId()
-  }, [session, supabase])
+  }, [session, supabase, availableBrands])
 
   // Add ref to prevent duplicate fetches
   const fetchingCatalogRef = React.useRef(false)
@@ -1247,7 +1261,7 @@ export function DataTableTrends({ onTabChange, session }: {
         return
       }
       
-      const url = selectedBrandId && selectedBrandId !== 'all' 
+      const url = selectedBrandId 
         ? `/api/catalog/products?brand_id=${selectedBrandId}`
         : '/api/catalog/products'
       
@@ -1483,7 +1497,7 @@ export function DataTableTrends({ onTabChange, session }: {
   const fetchInventoryCount = React.useCallback(async () => {
     if (!userBrandId) return
     
-    const brandIdToUse = selectedBrandId === 'all' ? userBrandId : parseInt(selectedBrandId)
+    const brandIdToUse = selectedBrandId ? parseInt(selectedBrandId) : userBrandId
     
     try {
       const { count, error } = await supabase
@@ -1526,7 +1540,7 @@ export function DataTableTrends({ onTabChange, session }: {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ brand_id: selectedBrandId === 'all' ? userBrandId : selectedBrandId })
+        body: JSON.stringify({ brand_id: selectedBrandId || userBrandId })
       })
 
       console.log('Response status:', response.status)
@@ -1727,12 +1741,30 @@ export function DataTableTrends({ onTabChange, session }: {
               )}
               {activeTab === 'catalog' && (
                 <>
-                  <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
+                  <Select 
+                    value={selectedBrandId} 
+                    onValueChange={async (value) => {
+                      setSelectedBrandId(value)
+                      // Persist the selection
+                      if (session?.user?.email) {
+                        const selectedBrandName = availableBrands.find(b => b.id === value)?.name
+                        if (selectedBrandName) {
+                          await fetch('/api/profile/update-brand', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              userEmail: session.user.email,
+                              selectedBrand: selectedBrandName
+                            })
+                          })
+                        }
+                      }
+                    }}
+                  >
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="All Brands" />
+                      <SelectValue placeholder="Select Brand" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Brands</SelectItem>
                       {availableBrands.map((brand) => (
                         <SelectItem key={brand.id} value={brand.id}>
                           {brand.name}
@@ -1987,7 +2019,7 @@ export function DataTableTrends({ onTabChange, session }: {
               {session?.user && userBrandId ? (
                 <InventoryActionsTable 
                   ref={inventoryTableRef}
-                  brandId={selectedBrandId === 'all' ? userBrandId : parseInt(selectedBrandId)} 
+                  brandId={selectedBrandId ? parseInt(selectedBrandId) : userBrandId} 
                   session={session}
                   onRecommendationsGenerated={fetchInventoryCount}
                 />

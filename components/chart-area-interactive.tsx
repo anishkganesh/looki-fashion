@@ -25,7 +25,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function ChartAreaInteractive() {
+export function ChartAreaInteractive({ selectedBrandId }: { selectedBrandId?: string }) {
   const { user } = useRequireAuth()
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("30d")
@@ -66,7 +66,7 @@ export function ChartAreaInteractive() {
 
       try {
         // Check cache first
-        const cacheKey = `looki_chart_${user.email}_${timeRange}`
+        const cacheKey = `looki_chart_${user.email}_${selectedBrandId || 'default'}_${timeRange}`
         const cachedData = sessionStorage.getItem(cacheKey)
         const cacheTimestamp = sessionStorage.getItem(`${cacheKey}_timestamp`)
         
@@ -99,7 +99,8 @@ export function ChartAreaInteractive() {
           return
         }
 
-        const brandId = userData.brand_id
+        // Use selected brand if provided, otherwise use user's brand
+        const brandId = selectedBrandId ? parseInt(selectedBrandId) : userData.brand_id
 
         // Get recommendations with alignment scores and products
         const [recommendationsData, productsData] = await Promise.all([
@@ -157,7 +158,7 @@ export function ChartAreaInteractive() {
     }
 
     fetchChartData()
-  }, [user, timeRange, supabase])
+  }, [user, timeRange, supabase, selectedBrandId])
 
   const generateChartData = (totalRevenue: number, avgAlignment: number, range: string) => {
     const now = new Date()

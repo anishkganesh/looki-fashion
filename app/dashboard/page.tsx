@@ -11,6 +11,7 @@ import { useRequireAuth } from "@/lib/auth-utils"
 import { Loader2, Clock, Database, StopCircle, PlayCircle, CheckCircle2, Lightbulb } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
+import * as React from "react"
 import { toast } from "sonner"
 import {
   Tooltip,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
   const { user, session, isLoading } = useRequireAuth()
@@ -38,6 +40,38 @@ export default function DashboardPage() {
   const [productCount, setProductCount] = useState(0)
   const [recommendationCount, setRecommendationCount] = useState(0)
   const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory'>('trends')
+  const [selectedBrandId, setSelectedBrandId] = useState<string>("")
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [chartLoading, setChartLoading] = useState(true)
+
+  // Fetch user's selected brand
+  React.useEffect(() => {
+    const fetchSelectedBrand = async () => {
+      if (!user?.email) return
+      
+      const { data: userData } = await supabase
+        .from('usr')
+        .select('brand_id, selected_brand')
+        .eq('email', user.email)
+        .single()
+      
+      if (userData?.selected_brand) {
+        // Get brand ID from available brands (would need to fetch or hardcode)
+        const brandMap: Record<string, string> = {
+          "Arvind Fashions": "1",
+          "KENZO": "2", 
+          "GANT": "3",
+          "Marisa Lojas": "4",
+          "Walmart": "5"
+        }
+        setSelectedBrandId(brandMap[userData.selected_brand] || userData.brand_id?.toString() || "")
+      } else if (userData?.brand_id) {
+        setSelectedBrandId(userData.brand_id.toString())
+      }
+    }
+    
+    fetchSelectedBrand()
+  }, [user])
 
   // Check catalog integration status
   const checkCatalogStatus = async () => {
@@ -271,9 +305,9 @@ export default function DashboardPage() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                <SectionCards />
+                <SectionCards selectedBrandId={selectedBrandId} />
                 <div className="px-4 lg:px-6">
-                  <ChartAreaInteractive />
+                  <ChartAreaInteractive selectedBrandId={selectedBrandId} />
                 </div>
                 <div className="px-4 lg:px-6 space-y-4">
                   <div className="flex items-center justify-between">
