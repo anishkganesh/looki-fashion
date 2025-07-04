@@ -135,11 +135,20 @@ export function ChartAreaInteractive({ selectedBrandId, onLoadComplete }: { sele
           }
         })
 
-        // Calculate average alignment score
+        // Calculate average alignment score (same as in section-cards)
         const alignmentScores = recommendations.filter(r => r.alignment_score !== null)
         const avgAlignment = alignmentScores.length > 0
           ? alignmentScores.reduce((sum, rec) => sum + (rec.alignment_score || 0), 0) / alignmentScores.length
           : 0
+
+        // Log the calculated values
+        console.log('ChartAreaInteractive - Calculated values:', {
+          totalPotentialRevenue,
+          avgAlignment,
+          recommendationsCount: recommendations.length,
+          productsCount: productMap.size,
+          alignmentScoresCount: alignmentScores.length
+        })
 
         // Generate chart data based on time range
         const data = generateChartData(totalPotentialRevenue, avgAlignment, timeRange)
@@ -178,6 +187,111 @@ export function ChartAreaInteractive({ selectedBrandId, onLoadComplete }: { sele
 
     fetchChartData()
   }, [user, timeRange, supabase, selectedBrandId])
+
+  // Listen for recommendations update event
+  React.useEffect(() => {
+    const handleRecommendationsUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent
+      console.log('ChartAreaInteractive - Recommendations updated, refreshing chart...', customEvent.detail)
+      
+      // Clear cache for all time ranges
+      if (user?.email) {
+        const brandIdToUse = selectedBrandId || 'default'
+        const timeRanges = ['7d', '30d', '90d', '365d', '730d', 'all']
+        
+        timeRanges.forEach(range => {
+          sessionStorage.removeItem(`looki_chart_${user.email}_${brandIdToUse}_${range}`)
+          sessionStorage.removeItem(`looki_chart_${user.email}_${brandIdToUse}_${range}_timestamp`)
+        })
+      }
+      
+      // Add a small delay to ensure database is updated, then refetch
+      setTimeout(() => {
+        const fetchChartData = async () => {
+          if (!user?.email) return
+
+          setLoading(true)
+          try {
+            const { data: userData } = await supabase
+              .from('usr')
+              .select('brand_id')
+              .eq('email', user.email)
+              .single()
+
+            if (!userData?.brand_id) {
+              const sampleData = generateSampleData(timeRange)
+              setChartData(sampleData)
+              return
+            }
+
+            const brandId = selectedBrandId ? parseInt(selectedBrandId) : userData.brand_id
+            
+            // Re-run the queries
+            const [recommendationsData, productsData] = await Promise.all([
+              supabase
+                .from('recommendations')
+                .select('*')
+                .eq('brand_id', brandId)
+                .eq('is_active', true),
+              supabase
+                .from('products')
+                .select('product_id, current_price, current_inventory_level')
+                .eq('brand_id', brandId)
+            ])
+
+            if (!recommendationsData.data || recommendationsData.data.length === 0) {
+              const noDataIndicator = generateSampleData(timeRange).map(item => ({
+                ...item,
+                revenue: 0,
+                alignment: 0
+              }))
+              setChartData(noDataIndicator)
+              return
+            }
+
+            const productMap = new Map(
+              (productsData.data || []).map(p => [p.product_id, p])
+            )
+
+            const recommendations = recommendationsData.data || []
+            const recommendedProducts = recommendations
+              .filter(r => productMap.has(r.product_id))
+              .map(r => productMap.get(r.product_id)!)
+            
+            const totalRevenue = recommendedProducts.reduce((sum, p) => 
+              sum + ((p.current_price || 0) * Math.min(p.current_inventory_level || 0, 10)), 0
+            )
+            
+            const avgAlignment = recommendations.length > 0
+              ? recommendations.reduce((sum, r) => sum + (r.alignment_score || 0), 0) / recommendations.length
+              : 0
+
+            const data = generateChartData(totalRevenue, avgAlignment, timeRange)
+            
+            setChartData(data)
+            
+            // Cache the new data
+            const cacheKey = `looki_chart_${user.email}_${selectedBrandId || 'default'}_${timeRange}`
+            sessionStorage.setItem(cacheKey, JSON.stringify(data))
+            sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+          } catch (error) {
+            console.error('Error refreshing chart after recommendations update:', error)
+            setChartData(generateSampleData(timeRange))
+          } finally {
+            setLoading(false)
+          }
+        }
+        
+        fetchChartData()
+      }, 1000) // 1 second delay to ensure DB is updated
+    }
+
+    window.addEventListener('recommendationsUpdated', handleRecommendationsUpdate)
+    
+    return () => {
+      window.removeEventListener('recommendationsUpdated', handleRecommendationsUpdate)
+    }
+  }, [user, supabase, selectedBrandId, timeRange])
 
   const generateChartData = (totalRevenue: number, avgAlignment: number, range: string) => {
     const now = new Date()

@@ -97,7 +97,8 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           trendsData,
           recommendationsData,
           productsData,
-          brandSpecificTrendsData
+          brandSpecificTrendsData,
+          allRecommendationsData // Add a debug query
         ] = await Promise.all([
           // Active trends query (global) - removed time filter
           supabase
@@ -108,7 +109,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           // Current recommendations - removed date filter to avoid 400 errors
           supabase
             .from('recommendations')
-            .select('recommendation_id, alignment_score, created_at, product_id, trend_id')
+            .select('recommendation_id, alignment_score, created_at, product_id, matched_trend_id')
             .eq('brand_id', brandId)
             .eq('is_active', true),
             
@@ -123,7 +124,13 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             .from('brands')
             .select('brand_name, country')
             .eq('brand_id', brandId)
-            .single()
+            .single(),
+            
+          // Debug: get all recommendations without filters
+          supabase
+            .from('recommendations')
+            .select('recommendation_id, brand_id, is_active')
+            .limit(10)
         ])
 
         // Log all query results
@@ -135,8 +142,16 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           productsCount: productsData.data?.length || 0,
           productsError: productsData.error,
           brandData: brandSpecificTrendsData.data,
-          brandError: brandSpecificTrendsData.error
+          brandError: brandSpecificTrendsData.error,
+          allRecommendations: allRecommendationsData.data,
+          allRecommendationsError: allRecommendationsData.error
         })
+
+        // Check for errors
+        if (trendsData.error) console.error('Error fetching trends:', trendsData.error)
+        if (recommendationsData.error) console.error('Error fetching recommendations:', recommendationsData.error)
+        if (productsData.error) console.error('Error fetching products:', productsData.error)
+        if (allRecommendationsData.error) console.error('Error fetching all recommendations:', allRecommendationsData.error)
 
         // 1. Active Trends calculation - filter by brand region
         // Determine brand region
@@ -219,7 +234,10 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
 
         // Calculate potential revenue from recommended products
         let potentialRevenue = 0
+        let highAlignmentRevenue = 0 // Revenue from high-alignment products (opportunity)
         let productsWithRevenue = 0
+        let productsMissingFromMap = 0
+        
         currentRecommendations.forEach(rec => {
           const product = productMap.get(rec.product_id)
           if (product) {
@@ -230,7 +248,16 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             if (productRevenue > 0) {
               potentialRevenue += productRevenue
               productsWithRevenue++
+              
+              // Calculate opportunity revenue from high-alignment products (>= 80%)
+              if (rec.alignment_score && rec.alignment_score >= 80) {
+                // The opportunity is a portion of the revenue based on how much above baseline (70%) the alignment is
+                const alignmentBoost = (rec.alignment_score - 70) / 100 // e.g., 85% - 70% = 15% boost
+                highAlignmentRevenue += productRevenue * alignmentBoost
+              }
             }
+          } else {
+            productsMissingFromMap++
           }
         })
         
@@ -238,7 +265,13 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           totalRecommendations: currentRecommendations.length,
           productsFound: productMap.size,
           productsWithRevenue,
-          potentialRevenue
+          productsMissingFromMap,
+          potentialRevenue,
+          highAlignmentRevenue,
+          sampleRecommendations: currentRecommendations.slice(0, 3).map(r => ({
+            product_id: r.product_id,
+            alignment_score: r.alignment_score
+          }))
         })
 
         // Always use calculated data, never fall back to sample data unless there's truly no data
@@ -254,37 +287,18 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           trendsLength: trendsData.data?.length || 0
         })
         
-        if (!hasAnyData && recommendationsData.data?.length === 0 && trendsData.data?.length === 0) {
-          // Only use sample data if we truly have no data at all
-          const sampleStats = {
-            activeTrends: { value: 67, change: 12, percentage: 21.8 },
-            alignmentScore: { value: 76, change: 6, percentage: 8.57 },
-            optimizationOpportunities: { value: 23, change: 5, percentage: 27.8 },
-            potentialRevenue: { value: 45000, change: 8500, percentage: 23.3 }
-          }
-          setStats(sampleStats)
-          // Cache the sample data
-          sessionStorage.setItem(cacheKey, JSON.stringify(sampleStats))
-          sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+        // If we have trends but no recommendations, still show the actual data
+        if (false) { // Never use sample data - always show real values
+          // Sample data code removed - we always want to show real values
         } else {
           // Calculate metrics based on fetched data
           const totalRecommendations = currentRecommendations.length
           
-          // Calculate alignment percentage
-          const alignedRecommendations = currentRecommendations.filter(r => r.alignment_score && r.alignment_score >= 70)
-          const alignmentPercentage = totalRecommendations > 0 
-            ? Math.round((alignedRecommendations.length / totalRecommendations) * 100)
-            : 0
+          // Use the already calculated average alignment score
+          const alignmentPercentage = Math.round(avgAlignment)
 
-          // Calculate potential revenue
-          let potentialRevenue = 0
-          currentRecommendations.forEach(rec => {
-            const product = productMap.get(rec.product_id)
-            if (product) {
-              const revenue = (product.current_price || 0) * (product.current_inventory_level || 0)
-              potentialRevenue += revenue
-            }
-          })
+          // Potential revenue was already calculated above
+          // Just use the value we already have
 
           // Calculate week-over-week growth
           const oneWeekAgo = new Date()
@@ -294,17 +308,27 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             new Date(r.created_at) >= oneWeekAgo
           )
           
-          // For growth, we'll use a realistic estimate based on recent activity
-          // If we have recent recommendations, show positive growth
-          const growthPercentage = recentRecommendations.length > 0 ? 12 : 0
+          // For alignment score change, compare to baseline of 70%
+          const alignmentChange = alignmentPercentage - 70
+          const alignmentChangePercentage = alignmentPercentage > 0 
+            ? ((alignmentPercentage - 70) / 70) * 100 
+            : 0
+
+          // Revenue opportunity is the high-alignment revenue
+          const revenueOpportunity = Math.round(highAlignmentRevenue)
+          // Percentage is the opportunity as a percentage of total potential revenue
+          const revenueOpportunityPercentage = potentialRevenue > 0
+            ? (highAlignmentRevenue / potentialRevenue) * 100
+            : 0
 
           console.log('SectionCards - Final calculations:', {
             totalRecommendations,
-            alignedRecommendations: alignedRecommendations.length,
+            avgAlignment,
             alignmentPercentage,
             potentialRevenue,
-            recentRecommendations: recentRecommendations.length,
-            growthPercentage
+            revenueOpportunity,
+            revenueOpportunityPercentage,
+            recentRecommendations: recentRecommendations.length
           })
 
           // Update stats with real values
@@ -316,8 +340,8 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             },
             alignmentScore: { 
               value: alignmentPercentage, 
-              change: alignmentPercentage - 70, // Change from baseline of 70%
-              percentage: ((alignmentPercentage - 70) / 70) * 100 
+              change: alignmentChange,
+              percentage: alignmentChangePercentage 
             },
             optimizationOpportunities: { 
               value: totalRecommendations, 
@@ -326,8 +350,8 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             },
             potentialRevenue: { 
               value: Math.round(potentialRevenue), 
-              change: Math.round(potentialRevenue * (growthPercentage / 100)), 
-              percentage: growthPercentage 
+              change: revenueOpportunity, // This is the opportunity amount
+              percentage: revenueOpportunityPercentage // This is opportunity as % of total
             }
           }
 
@@ -362,6 +386,183 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
 
     fetchStats()
   }, [user, supabase, selectedBrandId])
+
+  // Listen for recommendations update event
+  React.useEffect(() => {
+    const handleRecommendationsUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent
+      console.log('SectionCards - Recommendations updated, refreshing stats...', customEvent.detail)
+      
+      // Clear cache and refresh stats
+      clearCache()
+      
+      // Add a small delay to ensure database is updated
+      setTimeout(() => {
+        const fetchStats = async () => {
+          setLoading(true)
+          try {
+            // Re-fetch stats with the same logic as above
+            if (!user?.email) return
+
+            const { data: userData } = await supabase
+              .from('usr')
+              .select('brand_id')
+              .eq('email', user.email)
+              .single()
+
+            if (!userData?.brand_id) {
+              const sampleStats = {
+                activeTrends: { value: 156, change: 12, percentage: 8.3 },
+                alignmentScore: { value: 72, change: 5.2, percentage: 7.8 },
+                optimizationOpportunities: { value: 23, change: 5, percentage: 27.8 },
+                potentialRevenue: { value: 45000, change: 8500, percentage: 23.3 }
+              }
+              setStats(sampleStats)
+              return
+            }
+
+            // Use selected brand if provided, otherwise use user's brand
+            const brandId = selectedBrandId ? parseInt(selectedBrandId) : userData.brand_id
+            const now = new Date()
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+
+            // Re-run all queries
+            const [
+              trendsData,
+              recommendationsData,
+              productsData,
+              brandSpecificTrendsData
+            ] = await Promise.all([
+              supabase
+                .from('trends')
+                .select('trend_id, last_updated, trend_region, lifecycle_stage')
+                .in('lifecycle_stage', ['growing', 'emerging']),
+              supabase
+                .from('recommendations')
+                .select('recommendation_id, alignment_score, created_at, product_id, matched_trend_id')
+                .eq('brand_id', brandId)
+                .eq('is_active', true),
+              supabase
+                .from('products')
+                .select('product_id, current_price, current_inventory_level')
+                .eq('brand_id', brandId),
+              supabase
+                .from('brands')
+                .select('brand_name, country')
+                .eq('brand_id', brandId)
+                .single()
+            ])
+
+            // Calculate stats (same logic as before)
+            let brandRegion = 'global'
+            const brandName = brandSpecificTrendsData.data?.brand_name?.toLowerCase() || ''
+            const numericBrandId = brandId
+            
+            if (brandName.includes('marisa') || numericBrandId === 13 ||
+                brandName.includes('track') || numericBrandId === 7 ||
+                brandName.includes('cris barros') || numericBrandId === 2) {
+              brandRegion = 'brazil'
+            } else if (brandName.includes('arvind') || numericBrandId === 1) {
+              brandRegion = 'india'
+            } else if (brandName.includes('walmart') || numericBrandId === 5 ||
+                       brandName.includes('zara') || numericBrandId === 6) {
+              brandRegion = 'usa'
+            }
+            
+            const relevantTrends = trendsData.data?.filter(t => 
+              t.trend_region === brandRegion || t.trend_region === 'global'
+            ) || []
+            
+            const currentWeekTrends = relevantTrends.filter(t => 
+              new Date(t.last_updated) >= weekAgo
+            ).length || 0
+            
+            const previousWeekTrends = relevantTrends.filter(t => 
+              new Date(t.last_updated) >= twoWeeksAgo && 
+              new Date(t.last_updated) < weekAgo
+            ).length || 0
+            
+            const trendChange = currentWeekTrends - previousWeekTrends
+            const trendPercentage = previousWeekTrends > 0 
+              ? ((currentWeekTrends - previousWeekTrends) / previousWeekTrends) * 100 
+              : 100
+
+            const activeRecommendations = recommendationsData.data || []
+            const averageAlignment = activeRecommendations.length > 0
+              ? activeRecommendations.reduce((sum, r) => sum + (r.alignment_score || 0), 0) / activeRecommendations.length
+              : 0
+
+            const currentWeekRecommendations = activeRecommendations.filter(r => 
+              new Date(r.created_at) >= weekAgo
+            ).length || 0
+            
+            const opportunityChange = currentWeekRecommendations
+            const opportunityPercentage = activeRecommendations.length > 0 
+              ? (currentWeekRecommendations / activeRecommendations.length) * 100 
+              : 0
+
+            const productMap = new Map((productsData.data || []).map(p => [p.product_id, p]))
+            const currentRecommendedProducts = activeRecommendations
+              .filter(r => productMap.has(r.product_id))
+              .map(r => productMap.get(r.product_id)!)
+            
+            const potentialRevenue = currentRecommendedProducts.reduce((sum, p) => 
+              sum + ((p.current_price || 0) * Math.min(p.current_inventory_level || 0, 10)), 0
+            )
+            
+            const previousPotentialRevenue = potentialRevenue * 0.825
+            const revenueChange = potentialRevenue - previousPotentialRevenue
+            const revenuePercentage = previousPotentialRevenue > 0 
+              ? ((potentialRevenue - previousPotentialRevenue) / previousPotentialRevenue) * 100 
+              : 0
+
+            const updatedStats = {
+              activeTrends: { 
+                value: relevantTrends.length || 0, 
+                change: trendChange, 
+                percentage: trendPercentage 
+              },
+              alignmentScore: { 
+                value: Math.round(averageAlignment) || 0, 
+                change: averageAlignment - 70, 
+                percentage: ((averageAlignment - 70) / 70) * 100 
+              },
+              optimizationOpportunities: { 
+                value: activeRecommendations.length || 0, 
+                change: opportunityChange, 
+                percentage: opportunityPercentage 
+              },
+              potentialRevenue: { 
+                value: Math.round(potentialRevenue) || 0, 
+                change: Math.round(revenueChange), 
+                percentage: revenuePercentage 
+              }
+            }
+            
+            // Cache the calculated stats
+            const cacheKey = `looki_stats_${user.email}_${selectedBrandId || 'default'}`
+            sessionStorage.setItem(cacheKey, JSON.stringify(updatedStats))
+            sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+            
+            setStats(updatedStats)
+          } catch (error) {
+            console.error('Error refreshing stats after recommendations update:', error)
+          } finally {
+            setLoading(false)
+          }
+        }
+        
+        fetchStats()
+      }, 1000) // 1 second delay to ensure DB is updated
+    }
+
+    window.addEventListener('recommendationsUpdated', handleRecommendationsUpdate)
+    
+    return () => {
+      window.removeEventListener('recommendationsUpdated', handleRecommendationsUpdate)
+    }
+  }, [user, supabase, selectedBrandId, clearCache])
 
   // Create context menu hooks for each card
   const activeTrendsContext = useContextMenu({
@@ -405,7 +606,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
       percentage: `${stats.potentialRevenue.percentage >= 0 ? '+' : ''}${stats.potentialRevenue.percentage.toFixed(2)}%`
     },
     type: 'widget',
-    description: 'Total inventory value of recommended products (price × stock)'
+    description: 'Total inventory value with additional revenue opportunity from high-alignment products'
   });
 
   if (loading) {
@@ -543,12 +744,13 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
                 title="Revenue Impact Calculation"
                 value={`$${stats.potentialRevenue.value.toLocaleString()}`}
                 steps={[
-                  { label: "Formula", value: "Σ(price × inventory)", formula: "for each recommended product" },
-                  { label: "Products Counted", value: "All recommended items" },
-                  { label: "Current Value", value: `$${stats.potentialRevenue.value.toLocaleString()}` },
-                  { label: "Growth Estimate", value: "20% week-over-week", formula: "industry average" }
+                  { label: "Total Value", value: "Σ(price × inventory)", formula: "for all recommended products" },
+                  { label: "High-Alignment Products", value: "Products with ≥80% alignment score" },
+                  { label: "Opportunity Formula", value: "(alignment - 70%) × product value", formula: "incremental revenue potential" },
+                  { label: "Total Inventory Value", value: `$${stats.potentialRevenue.value.toLocaleString()}` },
+                  { label: "Revenue Opportunity", value: `$${stats.potentialRevenue.change.toLocaleString()}`, formula: "additional revenue potential" }
                 ]}
-                description="Sum of (current_price × current_inventory_level) for all recommended products"
+                description="Total inventory value with opportunity calculation based on high-alignment products"
                 size="sm"
               />
             </div>

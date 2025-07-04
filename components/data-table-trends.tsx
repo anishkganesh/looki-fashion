@@ -1686,6 +1686,30 @@ export function DataTableTrends({ onTabChange, session }: {
       
       toast.info(`Using ${CREDIT_COSTS.recommendations} credits for recommendations`)
       
+      // Clear cache for all related components
+      const brandIdToUse = selectedBrandId || userBrandId
+      const cacheKeysToRemove = [
+        // Clear stats cache (section-cards.tsx)
+        `looki_stats_${session.user.email}_${brandIdToUse}`,
+        `looki_stats_${session.user.email}_${brandIdToUse}_timestamp`,
+        `looki_stats_${session.user.email}_default`,
+        `looki_stats_${session.user.email}_default_timestamp`,
+        // Clear chart cache for all time ranges (chart-area-interactive.tsx)
+        ...['7d', '30d', '90d', '365d', '730d', 'all'].flatMap(range => [
+          `looki_chart_${session.user.email}_${brandIdToUse}_${range}`,
+          `looki_chart_${session.user.email}_${brandIdToUse}_${range}_timestamp`,
+          `looki_chart_${session.user.email}_default_${range}`,
+          `looki_chart_${session.user.email}_default_${range}_timestamp`
+        ])
+      ]
+      
+      // Remove all cache entries
+      cacheKeysToRemove.forEach(key => {
+        sessionStorage.removeItem(key)
+      })
+      
+      console.log('Cleared cache for recommendations generation')
+      
       setGenerating(true)
       setGenerationProgress("Analyzing product catalog...")
       
@@ -1742,6 +1766,15 @@ export function DataTableTrends({ onTabChange, session }: {
       if (inventoryTableRef.current?.fetchRecommendations) {
         inventoryTableRef.current.fetchRecommendations()
       }
+      
+      // Dispatch a custom event to notify dashboard components to refresh
+      window.dispatchEvent(new CustomEvent('recommendationsUpdated', { 
+        detail: { 
+          brandId: brandIdToUse,
+          count: result.recommendations_count,
+          timestamp: Date.now()
+        } 
+      }))
     } catch (error) {
       console.error('Error generating recommendations:', error)
       toast.error('Failed to generate recommendations')
