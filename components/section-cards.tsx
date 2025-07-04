@@ -85,6 +85,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
 
         // Use selected brand if provided, otherwise use user's brand
         const brandId = selectedBrandId ? parseInt(selectedBrandId) : userData.brand_id
+        console.log('SectionCards - Using brand ID:', brandId, 'from selectedBrandId:', selectedBrandId)
         const now = new Date()
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)

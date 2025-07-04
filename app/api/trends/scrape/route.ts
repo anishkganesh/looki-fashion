@@ -157,23 +157,35 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   // Determine brand country based on known brands
   let brandCountry = brandInfo?.country || 'US'
   
+  // Convert brandId to number for consistent comparison
+  const numericBrandId = typeof brandId === 'string' ? parseInt(brandId) : brandId
+  
   // Brazilian brands
-  if (brandName.includes('marisa') || brandId === 13 ||
-      brandName.includes('track & field') || brandId === 7 ||
-      brandName.includes('cris barros') || brandId === 2) {
+  if (brandName.includes('marisa') || numericBrandId === 13 ||
+      brandName.includes('track & field') || numericBrandId === 7 ||
+      brandName.includes('cris barros') || numericBrandId === 2) {
     brandCountry = 'BR'
   }
   
   // Indian brands
-  if (brandName.includes('arvind') || brandId === 1) {
+  if (brandName.includes('arvind') || numericBrandId === 1) {
     brandCountry = 'IN'
   }
   
   // US brands
-  if (brandName.includes('walmart') || brandId === 5 ||
-      brandName.includes('zara') || brandId === 6) {
+  if (brandName.includes('walmart') || numericBrandId === 5 ||
+      brandName.includes('zara') || numericBrandId === 6) {
     brandCountry = 'US'
   }
+  
+  // Debug log to verify correct assignment
+  console.log(`getBrandSpecificSources Debug:`, {
+    brandName,
+    brandId,
+    numericBrandId,
+    detectedCountry: brandCountry,
+    brandIdType: typeof brandId
+  })
   
   let selectedSources: string[] = []
   
@@ -276,23 +288,35 @@ function generateBrandSpecificQueries(brandInfo: any) {
   // Determine brand country based on known brands
   let brandCountry = brandInfo?.country || 'US'
   
+  // Convert brandId to number for consistent comparison
+  const numericBrandId = typeof brandId === 'string' ? parseInt(brandId) : brandId
+  
   // Brazilian brands
-  if (brandName.toLowerCase().includes('marisa') || brandId === 13 ||
-      brandName.toLowerCase().includes('track & field') || brandId === 7 ||
-      brandName.toLowerCase().includes('cris barros') || brandId === 2) {
+  if (brandName.toLowerCase().includes('marisa') || numericBrandId === 13 ||
+      brandName.toLowerCase().includes('track & field') || numericBrandId === 7 ||
+      brandName.toLowerCase().includes('cris barros') || numericBrandId === 2) {
     brandCountry = 'BR'
   }
   
   // Indian brands
-  if (brandName.toLowerCase().includes('arvind') || brandId === 1) {
+  if (brandName.toLowerCase().includes('arvind') || numericBrandId === 1) {
     brandCountry = 'IN'
   }
   
   // US brands
-  if (brandName.toLowerCase().includes('walmart') || brandId === 5 ||
-      brandName.toLowerCase().includes('zara') || brandId === 6) {
+  if (brandName.toLowerCase().includes('walmart') || numericBrandId === 5 ||
+      brandName.toLowerCase().includes('zara') || numericBrandId === 6) {
     brandCountry = 'US'
   }
+  
+  // Debug log
+  console.log(`generateBrandSpecificQueries Debug:`, {
+    brandName,
+    brandId,
+    numericBrandId,
+    detectedCountry: brandCountry,
+    brandIdType: typeof brandId
+  })
   
   // Gender-specific context
   const genderTerms: Record<string, string[]> = {

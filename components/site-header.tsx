@@ -49,25 +49,42 @@ export function SiteHeader() {
   const handleBrandChange = async (value: string) => {
     setSelectedBrandId(value)
     
+    // Get brand details for AI context
+    const selectedBrandName = availableBrands.find(b => b.id === value)?.name
+    
     // Persist the selection
-    if (session?.user?.email) {
-      const selectedBrandName = availableBrands.find(b => b.id === value)?.name
-      if (selectedBrandName) {
-        await fetch('/api/profile/update-brand', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: session.user.email,
-            selectedBrand: selectedBrandName
-          })
+    if (session?.user?.email && selectedBrandName) {
+      await fetch('/api/profile/update-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userEmail: session.user.email,
+          selectedBrand: selectedBrandName
         })
-      }
+      })
     }
     
     // Emit event for other components to refetch data
     window.dispatchEvent(new CustomEvent('brandChanged', { 
-      detail: { brandId: value, brandName: availableBrands.find(b => b.id === value)?.name } 
+      detail: { brandId: value, brandName: selectedBrandName } 
     }))
+    
+    // Update AI context immediately
+    try {
+      const { data: brandData } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('brand_id', parseInt(value))
+        .single()
+      
+      if (brandData) {
+        window.dispatchEvent(new CustomEvent('brandContextChanged', {
+          detail: { brand: brandData }
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching brand data for AI context:', error)
+    }
   }
 
   return (
