@@ -44,6 +44,7 @@ import {
   PackageIcon,
   StarIcon,
   Building2,
+  ArrowUpDown,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -124,6 +125,17 @@ interface Trend {
   created_at: string
   watchlist?: boolean
   trend_type?: 'signal' | 'forecast'
+  // Source information
+  source_urls?: string[]
+  sources?: Array<{
+    id: number
+    trend_id: number
+    source_url: string
+    source_type?: string
+    source_title?: string
+    extracted_at: string
+    relevance_score?: number
+  }>
 }
 
 const columns: ColumnDef<Trend>[] = [
@@ -177,12 +189,88 @@ const columns: ColumnDef<Trend>[] = [
   },
   {
     accessorKey: "trend_category",
-    header: "Category",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="capitalize">
-        {row.original.trend_category}
-      </Badge>
-    ),
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Category
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => <span className="capitalize">{row.original.trend_category}</span>,
+  },
+  {
+    accessorKey: "sources",
+    header: "Source",
+    cell: ({ row }) => {
+      const sources = row.original.sources || []
+      const sourceUrls = row.original.source_urls || []
+      
+      if (sources.length === 0 && sourceUrls.length === 0) {
+        return <span className="text-sm text-muted-foreground">No source</span>
+      }
+      
+      // Get the first source or use source_urls
+      const primarySource = sources[0] || { source_url: sourceUrls[0] }
+      const domain = primarySource.source_url ? new URL(primarySource.source_url).hostname.replace('www.', '') : 'Unknown'
+      const sourceCount = sources.length || sourceUrls.length
+      
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-pointer">
+                <span className="text-sm truncate max-w-[150px]">{domain}</span>
+                {sourceCount > 1 && (
+                  <span className="text-xs text-muted-foreground">(+{sourceCount - 1})</span>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-sm">
+              <div className="space-y-2">
+                <p className="font-semibold">Sources ({sourceCount}):</p>
+                {sources.length > 0 ? (
+                  sources.slice(0, 5).map((source, idx) => (
+                    <div key={idx} className="text-xs">
+                      <a 
+                        href={source.source_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        {new URL(source.source_url).hostname.replace('www.', '')}
+                      </a>
+                      {source.source_title && (
+                        <p className="text-muted-foreground truncate">{source.source_title}</p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  sourceUrls.slice(0, 5).map((url, idx) => (
+                    <div key={idx} className="text-xs">
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        {new URL(url).hostname.replace('www.', '')}
+                      </a>
+                    </div>
+                  ))
+                )}
+                {sourceCount > 5 && (
+                  <p className="text-xs text-muted-foreground">...and {sourceCount - 5} more</p>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    },
   },
   {
     accessorKey: "lifecycle_stage",
@@ -748,6 +836,60 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
           
           <Separator />
           
+          <div>
+            <Label className="text-sm text-muted-foreground mb-2">Sources</Label>
+            <div className="space-y-2 mt-2">
+              {(trend.sources && trend.sources.length > 0) || (trend.source_urls && trend.source_urls.length > 0) ? (
+                <>
+                  {trend.sources && trend.sources.length > 0 ? (
+                    trend.sources.map((source, idx) => (
+                      <div key={idx} className="p-2 border rounded-md">
+                        <a 
+                          href={source.source_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-500 hover:underline font-medium"
+                        >
+                          {new URL(source.source_url).hostname.replace('www.', '')}
+                        </a>
+                        {source.source_title && (
+                          <p className="text-xs text-muted-foreground mt-1">{source.source_title}</p>
+                        )}
+                        {source.source_type && (
+                          <Badge variant="outline" className="text-xs mt-1 capitalize">
+                            {source.source_type}
+                          </Badge>
+                        )}
+                        {source.extracted_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Extracted: {formatRelativeDate(new Date(source.extracted_at))}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    trend.source_urls?.map((url, idx) => (
+                      <div key={idx} className="p-2 border rounded-md">
+                        <a 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-500 hover:underline"
+                        >
+                          {url}
+                        </a>
+                      </div>
+                    ))
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">No source information available</p>
+              )}
+            </div>
+          </div>
+          
+          <Separator />
+          
           <div className="text-sm text-muted-foreground">
             <p>Created: {formatDate(trend.created_at)}</p>
             <p>Last Updated: {formatDate(trend.last_updated)}</p>
@@ -1147,8 +1289,9 @@ export function DataTableTrends({ onTabChange, session }: {
   const [availableBrands, setAvailableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
     { id: "2", name: "Cris Barros" },
-    { id: "4", name: "Track & Field" },
     { id: "5", name: "Walmart" },
+    { id: "6", name: "Zara" },
+    { id: "7", name: "Track & Field" },
     { id: "13", name: "Marisa Lojas" }
   ])
   const [activeBrandContext, setActiveBrandContext] = React.useState<any>(null)

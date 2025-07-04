@@ -406,6 +406,18 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
               </p>
             )}
           </div>
+          
+          {generatedImage && (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Generated Image</Label>
+              <img 
+                src={generatedImage} 
+                alt={`${action.product.product_name} with ${action.recommendation_action} strategy`}
+                className="w-full rounded-lg border"
+                style={{ maxHeight: '400px', objectFit: 'cover' }}
+              />
+            </div>
+          )}
 
           {/* Product Info */}
           <div>

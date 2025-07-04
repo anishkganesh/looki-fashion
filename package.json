@@ -9,7 +9,9 @@
     "lint": "next lint",
     "migrate:recommendations": "node scripts/run-migration.js",
     "migrate:add-reasons": "node scripts/run-migration.js scripts/migrations/add_recommendation_reasons.sql",
-    "test:recommendations": "node scripts/test-recommendations-setup.js"
+    "migrate:trend-sources": "node scripts/run-trend-sources-migration.js",
+    "test:recommendations": "node scripts/test-recommendations-setup.js",
+    "test:marisa-import": "node scripts/test-marisa-import.js"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",

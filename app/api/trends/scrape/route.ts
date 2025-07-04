@@ -159,7 +159,7 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   
   // Brazilian brands
   if (brandName.includes('marisa') || brandId === 13 ||
-      brandName.includes('track & field') || brandId === 4 ||
+      brandName.includes('track & field') || brandId === 7 ||
       brandName.includes('cris barros') || brandId === 2) {
     brandCountry = 'BR'
   }
@@ -170,7 +170,8 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   }
   
   // US brands
-  if (brandName.includes('walmart') || brandId === 5) {
+  if (brandName.includes('walmart') || brandId === 5 ||
+      brandName.includes('zara') || brandId === 6) {
     brandCountry = 'US'
   }
   
@@ -277,7 +278,7 @@ function generateBrandSpecificQueries(brandInfo: any) {
   
   // Brazilian brands
   if (brandName.toLowerCase().includes('marisa') || brandId === 13 ||
-      brandName.toLowerCase().includes('track & field') || brandId === 4 ||
+      brandName.toLowerCase().includes('track & field') || brandId === 7 ||
       brandName.toLowerCase().includes('cris barros') || brandId === 2) {
     brandCountry = 'BR'
   }
@@ -288,7 +289,8 @@ function generateBrandSpecificQueries(brandInfo: any) {
   }
   
   // US brands
-  if (brandName.toLowerCase().includes('walmart') || brandId === 5) {
+  if (brandName.toLowerCase().includes('walmart') || brandId === 5 ||
+      brandName.toLowerCase().includes('zara') || brandId === 6) {
     brandCountry = 'US'
   }
   
@@ -493,6 +495,23 @@ function generateBrandSpecificQueries(brandInfo: any) {
       `são paulo fashion week ${timeContexts[5]} trends`,
       `brazilian sustainable fashion ${timeContexts[6]}`
     ]
+  } else if (brandName.toLowerCase().includes('walmart') || brandName.toLowerCase().includes('zara')) {
+    // Walmart and Zara - US market focused queries
+    allBrandQueries = [
+      `#${brandName.replace(/\s+/g, '').toLowerCase()} #fashion ${timeContexts[0]} trending usa`,
+      `site:tiktok.com #ootd #${brandName.replace(/\s+/g, '').toLowerCase()} ${timeContexts[1]}`,
+      `site:instagram.com ${brandName} fashion haul ${timeContexts[2]} viral`,
+      `${brandName} ${season} ${year} collection trending pieces`,
+      `${brandName} fashion trends ${month} ${year} must haves`,
+      `${brandName} street style ${timeContexts[3]} outfit ideas`,
+      `affordable fashion ${brandName} ${timeContexts[4]} trending`,
+      `${brandName} viral tiktok ${timeContexts[5]} fashion finds`,
+      `${brandName} instagram reels ${timeContexts[6]} style`,
+      `${brandName} fashion influencer ${timeContexts[7]} looks`,
+      `${brandName} ${genderContext[0]} fashion ${timeContexts[8]} new`,
+      `${brandName} sustainable fashion ${timeContexts[0]} eco`,
+      `${brandName} fashion dupes alternatives ${timeContexts[1]}`
+    ]
   } else if (brandName.toLowerCase().includes('nike') || brandCategory === 'athletic') {
     // Nike/Athletic specific queries
     allBrandQueries = [
@@ -607,7 +626,7 @@ async function parseTrendsWithAI(content: string, url: string, brandInfo?: any) 
     
     // Brazilian brands
     if (brandName.toLowerCase().includes('marisa') || brandInfo?.brand_id === 13 ||
-        brandName.toLowerCase().includes('track & field') || brandInfo?.brand_id === 4 ||
+        brandName.toLowerCase().includes('track & field') || brandInfo?.brand_id === 7 ||
         brandName.toLowerCase().includes('cris barros') || brandInfo?.brand_id === 2) {
       brandCountry = 'BR'
     }
@@ -618,7 +637,8 @@ async function parseTrendsWithAI(content: string, url: string, brandInfo?: any) 
     }
     
     // US brands
-    if (brandName.toLowerCase().includes('walmart') || brandInfo?.brand_id === 5) {
+    if (brandName.toLowerCase().includes('walmart') || brandInfo?.brand_id === 5 ||
+        brandName.toLowerCase().includes('zara') || brandInfo?.brand_id === 6) {
       brandCountry = 'US'
     }
     
@@ -822,6 +842,69 @@ function cleanupUrlHistory() {
   }
 }
 
+// Determine source type from URL
+function determineSourceType(url: string): string {
+  const domain = new URL(url).hostname.toLowerCase()
+  
+  if (domain.includes('tiktok') || domain.includes('instagram') || 
+      domain.includes('twitter') || domain.includes('pinterest') || 
+      domain.includes('youtube') || domain.includes('reddit')) {
+    return 'social'
+  } else if (domain.includes('vogue') || domain.includes('elle') || 
+             domain.includes('harpersbazaar') || domain.includes('wwd') ||
+             domain.includes('fashionista') || domain.includes('glamour')) {
+    return 'publication'
+  } else if (domain.includes('zara') || domain.includes('hm') || 
+             domain.includes('asos') || domain.includes('nordstrom') ||
+             domain.includes('ssense') || domain.includes('net-a-porter')) {
+    return 'retail'
+  } else if (domain.includes('blog') || domain.includes('wordpress')) {
+    return 'blog'
+  } else if (domain.includes('forum') || domain.includes('community')) {
+    return 'forum'
+  }
+  return 'other'
+}
+
+// Save trend sources to the trend_sources table
+async function saveTrendSources(trendId: number, sources: string[], allTrends: any[], trendIdentifier: string) {
+  if (sources.length === 0) return
+  
+  try {
+    // Prepare source records
+    const sourceRecords = sources.map(sourceUrl => {
+      // Find the original trend data that came from this source
+      const sourceTrend = allTrends.find(t => 
+        t.source_url === sourceUrl && 
+        t.name.toLowerCase().replace(/^#/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') === trendIdentifier
+      )
+      
+      return {
+        trend_id: trendId,
+        source_url: sourceUrl,
+        source_type: determineSourceType(sourceUrl),
+        source_title: sourceTrend?.source_title || null,
+        extracted_at: new Date().toISOString(),
+        relevance_score: sourceTrend?.confidence || 0.8
+      }
+    })
+    
+    // Insert source records (ignore duplicates)
+    const { error } = await supabaseService
+      .from('trend_sources')
+      .upsert(sourceRecords, {
+        onConflict: 'trend_id,source_url',
+        ignoreDuplicates: true
+      })
+    
+    if (error) {
+      console.error(`Error inserting sources for trend ${trendIdentifier}:`, error)
+    }
+  } catch (error) {
+    console.error(`Error saving trend sources:`, error)
+  }
+}
+
 export async function POST(request: Request) {
   const { stream, sendProgress, close } = createProgressStream()
   
@@ -944,6 +1027,31 @@ export async function POST(request: Request) {
       // Get brand-specific sources
       const brandSources = getBrandSpecificSources(brandInfo)
       sendProgress(`Using ${brandSources.length} brand-relevant sources`)
+      
+      // Debug logging to understand the issue
+      const brandName = brandInfo?.brand_name?.toLowerCase() || ''
+      const brandId = brandInfo?.brand_id
+      let debugCountry = 'US'
+      
+      if (brandName.includes('marisa') || brandId === 13 ||
+          brandName.includes('track & field') || brandId === 7 ||
+          brandName.includes('cris barros') || brandId === 2) {
+        debugCountry = 'BR'
+      } else if (brandName.includes('arvind') || brandId === 1) {
+        debugCountry = 'IN'
+      } else if (brandName.includes('walmart') || brandId === 5 ||
+                 brandName.includes('zara') || brandId === 6) {
+        debugCountry = 'US'
+      }
+      
+      console.log('Brand Debug Info:', {
+        brand_name: brandInfo?.brand_name,
+        brand_id: brandInfo?.brand_id,
+        brand_id_type: typeof brandInfo?.brand_id,
+        detected_country: debugCountry,
+        first_query: queries[0],
+        first_source: brandSources[0]
+      })
       
       const allTrends: any[] = []
       const processedUrls = new Set<string>()
@@ -1113,7 +1221,7 @@ export async function POST(request: Request) {
           const isBrazilianBrand = brandInfo?.brand_name?.toLowerCase().includes('marisa') || 
                                    brandInfo?.brand_id === 13 ||
                                    brandInfo?.brand_name?.toLowerCase().includes('track & field') ||
-                                   brandInfo?.brand_id === 4 ||
+                                   brandInfo?.brand_id === 7 ||
                                    brandInfo?.brand_name?.toLowerCase().includes('cris barros') ||
                                    brandInfo?.brand_id === 2 ||
                                    brandInfo?.country === 'BR'
@@ -1121,6 +1229,12 @@ export async function POST(request: Request) {
           const isIndianBrand = brandInfo?.brand_name?.toLowerCase().includes('arvind') ||
                                 brandInfo?.brand_id === 1 ||
                                 brandInfo?.country === 'IN'
+          
+          const isUSBrand = brandInfo?.brand_name?.toLowerCase().includes('walmart') ||
+                            brandInfo?.brand_id === 5 ||
+                            brandInfo?.brand_name?.toLowerCase().includes('zara') ||
+                            brandInfo?.brand_id === 6 ||
+                            brandInfo?.country === 'US'
           
           // Implement 70-30 split: 70% regional, 30% global
           const shouldBeRegional = Math.random() < 0.7
@@ -1138,7 +1252,7 @@ export async function POST(request: Request) {
                   loc.toLowerCase().includes('mumbai') || loc.toLowerCase().includes('bangalore')
                 )) {
               trendRegion = 'india'
-            } else if (brandInfo?.country === 'US' || 
+            } else if (isUSBrand || 
                 trend.demographics?.locations?.some((loc: string) => 
                   loc.toLowerCase().includes('usa') || loc.toLowerCase().includes('united states')
                 )) {
@@ -1174,6 +1288,7 @@ export async function POST(request: Request) {
             trend_description: trendDescription,
             trend_type: trendType,
             trend_region: trendRegion,
+            source_urls: sources, // Add source URLs to the trend
             ...metrics,
             last_updated: new Date().toISOString(),
             created_at: new Date().toISOString()
@@ -1214,6 +1329,9 @@ export async function POST(request: Request) {
             } else {
               updatedCount++
               sendProgress(`Updated: ${trend.name}`)
+              
+              // Save new sources for existing trend
+              await saveTrendSources(existing.trend_id, sources, allTrends, trendId)
             }
           } else {
             // Insert new
@@ -1237,6 +1355,11 @@ export async function POST(request: Request) {
             } else {
               insertedCount++
               sendProgress(`Added: ${trend.name}`)
+              
+              // Save sources for new trend
+              if (inserted?.trend_id) {
+                await saveTrendSources(inserted.trend_id, sources, allTrends, trendId)
+              }
             }
           }
         } catch (error) {
