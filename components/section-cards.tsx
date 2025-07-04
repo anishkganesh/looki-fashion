@@ -30,9 +30,11 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
   // Clear cache method
   const clearCache = React.useCallback(() => {
     if (user?.email) {
-      const cacheKey = `looki_stats_${user.email}`
-      sessionStorage.removeItem(cacheKey)
-      sessionStorage.removeItem(`${cacheKey}_timestamp`)
+      // Clear all stats cache for this user
+      const keys = Object.keys(sessionStorage).filter(key => 
+        key.startsWith(`looki_stats_${user.email}`)
+      )
+      keys.forEach(key => sessionStorage.removeItem(key))
     }
   }, [user])
 
@@ -177,6 +179,12 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
         const avgAlignment = alignments.length > 0
           ? alignments.reduce((sum, rec) => sum + (rec.alignment_score || 0), 0) / alignments.length
           : 0
+        
+        console.log('SectionCards - Alignment calculation:', {
+          alignmentsCount: alignments.length,
+          avgAlignment,
+          sampleAlignments: alignments.slice(0, 3).map(r => r.alignment_score)
+        })
 
         // 3. Optimization Opportunities (all recommendations)
         const currentRecommendations = recommendationsData.data || []
@@ -197,21 +205,36 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
 
         // Calculate potential revenue from recommended products
         let potentialRevenue = 0
+        let productsWithRevenue = 0
         currentRecommendations.forEach(rec => {
           const product = productMap.get(rec.product_id)
           if (product) {
             const price = product.current_price || 0
             const stock = product.current_inventory_level || 0
             // Simple calculation: price × stock
-            potentialRevenue += price * stock
+            const productRevenue = price * stock
+            if (productRevenue > 0) {
+              potentialRevenue += productRevenue
+              productsWithRevenue++
+            }
           }
         })
+        
+        console.log('SectionCards - Revenue calculation:', {
+          totalRecommendations: currentRecommendations.length,
+          productsFound: productMap.size,
+          productsWithRevenue,
+          potentialRevenue
+        })
 
-        // If no data, use sample data
-        if (opportunitiesCount === 0 && potentialRevenue === 0) {
+        // Always use calculated data, never fall back to sample data unless there's truly no data
+        const hasAnyData = activeTrendsCount > 0 || avgAlignment > 0 || opportunitiesCount > 0 || potentialRevenue > 0
+        
+        if (!hasAnyData && recommendationsData.data?.length === 0 && trendsData.data?.length === 0) {
+          // Only use sample data if we truly have no data at all
           const sampleStats = {
-            activeTrends: { value: activeTrendsCount || 67, change: trendsChange || 12, percentage: trendsPercentage || 21.8 },
-            alignmentScore: { value: Math.round(avgAlignment) || 76, change: avgAlignment - 70 || 6, percentage: ((avgAlignment - 70) / 70 * 100) || 8.57 },
+            activeTrends: { value: 67, change: 12, percentage: 21.8 },
+            alignmentScore: { value: 76, change: 6, percentage: 8.57 },
             optimizationOpportunities: { value: 23, change: 5, percentage: 27.8 },
             potentialRevenue: { value: 45000, change: 8500, percentage: 23.3 }
           }
@@ -247,21 +270,15 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             }
           }
           
-          // Only update if we have valid data (not all zeros)
-          if (calculatedStats.activeTrends.value > 0 || 
-              calculatedStats.alignmentScore.value > 0 || 
-              calculatedStats.optimizationOpportunities.value > 0 || 
-              calculatedStats.potentialRevenue.value > 0) {
-            setPreviousStats(stats)
-            setStats(calculatedStats)
-            
-            // Cache the calculated stats
-            sessionStorage.setItem(cacheKey, JSON.stringify(calculatedStats))
-            sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
-          } else if (previousStats) {
-            // Use previous stats if current calculation returns all zeros
-            setStats(previousStats)
-          }
+          // Always update with calculated stats
+          setPreviousStats(stats)
+          setStats(calculatedStats)
+          
+          // Cache the calculated stats
+          sessionStorage.setItem(cacheKey, JSON.stringify(calculatedStats))
+          sessionStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString())
+          
+          console.log('SectionCards - Calculated stats:', calculatedStats)
         }
       } catch (error) {
         console.error('Error fetching statistics:', error)
