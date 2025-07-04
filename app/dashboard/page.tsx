@@ -61,8 +61,9 @@ export default function DashboardPage() {
         const brandMap: Record<string, string> = {
           "Arvind Fashions": "1",
           "Cris Barros": "2",
-          "Track & Field": "4",
+          "Track & Field": "7",
           "Walmart": "5",
+          "Zara": "6",
           "Marisa Lojas": "13"
         }
         setSelectedBrandId(brandMap[userData.selected_brand] || userData.brand_id?.toString() || "")

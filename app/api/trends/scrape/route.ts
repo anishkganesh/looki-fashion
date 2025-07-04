@@ -162,7 +162,7 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   
   // Brazilian brands
   if (brandName.includes('marisa') || numericBrandId === 13 ||
-      brandName.includes('track & field') || numericBrandId === 7 ||
+      brandName.includes('track') || numericBrandId === 7 ||
       brandName.includes('cris barros') || numericBrandId === 2) {
     brandCountry = 'BR'
   }
@@ -293,7 +293,7 @@ function generateBrandSpecificQueries(brandInfo: any) {
   
   // Brazilian brands
   if (brandName.toLowerCase().includes('marisa') || numericBrandId === 13 ||
-      brandName.toLowerCase().includes('track & field') || numericBrandId === 7 ||
+      brandName.toLowerCase().includes('track') || numericBrandId === 7 ||
       brandName.toLowerCase().includes('cris barros') || numericBrandId === 2) {
     brandCountry = 'BR'
   }
@@ -507,7 +507,7 @@ function generateBrandSpecificQueries(brandInfo: any) {
       `indian ethnic fusion menswear ${timeContexts[0]}`,
       `corporate fashion india ${timeContexts[1]} trends`
     ]
-  } else if (brandName.toLowerCase().includes('track & field') || brandName.toLowerCase().includes('cris barros')) {
+  } else if (brandName.toLowerCase().includes('track') || brandName.toLowerCase().includes('cris barros')) {
     // Other Brazilian brands
     allBrandQueries = [
       `#modabrasileira #${brandName.replace(/\s+/g, '').toLowerCase()} ${timeContexts[0]}`,
@@ -650,7 +650,7 @@ async function parseTrendsWithAI(content: string, url: string, brandInfo?: any) 
     
     // Brazilian brands
     if (brandName.toLowerCase().includes('marisa') || brandInfo?.brand_id === 13 ||
-        brandName.toLowerCase().includes('track & field') || brandInfo?.brand_id === 7 ||
+        brandName.toLowerCase().includes('track') || brandInfo?.brand_id === 7 ||
         brandName.toLowerCase().includes('cris barros') || brandInfo?.brand_id === 2) {
       brandCountry = 'BR'
     }
@@ -1055,22 +1055,25 @@ export async function POST(request: Request) {
       // Debug logging to understand the issue
       const brandName = brandInfo?.brand_name?.toLowerCase() || ''
       const brandId = brandInfo?.brand_id
+      const numericBrandId = typeof brandId === 'string' ? parseInt(brandId) : brandId
       let debugCountry = 'US'
       
-      if (brandName.includes('marisa') || brandId === 13 ||
-          brandName.includes('track & field') || brandId === 7 ||
-          brandName.includes('cris barros') || brandId === 2) {
+      // More flexible brand name matching
+      if (brandName.includes('marisa') || numericBrandId === 13 ||
+          brandName.includes('track') || numericBrandId === 7 ||
+          brandName.includes('cris barros') || numericBrandId === 2) {
         debugCountry = 'BR'
-      } else if (brandName.includes('arvind') || brandId === 1) {
+      } else if (brandName.includes('arvind') || numericBrandId === 1) {
         debugCountry = 'IN'
-      } else if (brandName.includes('walmart') || brandId === 5 ||
-                 brandName.includes('zara') || brandId === 6) {
+      } else if (brandName.includes('walmart') || numericBrandId === 5 ||
+                 brandName.includes('zara') || numericBrandId === 6) {
         debugCountry = 'US'
       }
       
       console.log('Brand Debug Info:', {
         brand_name: brandInfo?.brand_name,
         brand_id: brandInfo?.brand_id,
+        numeric_brand_id: numericBrandId,
         brand_id_type: typeof brandInfo?.brand_id,
         detected_country: debugCountry,
         first_query: queries[0],
@@ -1244,7 +1247,7 @@ export async function POST(request: Request) {
           // Check brand type
           const isBrazilianBrand = brandInfo?.brand_name?.toLowerCase().includes('marisa') || 
                                    brandInfo?.brand_id === 13 ||
-                                   brandInfo?.brand_name?.toLowerCase().includes('track & field') ||
+                                   brandInfo?.brand_name?.toLowerCase().includes('track') ||
                                    brandInfo?.brand_id === 7 ||
                                    brandInfo?.brand_name?.toLowerCase().includes('cris barros') ||
                                    brandInfo?.brand_id === 2 ||

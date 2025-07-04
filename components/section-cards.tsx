@@ -95,25 +95,26 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           trendsData,
           recommendationsData,
           previousRecommendationsData,
-          productsData
+          productsData,
+          brandSpecificTrendsData
         ] = await Promise.all([
-          // Active trends query
+          // Active trends query (global)
           supabase
             .from('trends')
-            .select('trend_id, last_updated')
+            .select('trend_id, last_updated, trend_region')
             .in('lifecycle_stage', ['growing', 'emerging']),
           
           // Current recommendations
           supabase
             .from('recommendations')
-            .select('recommendation_id, alignment_score, created_at, product_id')
+            .select('recommendation_id, alignment_score, created_at, product_id, trend_id')
             .eq('brand_id', brandId)
             .eq('is_active', true),
           
           // Previous week recommendations for comparison
           supabase
             .from('recommendations')
-            .select('recommendation_id')
+            .select('recommendation_id, trend_id')
             .eq('brand_id', brandId)
             .gte('created_at', twoWeeksAgo.toISOString())
             .lt('created_at', weekAgo.toISOString()),
@@ -122,17 +123,47 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           supabase
             .from('products')
             .select('product_id, current_price, current_inventory_level')
+            .eq('brand_id', brandId),
+            
+          // Get brand info to determine region
+          supabase
+            .from('brands')
+            .select('brand_name, country')
             .eq('brand_id', brandId)
+            .single()
         ])
 
-        // 1. Active Trends calculation
-        const currentTrends = trendsData.data?.filter(t => 
-          new Date(t.last_updated) >= weekAgo
+        // 1. Active Trends calculation - filter by brand region
+        // Determine brand region
+        let brandRegion = 'global'
+        const brandName = brandSpecificTrendsData.data?.brand_name?.toLowerCase() || ''
+        const numericBrandId = brandId
+        
+        if (brandName.includes('marisa') || numericBrandId === 13 ||
+            brandName.includes('track') || numericBrandId === 7 ||
+            brandName.includes('cris barros') || numericBrandId === 2) {
+          brandRegion = 'brazil'
+        } else if (brandName.includes('arvind') || numericBrandId === 1) {
+          brandRegion = 'india'
+        } else if (brandName.includes('walmart') || numericBrandId === 5 ||
+                   brandName.includes('zara') || numericBrandId === 6) {
+          brandRegion = 'usa'
+        }
+        
+        console.log('SectionCards - Brand region detection:', { brandName, brandId: numericBrandId, brandRegion })
+        
+        // Filter trends by region (brand region + global)
+        const relevantTrends = trendsData.data?.filter(t => 
+          t.trend_region === brandRegion || t.trend_region === 'global'
         ) || []
-        const previousTrends = trendsData.data?.filter(t => 
+        
+        const currentTrends = relevantTrends.filter(t => 
+          new Date(t.last_updated) >= weekAgo
+        )
+        const previousTrends = relevantTrends.filter(t => 
           new Date(t.last_updated) >= twoWeeksAgo && 
           new Date(t.last_updated) < weekAgo
-        ) || []
+        )
 
         const activeTrendsCount = currentTrends.length
         const previousActiveTrends = previousTrends.length
@@ -401,7 +432,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
                 value={stats.optimizationOpportunities.value.toString()}
                 steps={[
                   { label: "Active Recommendations", value: "Count where is_active = true" },
-                  { label: "Brand Filter", value: "Your brand only", formula: `brand_id = ${user?.email}` },
+                  { label: "Brand Filter", value: "Your brand only", formula: `brand_id = selected` },
                   { label: "This Week", value: stats.optimizationOpportunities.value },
                   { label: "Last Week", value: stats.optimizationOpportunities.value - stats.optimizationOpportunities.change }
                 ]}
