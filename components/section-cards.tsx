@@ -100,10 +100,10 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           productsData,
           brandSpecificTrendsData
         ] = await Promise.all([
-          // Active trends query (global)
+          // Active trends query (global) - removed time filter
           supabase
             .from('trends')
-            .select('trend_id, last_updated, trend_region')
+            .select('trend_id, last_updated, trend_region, lifecycle_stage')
             .in('lifecycle_stage', ['growing', 'emerging']),
           
           // Current recommendations
@@ -135,6 +135,18 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             .single()
         ])
 
+        // Log all query results
+        console.log('SectionCards - Query results:', {
+          trendsCount: trendsData.data?.length || 0,
+          trendsError: trendsData.error,
+          recommendationsCount: recommendationsData.data?.length || 0,
+          recommendationsError: recommendationsData.error,
+          productsCount: productsData.data?.length || 0,
+          productsError: productsData.error,
+          brandData: brandSpecificTrendsData.data,
+          brandError: brandSpecificTrendsData.error
+        })
+
         // 1. Active Trends calculation - filter by brand region
         // Determine brand region
         let brandRegion = 'global'
@@ -159,6 +171,10 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           t.trend_region === brandRegion || t.trend_region === 'global'
         ) || []
         
+        // Count all active trends, not just recent ones
+        const activeTrendsCount = relevantTrends.length
+        
+        // For comparison, check trends from last week
         const currentTrends = relevantTrends.filter(t => 
           new Date(t.last_updated) >= weekAgo
         )
@@ -167,12 +183,19 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           new Date(t.last_updated) < weekAgo
         )
 
-        const activeTrendsCount = currentTrends.length
         const previousActiveTrends = previousTrends.length
-        const trendsChange = activeTrendsCount - previousActiveTrends
+        const trendsChange = currentTrends.length - previousActiveTrends
         const trendsPercentage = previousActiveTrends > 0 
           ? ((trendsChange / previousActiveTrends) * 100) 
           : 0
+
+        console.log('SectionCards - Trends calculation:', {
+          totalTrends: trendsData.data?.length || 0,
+          relevantTrends: relevantTrends.length,
+          activeTrendsCount,
+          currentTrends: currentTrends.length,
+          previousTrends: previousTrends.length
+        })
 
         // 2. Average Alignment Score
         const alignments = recommendationsData.data?.filter(r => r.alignment_score !== null) || []
@@ -229,6 +252,16 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
 
         // Always use calculated data, never fall back to sample data unless there's truly no data
         const hasAnyData = activeTrendsCount > 0 || avgAlignment > 0 || opportunitiesCount > 0 || potentialRevenue > 0
+        
+        console.log('SectionCards - hasAnyData check:', {
+          hasAnyData,
+          activeTrendsCount,
+          avgAlignment,
+          opportunitiesCount,
+          potentialRevenue,
+          recommendationsLength: recommendationsData.data?.length || 0,
+          trendsLength: trendsData.data?.length || 0
+        })
         
         if (!hasAnyData && recommendationsData.data?.length === 0 && trendsData.data?.length === 0) {
           // Only use sample data if we truly have no data at all
