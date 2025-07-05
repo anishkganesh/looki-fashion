@@ -39,7 +39,10 @@ import {
   CheckCircle2Icon,
   RocketIcon,
   LinkIcon,
-  Check
+  Check,
+  MinusCircleIcon,
+  ArchiveIcon,
+  MinusCircle
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -121,13 +124,14 @@ interface InventoryAction {
 }
 
 const actionIcons: Record<string, React.ReactNode> = {
-  promote: <TrendingUpIcon className="h-4 w-4 text-blue-600" />,
-  strong_promote: <RocketIcon className="h-4 w-4 text-purple-600" />,
-  markdown: <TagIcon className="h-4 w-4 text-green-600" />,
-  restock_urgent: <PackageIcon className="h-4 w-4 text-orange-600" />,
-  phase_out: <XCircleIcon className="h-4 w-4 text-red-600" />,
-  hold: <PauseIcon className="h-4 w-4 text-gray-600" />,
-  // Legacy mappings
+  promote: <TrendingUpIcon className="h-4 w-4 text-green-600" />,
+  strong_promote: <RocketIcon className="h-4 w-4 text-green-700" />,
+  markdown: <TrendingDownIcon className="h-4 w-4 text-orange-600" />,
+  restock_urgent: <AlertCircleIcon className="h-4 w-4 text-blue-600" />,
+  phase_out: <ArchiveIcon className="h-4 w-4 text-red-600" />,
+  hold: <PauseIcon className="h-4 w-4 text-yellow-600" />,
+  monitor: <PauseIcon className="h-4 w-4 text-yellow-600" />,
+  reduce: <MinusCircleIcon className="h-4 w-4 text-orange-500" />,
   discount: <TagIcon className="h-4 w-4 text-green-600" />,
   restock: <PackageIcon className="h-4 w-4 text-orange-600" />,
   discontinue: <XCircleIcon className="h-4 w-4 text-red-600" />,
@@ -141,7 +145,8 @@ const actionLabels: Record<string, string> = {
   restock_urgent: "Urgent Restock",
   phase_out: "Phase Out",
   hold: "Hold",
-  // Legacy mappings
+  monitor: "Hold",
+  reduce: "Reduce",
   discount: "Discount",
   restock: "Restock",
   discontinue: "Discontinue",
@@ -152,6 +157,8 @@ const actionColors: Record<string, string> = {
   strong_promote: "bg-green-50 text-green-700 border-green-200",
   promote: "bg-green-50 text-green-700 border-green-200",
   hold: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  monitor: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  reduce: "bg-orange-50 text-orange-700 border-orange-200",
   hold_back: "bg-orange-50 text-orange-700 border-orange-200",
   markdown: "bg-orange-50 text-orange-700 border-orange-200",
   phase_out: "bg-red-50 text-red-700 border-red-200",
@@ -484,16 +491,6 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
                             </div>
                             <Progress value={action.alignment_factors.style_match || 0} className="h-2" />
                           </div>
-                          
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm">Demographics</span>
-                              <span className="text-sm font-medium">
-                                {Math.round(action.alignment_factors.demographic_alignment || 0)}%
-                              </span>
-                            </div>
-                            <Progress value={action.alignment_factors.demographic_alignment || 0} className="h-2" />
-                          </div>
                         </div>
                         
                         <div className="space-y-3">
@@ -509,36 +506,13 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
                           
                           <div className="space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm">Seasonality</span>
+                              <span className="text-sm">Demographics</span>
                               <span className="text-sm font-medium">
-                                {Math.round(action.alignment_factors.seasonality_match || 0)}%
+                                {Math.round(action.alignment_factors.demographic_alignment || 0)}%
                               </span>
                             </div>
-                            <Progress value={action.alignment_factors.seasonality_match || 0} className="h-2" />
+                            <Progress value={action.alignment_factors.demographic_alignment || 0} className="h-2" />
                           </div>
-                        </div>
-                      </div>
-                      
-                      {/* Trend Momentum and Lifecycle */}
-                      <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm">Trend Momentum</span>
-                            <span className="text-sm font-medium">
-                              {Math.round(action.alignment_factors.trend_momentum || 0)}%
-                            </span>
-                          </div>
-                          <Progress value={action.alignment_factors.trend_momentum || 0} className="h-2" />
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm">Lifecycle Stage</span>
-                            <span className="text-sm font-medium">
-                              {Math.round(action.alignment_factors.lifecycle_compatibility || 0)}%
-                            </span>
-                          </div>
-                          <Progress value={action.alignment_factors.lifecycle_compatibility || 0} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -859,33 +833,25 @@ export const InventoryActionsTable = React.forwardRef<
         if (!score) return <span className="text-muted-foreground">-</span>
         
         return (
-          <div className="space-y-2">
+          <div className="space-y-3 min-w-[280px]">
             <div className="text-2xl font-medium text-primary">{score}%</div>
             {factors && (
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                <div className="flex items-center justify-between gap-1">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground">Category:</span>
                   <span className="font-medium">{Math.round(factors.category_match || 0)}%</span>
                 </div>
-                <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground">Style:</span>
                   <span className="font-medium">{Math.round(factors.style_match || 0)}%</span>
                 </div>
-                <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground">Price:</span>
                   <span className="font-medium">{Math.round(factors.price_alignment || 0)}%</span>
                 </div>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-muted-foreground">Seasonal:</span>
-                  <span className="font-medium">{Math.round(factors.seasonality_match || 0)}%</span>
-                </div>
-                <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground">Demographics:</span>
                   <span className="font-medium">{Math.round(factors.demographic_alignment || 0)}%</span>
-                </div>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-muted-foreground">Lifecycle:</span>
-                  <span className="font-medium">{Math.round(factors.lifecycle_compatibility || 0)}%</span>
                 </div>
               </div>
             )}

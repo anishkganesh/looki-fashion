@@ -661,12 +661,11 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
   
   // Weighted average with more extreme weights to create variation
   const weights = {
-    category: 0.40,  // Increased from 0.35
-    semantic: 0.10,  // Decreased from 0.15
-    style: 0.20,
+    category: 0.45,  // Increased from 0.40
+    semantic: 0.15,  // Increased from 0.10
+    style: 0.25,     // Increased from 0.20
     demographic: 0.10,
-    price: 0.10,
-    seasonality: 0.10
+    price: 0.05      // Decreased from 0.10
   }
   
   const overallScore = 
@@ -674,8 +673,7 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
     (semanticSimilarity * weights.semantic) +
     (styleMatch * weights.style) +
     (demographicAlignment * weights.demographic) +
-    (priceAlignment * weights.price) +
-    (seasonality * weights.seasonality)
+    (priceAlignment * weights.price)
   
   // Apply random factor and ensure more spread
   const adjustedScore = overallScore * randomFactor
@@ -687,7 +685,8 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
     style_match: styleMatch,
     demographic_alignment: demographicAlignment,
     price_alignment: priceAlignment,
-    seasonality: seasonality
+    seasonality: 0,  // Always 0, kept for compatibility
+    lifecycle_compatibility: 0  // Always 0, kept for compatibility
   }
 }
 
@@ -867,7 +866,7 @@ Match Analysis:
 - Semantic Similarity: ${Math.round(matchFactors.semantic_similarity || 0)}%
 - Style Match: ${Math.round(matchFactors.style_match)}%
 - Demographic Match: ${Math.round(matchFactors.demographic_alignment)}%
-- Seasonality: ${Math.round(matchFactors.seasonality)}%
+- Price Alignment: ${Math.round(matchFactors.price_alignment)}%
 
 Base Recommendation: ${baseAction}
 
