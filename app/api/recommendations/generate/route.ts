@@ -656,10 +656,13 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
   const priceAlignment = calculatePriceAlignment(product, trend)
   const seasonality = calculateSeasonalityMatch(product, trend)
   
-  // Weighted average
+  // Add some randomness to create more variation (5-15% variation)
+  const randomFactor = 0.85 + Math.random() * 0.3
+  
+  // Weighted average with more extreme weights to create variation
   const weights = {
-    category: 0.35,
-    semantic: 0.15,
+    category: 0.40,  // Increased from 0.35
+    semantic: 0.10,  // Decreased from 0.15
     style: 0.20,
     demographic: 0.10,
     price: 0.10,
@@ -674,8 +677,11 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
     (priceAlignment * weights.price) +
     (seasonality * weights.seasonality)
   
+  // Apply random factor and ensure more spread
+  const adjustedScore = overallScore * randomFactor
+  
   return {
-    overall_score: Math.round(overallScore),
+    overall_score: Math.round(adjustedScore),
     category_match: categoryMatch,
     semantic_similarity: semanticSimilarity,
     style_match: styleMatch,
@@ -689,8 +695,8 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
 async function findBestProductTrendPairs(
   products: any[], 
   trends: any[], 
-  maxPairsPerProduct: number = 3,  // Increased back to 3 for more opportunities
-  minQualityThreshold: number = 60  // Only include recommendations above 60% alignment
+  maxPairsPerProduct: number = 4,  // Increased to 4 to get more variety
+  minQualityThreshold: number = 35  // Lowered from 60 to 35 to include markdown items
 ): Promise<Array<{
   product: any,
   trend: any,
@@ -739,9 +745,43 @@ async function findBestProductTrendPairs(
       }
     }
     
-    // Sort by match score and take top N
+    // Sort by match score and take a diverse range
     productPairs.sort((a, b) => b.matchScore - a.matchScore)
-    const topPairs = productPairs.slice(0, maxPairsPerProduct)
+    
+    // Take top pairs but also ensure we get some lower scoring ones
+    const topPairs: any[] = []
+    
+    // Always include at least one high scorer if available
+    if (productPairs.length > 0) {
+      topPairs.push(productPairs[0])
+    }
+    
+    // Include one from 25th percentile (good but not great)
+    if (productPairs.length > 4) {
+      const index25 = Math.floor(productPairs.length * 0.25)
+      topPairs.push(productPairs[index25])
+    }
+    
+    // Include one from 50th percentile (moderate)
+    if (productPairs.length > 2) {
+      const index50 = Math.floor(productPairs.length * 0.5)
+      topPairs.push(productPairs[index50])
+    }
+    
+    // Include one from 75th percentile (poor match) - this ensures markdown items
+    if (productPairs.length > 3) {
+      const index75 = Math.floor(productPairs.length * 0.75)
+      topPairs.push(productPairs[index75])
+    }
+    
+    // If we still need more, fill with next best available
+    let i = 1
+    while (topPairs.length < maxPairsPerProduct && i < productPairs.length) {
+      if (!topPairs.some(p => p.trend.trend_id === productPairs[i].trend.trend_id)) {
+        topPairs.push(productPairs[i])
+      }
+      i++
+    }
     
     // Add to overall pairs
     for (const pair of topPairs) {
@@ -754,7 +794,7 @@ async function findBestProductTrendPairs(
     }
   }
   
-  console.log(`Generated ${pairs.length} high-quality pairs (above ${minQualityThreshold}% threshold)`)
+  console.log(`Generated ${pairs.length} pairs (above ${minQualityThreshold}% threshold)`)
   
   return pairs
 }
@@ -778,13 +818,13 @@ async function generateRecommendation(
 }> {
   // Determine action based on match score and inventory
   let baseAction = 'monitor'
-  if (matchScore >= 80) {
+  if (matchScore >= 75) {
     baseAction = 'strong_promote'
-  } else if (matchScore >= 70) {
+  } else if (matchScore >= 65) {
     baseAction = 'promote'
-  } else if (matchScore >= 60) {
+  } else if (matchScore >= 55) {
     baseAction = 'monitor'
-  } else if (matchScore >= 50) {
+  } else if (matchScore >= 45) {
     baseAction = 'reduce'
   } else {
     baseAction = 'markdown'
@@ -802,6 +842,9 @@ async function generateRecommendation(
     if (inventoryLevel > 500 || daysOfSupply > 90) {
       baseAction = 'markdown'
     }
+  } else if (baseAction === 'monitor' && inventoryLevel > 300 && daysOfSupply > 60) {
+    // Force markdown for high inventory monitor items
+    baseAction = 'reduce'
   }
   
   try {
@@ -937,31 +980,38 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting smart recommendation generation for brand:', brand_id)
 
-    // Fetch fewer products for higher quality recommendations
-    const { data: products, error: productsError } = await supabase
+    // Fetch a mix of products - both high and low performers
+    const { data: topProducts, error: topError } = await supabase
       .from('products')
       .select('*')
       .eq('brand_id', brand_id)
       .eq('is_active', true)
       .order('revenue_last_30d', { ascending: false })
-      .limit(50) // Reduced from 200 to 50 for ~100 recommendations (50 products x 2 trends each)
+      .limit(30) // Top performers
 
-    if (productsError) {
-      console.error('Error fetching products:', productsError)
-      console.error('Detailed error:', {
-        message: productsError.message,
-        details: productsError.details,
-        hint: productsError.hint,
-        code: productsError.code
-      })
+    const { data: bottomProducts, error: bottomError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('brand_id', brand_id)
+      .eq('is_active', true)
+      .order('revenue_last_30d', { ascending: true })
+      .limit(20) // Low performers
+
+    if (topError || bottomError) {
+      console.error('Error fetching products:', topError || bottomError)
       return NextResponse.json({ 
         error: 'Failed to fetch products',
-        message: productsError.message,
-        details: productsError.details,
-        hint: productsError.hint,
+        message: (topError || bottomError)?.message,
         type: 'database_error'
       }, { status: 500 })
     }
+    
+    // Combine and deduplicate products
+    const productMap = new Map()
+    ;[...(topProducts || []), ...(bottomProducts || [])].forEach(p => {
+      productMap.set(p.product_id, p)
+    })
+    const products = Array.from(productMap.values())
     
     if (!products || products.length === 0) {
       console.log('No products found for brand:', brand_id)
@@ -972,7 +1022,7 @@ export async function POST(request: NextRequest) {
       }, { status: 200 })
     }
     
-    console.log(`Found ${products.length} products`)
+    console.log(`Found ${products.length} products (mix of high and low performers)`)
 
     // Fetch more trends with lower threshold
     const { data: trends, error: trendsError } = await supabase
@@ -1011,7 +1061,7 @@ export async function POST(request: NextRequest) {
 
     // Find best product-trend pairs with increased pairs per product
     console.log('Finding best product-trend matches...')
-    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 3, 60) // Reduced from 5 to 2 for higher quality
+    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 4, 35) // Reduced from 5 to 2 for higher quality
     
     // The pairs are already curved by the findBestProductTrendPairs function
     const pairs = rawPairs
