@@ -95,7 +95,8 @@ function detectProductCategory(product: any): ProductCategory {
   const productName = (product.product_name || '').toLowerCase()
   const category = (product.category || '').toLowerCase()
   const description = (product.description || '').toLowerCase()
-  const fullText = `${productName} ${category} ${description}`
+  const subcategory = (product.subcategory || '').toLowerCase()
+  const fullText = `${productName} ${category} ${description} ${subcategory}`
   
   let bestMatch = { main: 'general', confidence: 0, keywords: [] as string[] }
   
@@ -165,16 +166,75 @@ function detectTrendCategory(trend: any): TrendCategory {
   }
 }
 
-// Check if a product and trend are compatible
-function areCompatible(productCategory: ProductCategory, trendCategory: TrendCategory): boolean {
-  // If trend is specific to a category, product must match
-  if (trendCategory.main in PRODUCT_CATEGORY_HIERARCHY) {
-    return productCategory.main === trendCategory.main
+// Enhanced compatibility checking with style context
+function areCompatible(productCategory: ProductCategory, trendCategory: TrendCategory, product: any, trend: any): boolean {
+  // First check basic category compatibility
+  const basicCompatible = trendCategory.applicableTo.includes(productCategory.main) || 
+                         trendCategory.applicableTo.includes('all')
+  
+  if (!basicCompatible) return false
+  
+  // Additional style context checks to prevent mismatches
+  const productName = (product.product_name || '').toLowerCase()
+  const trendName = (trend.trend_identifier || '').toLowerCase()
+  const trendDesc = (trend.trend_description || '').toLowerCase()
+  
+  // Define style incompatibilities
+  const styleIncompatibilities = [
+    // Activewear should not match with formal footwear
+    {
+      productKeywords: ['activewear', 'athletic', 'sport', 'gym', 'yoga', 'running'],
+      trendKeywords: ['heel', 'pump', 'oxford', 'formal shoe', 'dress shoe', 'stiletto'],
+      incompatible: true
+    },
+    // Formal wear should not match with athletic trends
+    {
+      productKeywords: ['formal', 'dress shoe', 'heel', 'pump', 'oxford', 'evening'],
+      trendKeywords: ['athletic', 'sport', 'gym', 'running', 'yoga', 'activewear'],
+      incompatible: true
+    },
+    // Swimwear should not match with non-beach footwear
+    {
+      productKeywords: ['swimsuit', 'bikini', 'swim'],
+      trendKeywords: ['boot', 'heel', 'pump', 'oxford', 'loafer'],
+      incompatible: true
+    },
+    // Winter items should not match with summer trends
+    {
+      productKeywords: ['coat', 'parka', 'wool', 'fleece', 'thermal'],
+      trendKeywords: ['beach', 'swim', 'tropical', 'sandal'],
+      incompatible: true
+    }
+  ]
+  
+  // Check each incompatibility rule
+  for (const rule of styleIncompatibilities) {
+    const hasProductKeyword = rule.productKeywords.some(k => productName.includes(k))
+    const hasTrendKeyword = rule.trendKeywords.some(k => trendName.includes(k) || trendDesc.includes(k))
+    
+    if (hasProductKeyword && hasTrendKeyword && rule.incompatible) {
+      return false
+    }
   }
   
-  // Otherwise check if product category is in trend's applicable categories
-  return trendCategory.applicableTo.includes(productCategory.main) || 
-         trendCategory.applicableTo.includes('all')
+  // Special case: if trend is footwear-specific, product must be footwear
+  if (trendCategory.main === 'footwear' && productCategory.main !== 'footwear') {
+    return false
+  }
+  
+  // Special case: if product is footwear, trend should be footwear-compatible
+  if (productCategory.main === 'footwear') {
+    const footwearCompatibleTrends = ['footwear', 'color', 'material', 'texture', 'style']
+    if (!footwearCompatibleTrends.includes(trendCategory.main)) {
+      // Check if trend explicitly mentions footwear
+      if (!trendName.includes('shoe') && !trendName.includes('boot') && 
+          !trendName.includes('sandal') && !trendName.includes('sneaker')) {
+        return false
+      }
+    }
+  }
+  
+  return true
 }
 
 // Calculate demographic match score
@@ -474,8 +534,8 @@ async function findBestProductTrendPairs(
     for (const trend of trends) {
       const trendCategory = detectTrendCategory(trend)
       
-      // Skip incompatible categories only if confidence is very low
-      if (!areCompatible(productCategory, trendCategory) && productCategory.confidence < 0.2) {
+      // Enhanced compatibility check with style context
+      if (!areCompatible(productCategory, trendCategory, product, trend)) {
         continue
       }
       
@@ -498,36 +558,45 @@ async function findBestProductTrendPairs(
         category_match: categoryScore,
         demographic_alignment: demographicScore,
         style_match: styleScore,
-        seasonality_match: seasonalityScore,
+        seasonality: seasonalityScore,
         price_alignment: priceScore,
-        lifecycle_compatibility: lifecycleScore,
-        trend_momentum: trend.momentum_score || 50
+        lifecycle_bonus: lifecycleScore,
+        momentum: trend.momentum_score || 50
       }
       
-      // New weights without semantic similarity (redistributed)
+      // Enhanced weighting that prioritizes category compatibility
       const weights = {
-        category_match: 0.25,         // 25% (increased from 20%)
-        style_match: 0.25,            // 25% (increased from 20%)
-        demographic_alignment: 0.12,  // 12% (increased from 10%)
-        seasonality_match: 0.12,      // 12% (increased from 10%)
-        price_alignment: 0.12,        // 12% (increased from 10%)
-        lifecycle_compatibility: 0.10, // 10% (same)
-        trend_momentum: 0.04          // 4% (decreased from 5%)
+        category_match: 0.35,        // Increased from previous - most important
+        style_match: 0.25,           // Second most important
+        demographic_alignment: 0.15,
+        seasonality: 0.10,
+        price_alignment: 0.10,
+        lifecycle_bonus: 0.05
       }
       
-      const matchScore = Object.entries(matchFactors).reduce((sum, [key, value]) => {
-        const weight = weights[key as keyof typeof weights] || 0
-        return sum + value * weight
-      }, 0)
+      // Calculate weighted score
+      const weightedScore = 
+        (matchFactors.category_match * weights.category_match) +
+        (matchFactors.style_match * weights.style_match) +
+        (matchFactors.demographic_alignment * weights.demographic_alignment) +
+        (matchFactors.seasonality * weights.seasonality) +
+        (matchFactors.price_alignment * weights.price_alignment) +
+        (matchFactors.lifecycle_bonus * weights.lifecycle_bonus)
       
-      // Lower threshold to 30% for more matches
-      if (matchScore >= 30) {
-        productPairs.push({
-          trend,
-          matchScore: Math.round(matchScore),
-          matchFactors
-        })
+      // Apply momentum multiplier
+      const momentumMultiplier = 1 + (matchFactors.momentum / 200)
+      const finalScore = Math.min(100, weightedScore * momentumMultiplier)
+      
+      // Only consider pairs with minimum category match
+      if (matchFactors.category_match < 40) {
+        continue
       }
+      
+      productPairs.push({
+        trend,
+        matchScore: finalScore,
+        matchFactors
+      })
     }
     
     // Sort by match score and take top matches
@@ -647,7 +716,7 @@ Match Analysis:
 - Category Match: ${Math.round(matchFactors.category_match)}%
 - Style Match: ${Math.round(matchFactors.style_match)}%
 - Demographic Match: ${Math.round(matchFactors.demographic_alignment)}%
-- Seasonality: ${Math.round(matchFactors.seasonality_match)}%
+- Seasonality: ${Math.round(matchFactors.seasonality)}%
 
 Base Recommendation: ${baseAction}
 

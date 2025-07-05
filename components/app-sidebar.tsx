@@ -162,7 +162,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="#">
-                <img src="/looki-logo-full.png" alt="Looki" className="h-6 w-auto" />
+                <img src="/looki-logo-full.png" alt="Looki" className="h-10 w-auto" />
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

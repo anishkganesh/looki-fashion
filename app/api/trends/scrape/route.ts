@@ -115,25 +115,19 @@ const fashionSources = {
   // Trend forecasting and analytics
   trends: ['wgsn.com', 'trendhunter.com', 'trendstop.com', 'fashionsnoops.com', 'stylus.com', 'lyst.com', 'tagwalk.com', 'launchmetrics.com'],
   
-  // Retail and shopping
+  // Retail and shopping (for trend spotting, not brand sites)
   retail: ['ssense.com', 'net-a-porter.com', 'farfetch.com', 'matchesfashion.com', 'shopbop.com', 'revolve.com', 'asos.com', 'nordstrom.com'],
   
   // Streetwear and youth culture
   streetwear: ['hypebeast.com', 'highsnobiety.com', 'complex.com', 'grailed.com', 'sneakernews.com', 'kicksonfire.com', 'nicekicks.com'],
   
-  // Athletic and sportswear
-  athletic: ['nike.com', 'adidas.com', 'puma.com', 'underarmour.com', 'lululemon.com', 'gymshark.com', 'athleta.com', 'outdoor-voices.com'],
+  // Athletic and sportswear trend sources (not brand sites)
+  athletic: ['sneakerfreaker.com', 'runningshoesguru.com', 'womensrunning.com', 'yogajournal.com', 'shape.com', 'self.com', 'menshealth.com', 'womenshealthmag.com'],
   
   // Regional sources
   brazilian: ['vogue.com.br', 'elle.com.br', 'glamour.globo.com', 'harpersbazaar.uol.com.br', 'marieclaire.globo.com', 'ffw.uol.com.br'],
   asian: ['vogue.jp', 'elle.kr', 'fashionsnap.com', 'wear.jp', 'fashionpress.jp'],
   european: ['vogue.fr', 'vogue.it', 'elle.fr', 'grazia.it', 'lofficiel.com'],
-  
-  // Fast fashion monitoring
-  fast_fashion: ['zara.com', 'hm.com', 'forever21.com', 'uniqlo.com', 'mango.com', 'shein.com', 'boohoo.com', 'prettylittlething.com'],
-  
-  // Luxury brands
-  luxury: ['burberry.com', 'gucci.com', 'louisvuitton.com', 'chanel.com', 'dior.com', 'prada.com', 'balenciaga.com', 'bottegaveneta.com'],
   
   // Technology and innovation
   tech: ['techcrunch.com', 'theverge.com', 'wired.com', 'engadget.com', 'digitaltrends.com'],
@@ -194,7 +188,7 @@ function getBrandSpecificSources(brandInfo: any): string[] {
     // For Brazilian brands, use Brazilian sources + social media
     selectedSources.push(...fashionSources.brazilian)
     selectedSources.push('tiktok.com.br', 'instagram.com.br') // Brazilian versions
-    selectedSources.push(...fashionSources.fast_fashion.filter(s => ['zara.com', 'hm.com', 'forever21.com'].includes(s))) // Only international brands active in Brazil
+    // Focus on trend sources, not brand sites
     selectedSources.push('mercadolivre.com.br', 'olx.com.br') // Brazilian marketplaces
   } else if (brandCountry === 'IN') {
     // For Indian brands, use Indian sources
@@ -210,7 +204,7 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   } else if (['FR', 'IT', 'ES', 'DE', 'UK'].includes(brandCountry)) {
     // European sources
     selectedSources.push(...fashionSources.european)
-    selectedSources.push(...fashionSources.luxury.slice(0, 5))
+    selectedSources.push(...fashionSources.publications.slice(0, 5))
   } else if (['JP', 'KR', 'CN'].includes(brandCountry)) {
     // Asian sources
     selectedSources.push(...fashionSources.asian)
@@ -223,7 +217,8 @@ function getBrandSpecificSources(brandInfo: any): string[] {
   }
   
   if (brandCategory.includes('luxury') || brandInfo?.target_income_level === 'high') {
-    selectedSources.push(...fashionSources.luxury.slice(0, 3))
+    selectedSources.push(...fashionSources.publications.slice(0, 3))
+    selectedSources.push(...fashionSources.retail.slice(0, 3))
   }
   
   if (brandCategory.includes('sustainable')) {
@@ -1111,9 +1106,33 @@ export async function POST(request: Request) {
           for (const result of searchResult.data) {
             if (!result.url || processedUrls.has(result.url)) continue
             
+            // Extract domain from URL
+            const domain = new URL(result.url).hostname.toLowerCase()
+            
+            // Skip brand's own website
+            const brandDomain = brandInfo?.website ? new URL(brandInfo.website).hostname.toLowerCase() : ''
+            if (brandDomain && domain === brandDomain) {
+              sendProgress(`Skipping brand's own website: ${domain}`)
+              continue
+            }
+            
+            // Also skip common brand domains based on brand name
+            const brandNameLower = brandInfo?.brand_name?.toLowerCase() || ''
+            const skipDomains = [
+              brandNameLower.replace(/\s+/g, '') + '.com',
+              brandNameLower.replace(/\s+/g, '') + '.com.br',
+              brandNameLower.replace(/\s+/g, '') + '.in',
+              brandNameLower.replace(/\s+/g, '-') + '.com'
+            ]
+            
+            if (skipDomains.some(skipDomain => domain.includes(skipDomain))) {
+              sendProgress(`Skipping brand-related domain: ${domain}`)
+              continue
+            }
+            
             // Skip if recently searched
             if (recentlySearchedUrls.has(result.url)) {
-              sendProgress(`Skipping recently searched: ${new URL(result.url).hostname}`)
+              sendProgress(`Skipping recently searched: ${domain}`)
               continue
             }
             
@@ -1121,11 +1140,10 @@ export async function POST(request: Request) {
             recentlySearchedUrls.add(result.url)
             
             if (!result.markdown || result.markdown.length < 100) {
-              sendProgress(`Skipping ${new URL(result.url).hostname} - insufficient content`)
+              sendProgress(`Skipping ${domain} - insufficient content`)
               continue
             }
             
-            const domain = new URL(result.url).hostname
             sendProgress(`Extracting trends from ${domain}...`)
             
             const trends = await parseTrendsWithAI(
