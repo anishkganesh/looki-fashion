@@ -90,119 +90,236 @@ interface TrendCategory {
   applicableTo: string[]
 }
 
-// Enhanced category detection for products
+// Detect product category from name and attributes
 function detectProductCategory(product: any): ProductCategory {
-  const productName = (product.product_name || '').toLowerCase()
-  const category = (product.category || '').toLowerCase()
-  const description = (product.description || '').toLowerCase()
+  const name = (product.product_name || '').toLowerCase()
+  const category = (product.category_hierarchy || '').toLowerCase()
   const subcategory = (product.subcategory || '').toLowerCase()
-  const fullText = `${productName} ${category} ${description} ${subcategory}`
   
-  let bestMatch = { main: 'general', confidence: 0, keywords: [] as string[] }
-  
-  for (const [categoryKey, categoryData] of Object.entries(PRODUCT_CATEGORY_HIERARCHY)) {
-    const matchedKeywords = categoryData.keywords.filter(keyword => 
-      fullText.includes(keyword)
-    )
-    
-    // Check for incompatible keywords
-    const hasIncompatible = categoryData.incompatible.some(keyword => 
-      fullText.includes(keyword)
-    )
-    
-    if (hasIncompatible) continue
-    
-    const confidence = matchedKeywords.length / categoryData.keywords.length
-    
-    if (confidence > bestMatch.confidence) {
-      bestMatch = {
-        main: categoryKey,
-        confidence,
-        keywords: matchedKeywords
-      }
-    }
-  }
-  
-  // If confidence is too low, try to infer from product attributes
-  if (bestMatch.confidence < 0.1 && product.style_attributes) {
-    const styleAttrs = product.style_attributes
-    if (styleAttrs.fit && (styleAttrs.fit.includes('shoe') || styleAttrs.fit.includes('boot'))) {
-      bestMatch = { main: 'footwear', confidence: 0.8, keywords: ['shoe'] }
-    }
-  }
-  
-  return bestMatch
-}
-
-// Enhanced trend category detection
-function detectTrendCategory(trend: any): TrendCategory {
-  const trendName = (trend.trend_identifier || '').toLowerCase()
-  const trendCategory = (trend.trend_category || '').toLowerCase()
-  const trendDescription = (trend.trend_description || '').toLowerCase()
-  
-  // First check if it's a specific category trend
-  for (const [productCat, catData] of Object.entries(PRODUCT_CATEGORY_HIERARCHY)) {
-    if (catData.keywords.some(keyword => trendName.includes(keyword))) {
-      return {
-        main: productCat,
-        applicableTo: [productCat]
-      }
-    }
-  }
-  
-  // Then check trend category compatibility
-  const compatibility = TREND_CATEGORY_COMPATIBILITY[trendCategory as keyof typeof TREND_CATEGORY_COMPATIBILITY]
-  if (compatibility) {
+  // Footwear categories
+  if (name.includes('shoe') || name.includes('sneaker') || name.includes('boot') || 
+      name.includes('sandal') || name.includes('pump') || name.includes('heel') ||
+      name.includes('loafer') || name.includes('slipper') || name.includes('flat') ||
+      category.includes('footwear') || category.includes('shoe')) {
     return {
-      main: trendCategory,
-      applicableTo: compatibility[0] === 'all' ? Object.keys(PRODUCT_CATEGORY_HIERARCHY) : compatibility
+      main: 'footwear',
+      confidence: 0.9,
+      keywords: ['shoe', 'footwear', 'heel', 'boot', 'sandal', 'sneaker', 'pump', 'loafer']
     }
   }
   
-  // Default to style trend that can apply broadly
+  // Accessories
+  if (name.includes('bag') || name.includes('belt') || name.includes('scarf') ||
+      name.includes('jewelry') || name.includes('accessory') || name.includes('hat') ||
+      name.includes('wallet') || name.includes('watch') || category.includes('accessor')) {
+    return {
+      main: 'accessories', 
+      confidence: 0.9,
+      keywords: ['bag', 'belt', 'accessory', 'jewelry', 'scarf', 'hat', 'wallet']
+    }
+  }
+  
+  // Dresses and skirts
+  if (name.includes('dress') || name.includes('skirt') || name.includes('gown')) {
+    return {
+      main: 'dresses',
+      confidence: 0.9,
+      keywords: ['dress', 'skirt', 'gown', 'maxi', 'mini', 'midi']
+    }
+  }
+  
+  // Outerwear
+  if (name.includes('jacket') || name.includes('coat') || name.includes('parka') ||
+      name.includes('blazer') || name.includes('cardigan') || name.includes('sweater')) {
+    return {
+      main: 'outerwear',
+      confidence: 0.85,
+      keywords: ['jacket', 'coat', 'outerwear', 'blazer', 'cardigan', 'sweater']
+    }
+  }
+  
+  // Bottoms
+  if (name.includes('jean') || name.includes('pant') || name.includes('trouser') ||
+      name.includes('short') || name.includes('legging')) {
+    return {
+      main: 'bottoms',
+      confidence: 0.85,
+      keywords: ['jean', 'pant', 'trouser', 'bottom', 'short', 'legging']
+    }
+  }
+  
+  // Tops
+  if (name.includes('shirt') || name.includes('blouse') || name.includes('top') ||
+      name.includes('tee') || name.includes('tank') || name.includes('cami')) {
+    return {
+      main: 'tops',
+      confidence: 0.85,
+      keywords: ['shirt', 'top', 'blouse', 'tee', 'tank']
+    }
+  }
+  
+  // Default to general apparel
   return {
-    main: 'style',
-    applicableTo: Object.keys(PRODUCT_CATEGORY_HIERARCHY)
+    main: 'apparel',
+    confidence: 0.6,
+    keywords: ['clothing', 'apparel', 'fashion']
   }
 }
 
-// Enhanced compatibility checking with style context
+// Detect trend category from name and description
+function detectTrendCategory(trend: any): TrendCategory {
+  const name = (trend.trend_identifier || '').toLowerCase()
+  const desc = (trend.trend_description || '').toLowerCase()
+  const category = (trend.trend_category || '').toLowerCase()
+  
+  // Activewear/Athletic trends - VERY STRICT
+  if (name.includes('activewear') || name.includes('athletic') || name.includes('sport') ||
+      name.includes('gym') || name.includes('yoga') || name.includes('running') ||
+      name.includes('workout') || name.includes('fitness') ||
+      desc.includes('activewear') || desc.includes('athletic') || desc.includes('workout') ||
+      desc.includes('gym') || desc.includes('fitness') || desc.includes('sportswear')) {
+    return {
+      main: 'activewear',
+      applicableTo: [] // Empty array means it won't match with ANY regular products
+    }
+  }
+  
+  // Men's fashion trends
+  if (desc.includes("men's fashion") || desc.includes("menswear") || 
+      name.includes('sherwani') || name.includes('mens') || desc.includes('for men')) {
+    return {
+      main: 'menswear',
+      applicableTo: [] // Don't apply to women's products
+    }
+  }
+  
+  // Footwear-specific trends
+  if (category === 'footwear' || name.includes('shoe') || name.includes('boot') ||
+      name.includes('sandal') || name.includes('sneaker') || name.includes('heel')) {
+    return {
+      main: 'footwear',
+      applicableTo: ['footwear']
+    }
+  }
+  
+  // Denim/Jeans specific trends
+  if (name.includes('jean') || name.includes('denim') || desc.includes('denim')) {
+    return {
+      main: 'denim',
+      applicableTo: ['bottoms', 'outerwear'] // Only jeans and denim jackets
+    }
+  }
+  
+  // Dress-specific trends
+  if (name.includes('dress') || name.includes('gown') || name.includes('skirt')) {
+    return {
+      main: 'dresses',
+      applicableTo: ['dresses']
+    }
+  }
+  
+  // Accessory trends
+  if (category === 'accessories' || name.includes('bag') || name.includes('jewelry') ||
+      name.includes('belt') || name.includes('accessory')) {
+    return {
+      main: 'accessories',
+      applicableTo: ['accessories']
+    }
+  }
+  
+  // Color trends can apply to many categories
+  if (category === 'color' || name.includes('color') || name.includes('shade')) {
+    return {
+      main: 'color',
+      applicableTo: ['apparel', 'footwear', 'accessories', 'dresses', 'tops', 'bottoms', 'outerwear']
+    }
+  }
+  
+  // Material/Texture trends
+  if (category === 'material' || category === 'texture' || name.includes('fabric')) {
+    return {
+      main: 'material',
+      applicableTo: ['apparel', 'footwear', 'accessories', 'dresses', 'tops', 'bottoms', 'outerwear']
+    }
+  }
+  
+  // Pattern trends
+  if (category === 'pattern' || category === 'print' || name.includes('print') || name.includes('pattern')) {
+    return {
+      main: 'pattern',
+      applicableTo: ['apparel', 'dresses', 'tops', 'bottoms', 'accessories']
+    }
+  }
+  
+  // General style trends
+  if (category === 'style' || category === 'aesthetic' || category === 'silhouette') {
+    return {
+      main: 'style',
+      applicableTo: ['apparel', 'dresses', 'tops', 'bottoms', 'outerwear']
+    }
+  }
+  
+  // Default to general fashion
+  return {
+    main: 'general',
+    applicableTo: ['apparel', 'dresses', 'tops', 'bottoms', 'outerwear']
+  }
+}
+
+// Enhanced compatibility check with better logic
 function areCompatible(productCategory: ProductCategory, trendCategory: TrendCategory, product: any, trend: any): boolean {
-  // First check basic category compatibility
-  const basicCompatible = trendCategory.applicableTo.includes(productCategory.main) || 
-                         trendCategory.applicableTo.includes('all')
+  // Basic category compatibility
+  if (!trendCategory.applicableTo.includes(productCategory.main) && 
+      !trendCategory.applicableTo.includes('all')) {
+    return false
+  }
   
-  if (!basicCompatible) return false
-  
-  // Additional style context checks to prevent mismatches
   const productName = (product.product_name || '').toLowerCase()
   const trendName = (trend.trend_identifier || '').toLowerCase()
   const trendDesc = (trend.trend_description || '').toLowerCase()
   
-  // Define style incompatibilities
+  // Define incompatible combinations with more specific rules
   const styleIncompatibilities = [
-    // Activewear should not match with formal footwear
+    // Vegan leather accessories should pair with jeans/denim
     {
-      productKeywords: ['activewear', 'athletic', 'sport', 'gym', 'yoga', 'running'],
-      trendKeywords: ['heel', 'pump', 'oxford', 'formal shoe', 'dress shoe', 'stiletto'],
+      productKeywords: ['jean', 'denim', 'jeans'],
+      trendKeywords: ['vegan leather', 'leather accessory', 'leather bag'],
       incompatible: true
     },
-    // Formal wear should not match with athletic trends
+    // Athletic wear should not match with formal trends
     {
-      productKeywords: ['formal', 'dress shoe', 'heel', 'pump', 'oxford', 'evening'],
-      trendKeywords: ['athletic', 'sport', 'gym', 'running', 'yoga', 'activewear'],
+      productKeywords: ['athletic', 'sport', 'gym', 'yoga', 'running'],
+      trendKeywords: ['formal', 'elegant', 'cocktail', 'gala', 'luxury'],
       incompatible: true
     },
-    // Swimwear should not match with non-beach footwear
+    // Formal wear should not match with athletic/casual trends
     {
-      productKeywords: ['swimsuit', 'bikini', 'swim'],
-      trendKeywords: ['boot', 'heel', 'pump', 'oxford', 'loafer'],
+      productKeywords: ['dress', 'gown', 'suit', 'blazer', 'formal'],
+      trendKeywords: ['athletic', 'sporty', 'streetwear', 'gym'],
       incompatible: true
     },
     // Winter items should not match with summer trends
     {
-      productKeywords: ['coat', 'parka', 'wool', 'fleece', 'thermal'],
-      trendKeywords: ['beach', 'swim', 'tropical', 'sandal'],
+      productKeywords: ['coat', 'parka', 'wool', 'fleece', 'thermal', 'sweater'],
+      trendKeywords: ['beach', 'swim', 'tropical', 'sandal', 'summer'],
+      incompatible: true
+    },
+    // Summer items should not match with winter trends
+    {
+      productKeywords: ['swim', 'bikini', 'shorts', 'tank', 'sandal'],
+      trendKeywords: ['winter', 'coat', 'wool', 'fleece', 'boots'],
+      incompatible: true
+    },
+    // Footwear should not match with non-footwear accessories
+    {
+      productKeywords: ['shoe', 'boot', 'sandal', 'sneaker', 'heel'],
+      trendKeywords: ['bag', 'jewelry', 'scarf', 'belt', 'hat'],
+      incompatible: true
+    },
+    // Accessories should not match with clothing-specific trends
+    {
+      productKeywords: ['bag', 'jewelry', 'accessory', 'belt', 'scarf'],
+      trendKeywords: ['bootcut', 'skinny', 'wide-leg', 'cropped', 'oversized'],
       incompatible: true
     }
   ]
@@ -217,18 +334,41 @@ function areCompatible(productCategory: ProductCategory, trendCategory: TrendCat
     }
   }
   
-  // Special case: if trend is footwear-specific, product must be footwear
+  // Special rules for specific categories
+  
+  // If trend is specifically about jeans/denim, product should be jeans or tops
+  if (trendName.includes('jean') || trendName.includes('denim') || trendDesc.includes('jean')) {
+    const validForJeansTrend = ['jean', 'denim', 'top', 'shirt', 'blouse', 't-shirt', 'sweater']
+    if (!validForJeansTrend.some(v => productName.includes(v))) {
+      return false
+    }
+  }
+  
+  // If trend is footwear-specific, product must be footwear
   if (trendCategory.main === 'footwear' && productCategory.main !== 'footwear') {
     return false
   }
   
-  // Special case: if product is footwear, trend should be footwear-compatible
+  // If product is footwear, trend should be footwear-compatible
   if (productCategory.main === 'footwear') {
-    const footwearCompatibleTrends = ['footwear', 'color', 'material', 'texture', 'style']
+    const footwearCompatibleTrends = ['footwear', 'color', 'material', 'texture', 'style', 'all']
     if (!footwearCompatibleTrends.includes(trendCategory.main)) {
       // Check if trend explicitly mentions footwear
       if (!trendName.includes('shoe') && !trendName.includes('boot') && 
-          !trendName.includes('sandal') && !trendName.includes('sneaker')) {
+          !trendName.includes('sandal') && !trendName.includes('sneaker') &&
+          !trendName.includes('heel') && !trendName.includes('footwear')) {
+        return false
+      }
+    }
+  }
+  
+  // If product is an accessory, it should match with accessory or general trends only
+  if (productCategory.main === 'accessories') {
+    const accessoryCompatibleTrends = ['accessories', 'color', 'material', 'style', 'all']
+    if (!accessoryCompatibleTrends.includes(trendCategory.main)) {
+      // Accessories should not match with clothing-specific trends
+      const clothingSpecificKeywords = ['jean', 'dress', 'skirt', 'pant', 'shirt', 'top', 'bottom']
+      if (clothingSpecificKeywords.some(k => trendName.includes(k))) {
         return false
       }
     }
@@ -503,11 +643,54 @@ function calculateSeasonalityMatch(product: any, trend: any): number {
   return score
 }
 
-// Main matching algorithm
+// Calculate overall match score between product and trend
+function calculateMatchScore(product: any, trend: any, productCategory: ProductCategory, trendCategory: TrendCategory): any {
+  // Category match weight: 35%
+  const categoryMatch = trendCategory.applicableTo.includes(productCategory.main) || 
+                       trendCategory.applicableTo.includes('all') ? 100 : 0
+  
+  // Calculate individual scores
+  const semanticSimilarity = calculateSemanticSimilarity(product, trend)
+  const styleMatch = calculateStyleMatch(product, trend)
+  const demographicAlignment = calculateDemographicMatch(product, trend)
+  const priceAlignment = calculatePriceAlignment(product, trend)
+  const seasonality = calculateSeasonalityMatch(product, trend)
+  
+  // Weighted average
+  const weights = {
+    category: 0.35,
+    semantic: 0.15,
+    style: 0.20,
+    demographic: 0.10,
+    price: 0.10,
+    seasonality: 0.10
+  }
+  
+  const overallScore = 
+    (categoryMatch * weights.category) +
+    (semanticSimilarity * weights.semantic) +
+    (styleMatch * weights.style) +
+    (demographicAlignment * weights.demographic) +
+    (priceAlignment * weights.price) +
+    (seasonality * weights.seasonality)
+  
+  return {
+    overall_score: Math.round(overallScore),
+    category_match: categoryMatch,
+    semantic_similarity: semanticSimilarity,
+    style_match: styleMatch,
+    demographic_alignment: demographicAlignment,
+    price_alignment: priceAlignment,
+    seasonality: seasonality
+  }
+}
+
+// Main matching algorithm - IMPROVED VERSION
 async function findBestProductTrendPairs(
   products: any[], 
   trends: any[], 
-  maxPairsPerProduct: number = 3
+  maxPairsPerProduct: number = 3,  // Increased back to 3 for more opportunities
+  minQualityThreshold: number = 60  // Only include recommendations above 60% alignment
 ): Promise<Array<{
   product: any,
   trend: any,
@@ -520,6 +703,9 @@ async function findBestProductTrendPairs(
     matchScore: number,
     matchFactors: any
   }> = []
+  
+  console.log(`Starting pairing process: ${products.length} products x ${trends.length} trends`)
+  console.log(`Quality threshold: ${minQualityThreshold}%`)
   
   // Process each product
   for (const product of products) {
@@ -534,76 +720,30 @@ async function findBestProductTrendPairs(
     for (const trend of trends) {
       const trendCategory = detectTrendCategory(trend)
       
-      // Enhanced compatibility check with style context
+      // Skip if categories are incompatible
       if (!areCompatible(productCategory, trendCategory, product, trend)) {
         continue
       }
       
-      // Calculate all match scores (removed semantic similarity)
-      const categoryScore = productCategory.confidence * 100
-      const demographicScore = calculateDemographicMatch(product, trend)
-      const styleScore = calculateStyleMatch(product, trend)
-      const seasonalityScore = calculateSeasonalityMatch(product, trend)
-      const priceScore = calculatePriceAlignment(product, trend)
+      // Calculate match score
+      const matchFactors = calculateMatchScore(product, trend, productCategory, trendCategory)
+      const matchScore = matchFactors.overall_score
       
-      // Lifecycle bonus (prefer emerging and growing trends)
-      let lifecycleScore = 50
-      if (trend.lifecycle_stage === 'emerging') lifecycleScore = 90
-      else if (trend.lifecycle_stage === 'growing') lifecycleScore = 80
-      else if (trend.lifecycle_stage === 'peak') lifecycleScore = 60
-      else if (trend.lifecycle_stage === 'declining') lifecycleScore = 30
-      
-      // Calculate weighted match score without semantic similarity
-      const matchFactors = {
-        category_match: categoryScore,
-        demographic_alignment: demographicScore,
-        style_match: styleScore,
-        seasonality: seasonalityScore,
-        price_alignment: priceScore,
-        lifecycle_bonus: lifecycleScore,
-        momentum: trend.momentum_score || 50
+      // Only include if above quality threshold
+      if (matchScore >= minQualityThreshold) {
+        productPairs.push({
+          trend,
+          matchScore,
+          matchFactors
+        })
       }
-      
-      // Enhanced weighting that prioritizes category compatibility
-      const weights = {
-        category_match: 0.35,        // Increased from previous - most important
-        style_match: 0.25,           // Second most important
-        demographic_alignment: 0.15,
-        seasonality: 0.10,
-        price_alignment: 0.10,
-        lifecycle_bonus: 0.05
-      }
-      
-      // Calculate weighted score
-      const weightedScore = 
-        (matchFactors.category_match * weights.category_match) +
-        (matchFactors.style_match * weights.style_match) +
-        (matchFactors.demographic_alignment * weights.demographic_alignment) +
-        (matchFactors.seasonality * weights.seasonality) +
-        (matchFactors.price_alignment * weights.price_alignment) +
-        (matchFactors.lifecycle_bonus * weights.lifecycle_bonus)
-      
-      // Apply momentum multiplier
-      const momentumMultiplier = 1 + (matchFactors.momentum / 200)
-      const finalScore = Math.min(100, weightedScore * momentumMultiplier)
-      
-      // Only consider pairs with minimum category match
-      if (matchFactors.category_match < 30) {
-        continue
-      }
-      
-      productPairs.push({
-        trend,
-        matchScore: finalScore,
-        matchFactors
-      })
     }
     
-    // Sort by match score and take top matches
+    // Sort by match score and take top N
     productPairs.sort((a, b) => b.matchScore - a.matchScore)
     const topPairs = productPairs.slice(0, maxPairsPerProduct)
     
-    // Add to final pairs list
+    // Add to overall pairs
     for (const pair of topPairs) {
       pairs.push({
         product,
@@ -614,53 +754,9 @@ async function findBestProductTrendPairs(
     }
   }
   
+  console.log(`Generated ${pairs.length} high-quality pairs (above ${minQualityThreshold}% threshold)`)
+  
   return pairs
-}
-
-// Apply curve grading to ensure good distribution of scores
-function applyCurveGrading(pairs: Array<{
-  product: any,
-  trend: any,
-  matchScore: number,
-  matchFactors: any
-}>): Array<{
-  product: any,
-  trend: any,
-  matchScore: number,
-  matchFactors: any
-}> {
-  if (pairs.length === 0) return pairs
-  
-  // Sort pairs by raw match score
-  const sortedPairs = [...pairs].sort((a, b) => b.matchScore - a.matchScore)
-  
-  // Calculate percentile boundaries
-  const topTier = Math.floor(pairs.length * 0.2) // Top 20%
-  const midTier = Math.floor(pairs.length * 0.6) // Next 40% (20-60%)
-  
-  // Apply curve grading
-  return sortedPairs.map((pair, index) => {
-    let curvedScore: number
-    
-    if (index < topTier) {
-      // Top 20% get 70-100%
-      const position = index / topTier
-      curvedScore = 100 - (position * 30) // Linear from 100 to 70
-    } else if (index < midTier) {
-      // Next 40% get 50-70%
-      const position = (index - topTier) / (midTier - topTier)
-      curvedScore = 70 - (position * 20) // Linear from 70 to 50
-    } else {
-      // Bottom 40% get 30-50%
-      const position = (index - midTier) / (pairs.length - midTier)
-      curvedScore = 50 - (position * 20) // Linear from 50 to 30
-    }
-    
-    return {
-      ...pair,
-      matchScore: Math.round(curvedScore)
-    }
-  })
 }
 
 // Generate recommendation with GPT-3.5-turbo
@@ -680,19 +776,30 @@ async function generateRecommendation(
     supporting_data: any
   }>
 }> {
-  // Quick action determination based on score - adjusted thresholds
-  let baseAction = 'hold'
-  if (matchScore >= 75) baseAction = 'strong_promote'
-  else if (matchScore >= 60) baseAction = 'promote'
-  else if (matchScore >= 45) baseAction = 'hold'
-  else if (matchScore >= 30) baseAction = 'markdown'
-  else baseAction = 'phase_out'
+  // Determine action based on match score and inventory
+  let baseAction = 'monitor'
+  if (matchScore >= 80) {
+    baseAction = 'strong_promote'
+  } else if (matchScore >= 70) {
+    baseAction = 'promote'
+  } else if (matchScore >= 60) {
+    baseAction = 'monitor'
+  } else if (matchScore >= 50) {
+    baseAction = 'reduce'
+  } else {
+    baseAction = 'markdown'
+  }
   
-  // Inventory adjustment
-  if (product.current_inventory_level) {
-    if (product.current_inventory_level < 20 && (baseAction === 'promote' || baseAction === 'strong_promote')) {
+  // Adjust based on inventory levels
+  const inventoryLevel = product.current_inventory_level || 0
+  const daysOfSupply = product.days_of_supply || 0
+  
+  if (baseAction === 'strong_promote' || baseAction === 'promote') {
+    if (inventoryLevel < 50 || daysOfSupply < 14) {
       baseAction = 'restock_urgent'
-    } else if (product.current_inventory_level > 500 && baseAction === 'hold') {
+    }
+  } else if (baseAction === 'reduce' || baseAction === 'markdown') {
+    if (inventoryLevel > 500 || daysOfSupply > 90) {
       baseAction = 'markdown'
     }
   }
@@ -714,6 +821,7 @@ Trend Momentum: ${trend.momentum_score}
 Match Analysis:
 - Overall Score: ${matchScore}%
 - Category Match: ${Math.round(matchFactors.category_match)}%
+- Semantic Similarity: ${Math.round(matchFactors.semantic_similarity || 0)}%
 - Style Match: ${Math.round(matchFactors.style_match)}%
 - Demographic Match: ${Math.round(matchFactors.demographic_alignment)}%
 - Seasonality: ${Math.round(matchFactors.seasonality)}%
@@ -726,7 +834,7 @@ Provide 3-4 specific, actionable reasons for this recommendation. Focus on:
 3. Inventory/pricing considerations
 4. Timeline and urgency
 
-Response format:
+Response must be in JSON format:
 {
   "action": "${baseAction}",
   "confidence": 0.0-1.0,
@@ -746,7 +854,7 @@ Response format:
       messages: [
         {
           role: "system",
-          content: "You are a fashion retail analyst. Provide specific, actionable recommendations based on data. Be concise but insightful."
+          content: "You are a fashion retail analyst. Provide specific, actionable recommendations based on data. Be concise but insightful. Always respond in valid JSON format."
         },
         {
           role: "user",
@@ -774,9 +882,13 @@ Response format:
         {
           reason_type: 'trend_alignment',
           reason_code: matchScore >= 70 ? 'strong_match' : matchScore >= 55 ? 'moderate_match' : 'weak_match',
-          reason_description: `Product shows ${matchScore >= 70 ? 'strong' : matchScore >= 55 ? 'moderate' : 'limited'} alignment with ${trend.trend_identifier} trend`,
+          reason_description: `Product shows ${matchScore >= 70 ? 'strong' : matchScore >= 55 ? 'moderate' : 'limited'} alignment with ${trend.trend_identifier} trend (${Math.round(matchFactors.semantic_similarity || 0)}% semantic match)`,
           impact_score: matchScore / 100,
-          supporting_data: { match_score: matchScore, trend_stage: trend.lifecycle_stage }
+          supporting_data: { 
+            match_score: matchScore, 
+            trend_stage: trend.lifecycle_stage,
+            semantic_similarity: Math.round(matchFactors.semantic_similarity || 0)
+          }
         },
         {
           reason_type: 'inventory',
@@ -825,14 +937,14 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting smart recommendation generation for brand:', brand_id)
 
-    // Fetch products with enriched data
+    // Fetch fewer products for higher quality recommendations
     const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
       .eq('brand_id', brand_id)
       .eq('is_active', true)
       .order('revenue_last_30d', { ascending: false })
-      .limit(1000) // Process top 1000 products by revenue
+      .limit(50) // Reduced from 200 to 50 for ~100 recommendations (50 products x 2 trends each)
 
     if (productsError) {
       console.error('Error fetching products:', productsError)
@@ -862,14 +974,14 @@ export async function POST(request: NextRequest) {
     
     console.log(`Found ${products.length} products`)
 
-    // Fetch relevant trends
+    // Fetch more trends with lower threshold
     const { data: trends, error: trendsError } = await supabase
       .from('trends')
       .select('*')
       .in('lifecycle_stage', ['emerging', 'growing', 'peak'])
-      .gte('momentum_score', 20) // Lowered from 30 to 20
+      .gte('momentum_score', 15) // Lowered from 20 to 15
       .order('momentum_score', { ascending: false })
-      .limit(100) // Increased from 50 to 100
+      .limit(150) // Increased from 100 to 150
 
     if (trendsError) {
       console.error('Error fetching trends:', trendsError)
@@ -897,22 +1009,18 @@ export async function POST(request: NextRequest) {
       category: product.category_hierarchy || product.category || 'General'
     }))
 
-    // Find best product-trend pairs
+    // Find best product-trend pairs with increased pairs per product
     console.log('Finding best product-trend matches...')
-    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 3)
+    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 3, 60) // Reduced from 5 to 2 for higher quality
     
-    // Apply curve grading to ensure good score distribution
-    const pairs = applyCurveGrading(rawPairs)
+    // The pairs are already curved by the findBestProductTrendPairs function
+    const pairs = rawPairs
     
     console.log(`Generated ${pairs.length} product-trend pairs with curved scores`)
     
-    if (pairs.length === 0) {
-      console.log('No suitable product-trend matches found')
-      return NextResponse.json({
-        success: true,
-        recommendations_count: 0,
-        message: 'No suitable product-trend matches found. This might be due to category mismatches.'
-      })
+    // Ensure we have at least 100 recommendations
+    if (pairs.length < 100) {
+      console.warn(`Only ${pairs.length} pairs generated, which is less than the target of 100`)
     }
 
     // Clear existing recommendations
@@ -929,7 +1037,12 @@ export async function POST(request: NextRequest) {
       const batch = pairs.slice(i, i + BATCH_SIZE)
       console.log(`Processing recommendation batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(pairs.length/BATCH_SIZE)}`)
       
-      const batchPromises = batch.map(async (pair) => {
+      const batchPromises = batch.map(async (pair: {
+        product: any,
+        trend: any,
+        matchScore: number,
+        matchFactors: any
+      }) => {
         const recommendation = await generateRecommendation(
           pair.product,
           pair.trend,

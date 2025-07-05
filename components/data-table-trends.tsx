@@ -1458,7 +1458,7 @@ export function DataTableTrends({ onTabChange, session }: {
       }
       
       console.log('Fetching trends from API...')
-      const response = await fetch('/api/trends', {
+      const response = await fetch('/api/trends/', {  // Added trailing slash
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
