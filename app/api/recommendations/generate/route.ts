@@ -588,7 +588,7 @@ async function findBestProductTrendPairs(
       const finalScore = Math.min(100, weightedScore * momentumMultiplier)
       
       // Only consider pairs with minimum category match
-      if (matchFactors.category_match < 40) {
+      if (matchFactors.category_match < 30) {
         continue
       }
       
@@ -867,9 +867,9 @@ export async function POST(request: NextRequest) {
       .from('trends')
       .select('*')
       .in('lifecycle_stage', ['emerging', 'growing', 'peak'])
-      .gte('momentum_score', 30) // Lower threshold for more trends
+      .gte('momentum_score', 20) // Lowered from 30 to 20
       .order('momentum_score', { ascending: false })
-      .limit(50) // Top 50 trends for better coverage
+      .limit(100) // Increased from 50 to 100
 
     if (trendsError) {
       console.error('Error fetching trends:', trendsError)
@@ -899,7 +899,7 @@ export async function POST(request: NextRequest) {
 
     // Find best product-trend pairs
     console.log('Finding best product-trend matches...')
-    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 2)
+    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 3)
     
     // Apply curve grading to ensure good score distribution
     const pairs = applyCurveGrading(rawPairs)

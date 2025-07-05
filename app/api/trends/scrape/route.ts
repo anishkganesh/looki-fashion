@@ -467,11 +467,11 @@ function generateBrandSpecificQueries(brandInfo: any) {
   let allBrandQueries = []
   
   if (brandName.toLowerCase().includes('marisa')) {
-    // Marisa Lojas specific queries - expanded and varied
+    // Marisa Lojas specific queries - without brand name
     allBrandQueries = [
-      `site:tiktok.com.br #modafeminina #marisalojas ${timeContexts[0]}`,
+      `site:tiktok.com.br #modafeminina ${timeContexts[0]} trending viral`,
       `site:instagram.com.br #lookdodia #modabrasileira ${timeContexts[1]}`,
-      `"marisa lojas" #fashion #trending brasil ${timeContexts[2]}`,
+      `#fashion #trending brasil ${timeContexts[2]} moda feminina`,
       `#modafeminina #tendencias brasil ${month} ${year} viral`,
       `brazilian fashion hashtags tiktok ${timeContexts[0]} #moda`,
       `moda brasileira ${season} ${year} tendencias`,
@@ -515,21 +515,21 @@ function generateBrandSpecificQueries(brandInfo: any) {
       `brazilian sustainable fashion ${timeContexts[6]}`
     ]
   } else if (brandName.toLowerCase().includes('walmart') || brandName.toLowerCase().includes('zara')) {
-    // Walmart and Zara - US market focused queries
+    // Walmart and Zara - US market focused queries WITHOUT brand names
     allBrandQueries = [
-      `#${brandName.replace(/\s+/g, '').toLowerCase()} #fashion ${timeContexts[0]} trending usa`,
-      `site:tiktok.com #ootd #${brandName.replace(/\s+/g, '').toLowerCase()} ${timeContexts[1]}`,
-      `site:instagram.com ${brandName} fashion haul ${timeContexts[2]} viral`,
-      `${brandName} ${season} ${year} collection trending pieces`,
-      `${brandName} fashion trends ${month} ${year} must haves`,
-      `${brandName} street style ${timeContexts[3]} outfit ideas`,
-      `affordable fashion ${brandName} ${timeContexts[4]} trending`,
-      `${brandName} viral tiktok ${timeContexts[5]} fashion finds`,
-      `${brandName} instagram reels ${timeContexts[6]} style`,
-      `${brandName} fashion influencer ${timeContexts[7]} looks`,
-      `${brandName} ${genderContext[0]} fashion ${timeContexts[8]} new`,
-      `${brandName} sustainable fashion ${timeContexts[0]} eco`,
-      `${brandName} fashion dupes alternatives ${timeContexts[1]}`
+      `#fashion #trending ${timeContexts[0]} usa viral tiktok`,
+      `site:tiktok.com #ootd #styleinspo ${timeContexts[1]} fashion finds`,
+      `site:instagram.com fashion haul ${timeContexts[2]} viral trending`,
+      `${season} ${year} fashion trends must have pieces`,
+      `fashion trends ${month} ${year} what to wear now`,
+      `street style ${timeContexts[3]} outfit ideas trending`,
+      `affordable fashion ${timeContexts[4]} trending pieces`,
+      `viral tiktok ${timeContexts[5]} fashion finds trending`,
+      `instagram reels ${timeContexts[6]} style trends`,
+      `fashion influencer ${timeContexts[7]} trending looks`,
+      `${genderContext[0]} fashion ${timeContexts[8]} new trends`,
+      `sustainable fashion ${timeContexts[0]} eco trending`,
+      `fashion dupes alternatives ${timeContexts[1]} trending`
     ]
   } else if (brandName.toLowerCase().includes('nike') || brandCategory === 'athletic') {
     // Nike/Athletic specific queries
