@@ -23,9 +23,11 @@ import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
+import { useTranslation } from 'react-i18next'
 
 export default function DashboardPage() {
   const { user, session, isLoading } = useRequireAuth()
+  const { t } = useTranslation()
   const [isScrapingManually, setIsScrapingManually] = useState(false)
   const [progressMessage, setProgressMessage] = useState<string>("")
   const [agentStatus, setAgentStatus] = useState<{
@@ -219,14 +221,14 @@ export default function DashboardPage() {
       // Check credits first
       const creditCheck = await useCredits(user?.email!, 'trend_agent', 'Running trend discovery agent')
       if (!creditCheck.success) {
-        toast.error(creditCheck.message || 'Insufficient credits')
+        toast.error(creditCheck.message || t('dashboard.trendsTable.insufficientCredits'))
         return
       }
       
-      toast.info(`Using ${CREDIT_COSTS.trend_agent} credits for trend agent`)
+      toast.info(t('dashboard.trendsTable.usingCredits', { cost: CREDIT_COSTS.trend_agent }))
       
       setIsScrapingManually(true)
-      setProgressMessage("Initializing trend agent...")
+      setProgressMessage(t('dashboard.trendsTable.initializingAgent'))
       
       const response = await fetch('/api/trends/scrape', {
         method: 'POST',
@@ -266,7 +268,7 @@ export default function DashboardPage() {
               if (data.message === 'COMPLETE' && data.data) {
                 const result = data.data
                 toast.success(
-                  `Trend agent completed! Found ${result.inserted} new trends and updated ${result.updated} existing trends.`,
+                  t('dashboard.trendsTable.agentCompleted', { inserted: result.inserted, updated: result.updated }),
                   { duration: 5000 }
                 )
                 
@@ -285,7 +287,7 @@ export default function DashboardPage() {
         }
       }
     } catch (error: any) {
-      toast.error('Failed to run trend agent: ' + error.message)
+      toast.error(t('dashboard.trendsTable.agentFailed', { error: error.message }))
       console.error(error)
       setProgressMessage("")
     } finally {
@@ -300,7 +302,7 @@ export default function DashboardPage() {
       setNextRunTime(null)
       localStorage.setItem('autoRunEnabled', 'false')
       localStorage.removeItem('nextRunTime')
-      toast.info('Auto-run stopped')
+      toast.info(t('dashboard.trendsTable.autoRunStopped'))
     } else {
       // Start auto-run
       setAutoRunEnabled(true)
@@ -312,7 +314,7 @@ export default function DashboardPage() {
       
       // Run immediately
       handleManualScrape()
-      toast.success('Auto-run started! Next run in 3 hours.')
+      toast.success(t('dashboard.trendsTable.autoRunStarted'))
     }
   }
 
@@ -347,14 +349,14 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h1 className="text-xl font-medium">
-                        {activeTab === 'trends' && 'Live Fashion Trends'}
-                        {activeTab === 'catalog' && 'Catalog Matches'}
-                        {activeTab === 'inventory' && 'Inventory Actions'}
+                        {activeTab === 'trends' && t('dashboard.trendsTable.title.trends')}
+                        {activeTab === 'catalog' && t('dashboard.trendsTable.title.catalog')}
+                        {activeTab === 'inventory' && t('dashboard.trendsTable.title.inventory')}
                       </h1>
                       <p className="text-sm text-muted-foreground">
-                        {activeTab === 'trends' && 'Real-time fashion trend analysis from global sources (Active & Emerging)'}
-                        {activeTab === 'catalog' && 'Your integrated product catalog with trend analysis'}
-                        {activeTab === 'inventory' && 'Recommended inventory actions based on trends'}
+                        {activeTab === 'trends' && t('dashboard.trendsTable.description.trends')}
+                        {activeTab === 'catalog' && t('dashboard.trendsTable.description.catalog')}
+                        {activeTab === 'inventory' && t('dashboard.trendsTable.description.inventory')}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -363,25 +365,25 @@ export default function DashboardPage() {
                         {agentStatus.totalTrends !== undefined && (
                           <Badge variant="outline" className="gap-1">
                             <Database className="h-3 w-3" />
-                            {agentStatus.totalTrends} trends
+                            {agentStatus.totalTrends} {t('dashboard.trends')}
                           </Badge>
                         )}
                         {catalogIntegrated && productCount > 0 && (
                           <Badge variant="outline" className="gap-1">
                             <Database className="h-3 w-3" />
-                            {productCount} products
+                            {productCount} {t('catalog.title').toLowerCase()}
                           </Badge>
                         )}
                         {recommendationCount > 0 && (
                           <Badge variant="outline" className="gap-1">
                             <Lightbulb className="h-3 w-3" />
-                            {recommendationCount} actions
+                            {recommendationCount} {t('trends.actions.noAction').toLowerCase()}
                           </Badge>
                         )}
                         {autoRunEnabled && countdown && activeTab === 'trends' && (
                           <Badge variant="secondary" className="gap-1">
                             <Clock className="h-3 w-3" />
-                            Next run: {countdown}
+                            {t('dashboard.trendsTable.nextRun')} {countdown}
                           </Badge>
                         )}
                       </div>
@@ -398,10 +400,10 @@ export default function DashboardPage() {
                           {isScrapingManually ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Running...
+                              {t('dashboard.trendsTable.running')}
                             </>
                           ) : (
-                            'Run Trend Agent'
+                            t('dashboard.trendsTable.runTrendAgent')
                           )}
                         </Button>
                         <Button
@@ -412,12 +414,12 @@ export default function DashboardPage() {
                           {autoRunEnabled ? (
                             <>
                               <StopCircle className="mr-2 h-4 w-4" />
-                              Stop Auto-Run
+                              {t('dashboard.trendsTable.stopAutoRun')}
                             </>
                           ) : (
                             <>
                               <PlayCircle className="mr-2 h-4 w-4" />
-                              Start Auto-Run Agent
+                              {t('dashboard.trendsTable.startAutoRun')}
                             </>
                           )}
                         </Button>

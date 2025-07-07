@@ -1,0 +1,429 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "noResults": "No results found",
+    "viewDetails": "View Details",
+    "more": "More",
+    "less": "Less",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "share": "Share",
+    "download": "Download",
+    "upload": "Upload",
+    "import": "Import",
+    "export": "Export",
+    "print": "Print",
+    "reset": "Reset",
+    "clear": "Clear",
+    "apply": "Apply",
+    "create": "Create",
+    "update": "Update",
+    "add": "Add",
+    "remove": "Remove",
+    "language": "Language",
+    "english": "English",
+    "portuguese": "Português"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "description": "Login with your Apple or Google account",
+      "emailPlaceholder": "Enter your email",
+      "passwordPlaceholder": "Enter your password",
+      "rememberMe": "Remember me",
+      "forgotPassword": "Forgot password?",
+      "signInButton": "Sign in",
+      "signInWithGoogle": "Sign in with Google",
+      "signInWithApple": "Sign in with Apple",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "termsText": "By clicking continue, you agree to our",
+      "termsOfService": "Terms of Service",
+      "and": "and",
+      "privacyPolicy": "Privacy Policy"
+    },
+    "signup": {
+      "title": "Create an account",
+      "description": "Enter your information to get started",
+      "accountTab": "Account",
+      "brandTab": "Brand",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "John Smith",
+      "email": "Email",
+      "emailPlaceholder": "john@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Create a password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "nextButton": "Next",
+      "brandName": "Brand Name",
+      "brandNamePlaceholder": "Your Fashion Brand",
+      "brandDescription": "Brand Description",
+      "brandDescriptionPlaceholder": "Tell us about your brand and what makes it unique...",
+      "brandCategory": "Primary Category",
+      "selectCategory": "Select category",
+      "website": "Website",
+      "websitePlaceholder": "https://yourbrand.com",
+      "foundedYear": "Founded Year",
+      "foundedYearPlaceholder": "2025",
+      "backButton": "Back",
+      "completeSetup": "Complete Setup",
+      "creatingAccount": "Creating Account...",
+      "alreadyHaveAccount": "Already have an account?",
+      "logIn": "Log in"
+    },
+    "logout": {
+      "button": "Log out",
+      "confirmMessage": "Are you sure you want to log out?"
+    }
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "trendSignals": "Trend Signals",
+    "analytics": "Analytics",
+    "catalog": "Catalog",
+    "team": "Team",
+    "profile": "Profile",
+    "settings": "Settings",
+    "help": "Get Help",
+    "search": "Search",
+    "newChat": "New Chat",
+    "inbox": "Inbox",
+    "notifications": "Notifications",
+    "documents": "Documents",
+    "trendLibrary": "Trend Library",
+    "reports": "Reports",
+    "trendInsights": "Trend Insights",
+    "activeTrends": "Active Trends",
+    "archived": "Archived",
+    "catalogMatching": "Catalog Matching",
+    "matchedProducts": "Matched Products",
+    "pendingMatches": "Pending Matches",
+    "recommendations": "Recommendations",
+    "promotionOpportunities": "Promotion Opportunities",
+    "restockAlerts": "Restock Alerts",
+    "brandSelector": "Select Brand",
+    "lookiTitle": "Looki Trend Intelligence"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "performance": "Performance",
+    "trends": "Trends",
+    "inventory": "Inventory",
+    "insights": "Insights",
+    "statistics": {
+      "totalProducts": "Total Products",
+      "activeTrends": "Active Trends",
+      "recommendations": "Recommendations",
+      "inventoryAlerts": "Inventory Alerts"
+    },
+    "trendsTable": {
+      "title": {
+        "trends": "Live Fashion Trends",
+        "catalog": "Catalog Matches",
+        "inventory": "Inventory Actions"
+      },
+      "description": {
+        "trends": "Real-time fashion trend analysis from global sources (Active & Emerging)",
+        "catalog": "Your integrated product catalog with trend analysis",
+        "inventory": "Recommended inventory actions based on trends"
+      },
+      "runTrendAgent": "Run Trend Agent",
+      "running": "Running...",
+      "stopAutoRun": "Stop Auto-Run",
+      "startAutoRun": "Start Auto-Run Agent",
+      "nextRun": "Next run:",
+      "initializingAgent": "Initializing trend agent...",
+      "agentCompleted": "Trend agent completed! Found {{inserted}} new trends and updated {{updated}} existing trends.",
+      "agentFailed": "Failed to run trend agent: {{error}}",
+      "autoRunStopped": "Auto-run stopped",
+      "autoRunStarted": "Auto-run started! Next run in 3 hours.",
+      "insufficientCredits": "Insufficient credits",
+      "usingCredits": "Using {{cost}} credits for trend agent"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "accountInfo": {
+      "title": "Account Information",
+      "description": "Update your personal account details",
+      "fullName": "Full Name",
+      "email": "Email",
+      "emailNote": "Email cannot be changed"
+    },
+    "brandInfo": {
+      "title": "Brand Information",
+      "description": "Manage your brand details and settings",
+      "brandName": "Brand Name",
+      "brandDescription": "Brand Description",
+      "primaryCategory": "Primary Category",
+      "website": "Website",
+      "foundedYear": "Founded Year"
+    },
+    "categories": {
+      "womenswear": "Womenswear",
+      "menswear": "Menswear",
+      "accessories": "Accessories",
+      "footwear": "Footwear",
+      "jewelry": "Jewelry",
+      "childrenswear": "Childrenswear",
+      "other": "Other"
+    },
+    "saveChanges": "Save Changes",
+    "savingChanges": "Saving Changes...",
+    "profileUpdated": "Profile updated successfully!",
+    "loadingProfile": "Loading profile data...",
+    "errors": {
+      "loadUserData": "Failed to load user data",
+      "loadBrandData": "Failed to load brand data",
+      "userNotFound": "User data not found",
+      "brandNotFound": "Brand data not found",
+      "updateAccount": "Failed to update account information",
+      "updateBrand": "Failed to update brand information",
+      "requiredFields": "Please fill in all required fields",
+      "invalidUrl": "Please enter a valid website URL",
+      "profileNotLoaded": "Profile data not loaded",
+      "unexpectedError": "An unexpected error occurred"
+    }
+  },
+  "catalog": {
+    "title": "Product Catalog",
+    "searchPlaceholder": "Search products...",
+    "columns": {
+      "sku": "SKU",
+      "product": "Product",
+      "category": "Category",
+      "price": "Price",
+      "stock": "Stock",
+      "actions": "Actions",
+      "color": "Color",
+      "selectAll": "Select all"
+    },
+    "stockStatus": {
+      "inStock": "InStock",
+      "outOfStock": "Out of Stock",
+      "lowStock": "Low Stock"
+    },
+    "units": "units",
+    "noProducts": "No products found.",
+    "rowsSelected": "{{count}} of {{total}} row(s) selected.",
+    "columnsMenu": "Columns",
+    "categories": {
+      "clothing": "Clothing",
+      "shoes": "Shoes",
+      "accessories": "Accessories",
+      "uncategorized": "Uncategorized"
+    }
+  },
+  "catalogIntegration": {
+    "title": "Catalog Integration",
+    "importTitle": "Import Products",
+    "tabs": {
+      "websiteImport": "Website Import",
+      "fileUpload": "File Upload",
+      "adidasCatalog": "Adidas Catalog",
+      "marisaCatalog": "Marisa Catalog"
+    },
+    "websiteImport": {
+      "title": "Import from Website",
+      "description": "Automatically import your product catalog by entering your website URL",
+      "urlLabel": "Website URL",
+      "urlPlaceholder": "https://yourbrand.com",
+      "urlHelper": "Enter the main URL of your e-commerce website",
+      "startImport": "Start Import",
+      "starting": "Starting Import...",
+      "importInProgress": "Import in Progress..."
+    },
+    "fileUpload": {
+      "title": "Upload Product File",
+      "description": "Upload a CSV or Excel file containing your product catalog",
+      "dragDropText": "Drag and drop your file here, or",
+      "browseFiles": "browse files",
+      "supportedFormats": "Supported formats: CSV, XLS, XLSX",
+      "maxFileSize": "Maximum file size: 50MB",
+      "uploadAndProcess": "Upload and Process",
+      "uploading": "Uploading...",
+      "processing": "Processing..."
+    },
+    "manualEntry": {
+      "title": "Manual Product Entry",
+      "description": "Add products one by one to your catalog"
+    },
+    "importProgress": {
+      "processing": "Processing batch {{current}} of {{total}} ({{processed}} / {{totalProducts}} products)",
+      "completed": "Import completed! {{count}} products imported successfully",
+      "failed": "Import failed: {{error}}",
+      "paused": "Import paused",
+      "initializing": "Initializing import...",
+      "calculating": "Calculating time remaining...",
+      "timeRemaining": "~{{time}} remaining",
+      "minutesRemaining": "~{{minutes}} minutes remaining",
+      "hoursRemaining": "~{{hours}}h {{minutes}}m remaining",
+      "statistics": {
+        "processed": "Processed",
+        "successful": "Successful",
+        "batchSize": "Batch Size"
+      },
+      "controls": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "stop": "Stop",
+        "confirmStop": "Are you sure you want to stop this import? This cannot be undone."
+      }
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "paused": "Paused"
+    }
+  },
+  "trends": {
+    "title": "Trend Analysis",
+    "tabs": {
+      "trends": "Trends",
+      "catalog": "Catalog",
+      "inventory": "Inventory Actions"
+    },
+    "searchPlaceholder": "Search trends...",
+    "generateRecommendations": "Generate AI Recommendations",
+    "generating": "Generating recommendations...",
+    "generatingFor": "Generating recommendations for {{count}} trends...",
+    "applyingRecommendations": "Applying recommendations...",
+    "fetchingTrends": "Fetching latest trends...",
+    "columns": {
+      "trend": "Trend",
+      "category": "Category",
+      "trendScore": "Trend Score",
+      "matchedProducts": "Matched Products",
+      "recommendedAction": "Recommended Action",
+      "reason": "Reason",
+      "confidence": "Confidence",
+      "lastUpdated": "Last Updated",
+      "selectAll": "Select all"
+    },
+    "actions": {
+      "promote": "Promote",
+      "strongPromote": "Strong Promote",
+      "markdown": "Markdown",
+      "restockUrgent": "Urgent Restock",
+      "phaseOut": "Phase Out",
+      "hold": "Hold",
+      "monitor": "Monitor",
+      "reduce": "Reduce",
+      "discount": "Discount",
+      "restock": "Restock",
+      "discontinue": "Discontinue",
+      "bundle": "Bundle",
+      "noAction": "No Action"
+    },
+    "confidence": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "noTrends": "No trends found.",
+    "rowsSelected": "{{count}} of {{total}} row(s) selected.",
+    "brandContext": {
+      "label": "AI Context",
+      "usingBrand": "Using brand context:",
+      "ages": "Ages {{min}}-{{max}}"
+    },
+    "errors": {
+      "fetchTrends": "Failed to fetch trends",
+      "generateRecommendations": "Failed to generate recommendations",
+      "noTrendsSelected": "Please select at least one trend",
+      "unexpected": "An unexpected error occurred"
+    }
+  },
+  "inventory": {
+    "title": "Inventory Actions",
+    "searchPlaceholder": "Search products...",
+    "applySelected": "Apply Selected Actions",
+    "applying": "Applying actions...",
+    "columns": {
+      "product": "Product",
+      "currentAction": "Current Action",
+      "recommendedAction": "Recommended Action",
+      "reason": "Reason",
+      "apply": "Apply",
+      "selectAll": "Select all"
+    },
+    "noActions": "No inventory actions available.",
+    "rowsSelected": "{{count}} of {{total}} row(s) selected.",
+    "successMessage": "Successfully applied {{count}} inventory actions",
+    "errors": {
+      "applyActions": "Failed to apply some actions",
+      "noActionsSelected": "Please select at least one action to apply"
+    }
+  },
+  "chat": {
+    "title": "AI Assistant",
+    "newChat": "New Chat",
+    "messagePlaceholder": "Ask me anything about trends, products, or recommendations...",
+    "send": "Send",
+    "regenerate": "Regenerate",
+    "copyMessage": "Copy message",
+    "editMessage": "Edit message",
+    "deleteMessage": "Delete message",
+    "likeMessage": "Like",
+    "dislikeMessage": "Dislike",
+    "saveAndSend": "Save & Send",
+    "cancel": "Cancel",
+    "thinking": "Thinking...",
+    "errors": {
+      "sendMessage": "Failed to send message",
+      "loadChat": "Failed to load chat",
+      "saveChat": "Failed to save chat"
+    }
+  },
+  "credits": {
+    "title": "Credits",
+    "available": "Credits Available",
+    "low": "Low Credits",
+    "costs": {
+      "title": "Credit Costs:",
+      "trendAgent": "Trend Agent: {{cost}} credits",
+      "recommendations": "Recommendations: {{cost}} credits",
+      "chatMessage": "Chat Message: {{cost}} credits",
+      "imageGeneration": "Image Generation: {{cost}} credits",
+      "webSearch": "Web Search: {{cost}} credits",
+      "fileAnalysis": "File Analysis: {{cost}} credits"
+    },
+    "resetInfo": "Credits reset to 1,000 on the 1st of each month"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "tryAgain": "Please try again",
+    "networkError": "Network error. Please check your connection.",
+    "unauthorized": "Unauthorized. Please log in again.",
+    "forbidden": "You don't have permission to perform this action.",
+    "notFound": "The requested resource was not found.",
+    "serverError": "Server error. Please try again later.",
+    "validationError": "Please check your input and try again."
+  }
+} 

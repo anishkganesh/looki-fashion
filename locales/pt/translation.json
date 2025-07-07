@@ -1,0 +1,429 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "search": "Pesquisar",
+    "filter": "Filtrar",
+    "refresh": "Atualizar",
+    "submit": "Enviar",
+    "confirm": "Confirmar",
+    "yes": "Sim",
+    "no": "Não",
+    "ok": "OK",
+    "error": "Erro",
+    "success": "Sucesso",
+    "warning": "Aviso",
+    "info": "Informação",
+    "selectAll": "Selecionar todos",
+    "deselectAll": "Desmarcar todos",
+    "noResults": "Nenhum resultado encontrado",
+    "viewDetails": "Ver Detalhes",
+    "more": "Mais",
+    "less": "Menos",
+    "copy": "Copiar",
+    "copied": "Copiado!",
+    "share": "Compartilhar",
+    "download": "Baixar",
+    "upload": "Enviar",
+    "import": "Importar",
+    "export": "Exportar",
+    "print": "Imprimir",
+    "reset": "Redefinir",
+    "clear": "Limpar",
+    "apply": "Aplicar",
+    "create": "Criar",
+    "update": "Atualizar",
+    "add": "Adicionar",
+    "remove": "Remover",
+    "language": "Idioma",
+    "english": "English",
+    "portuguese": "Português"
+  },
+  "auth": {
+    "login": {
+      "title": "Bem-vindo de volta",
+      "description": "Faça login com sua conta Apple ou Google",
+      "emailPlaceholder": "Digite seu e-mail",
+      "passwordPlaceholder": "Digite sua senha",
+      "rememberMe": "Lembrar de mim",
+      "forgotPassword": "Esqueceu a senha?",
+      "signInButton": "Entrar",
+      "signInWithGoogle": "Entrar com Google",
+      "signInWithApple": "Entrar com Apple",
+      "noAccount": "Não tem uma conta?",
+      "signUp": "Cadastre-se",
+      "termsText": "Ao clicar em continuar, você concorda com nossos",
+      "termsOfService": "Termos de Serviço",
+      "and": "e",
+      "privacyPolicy": "Política de Privacidade"
+    },
+    "signup": {
+      "title": "Criar uma conta",
+      "description": "Insira suas informações para começar",
+      "accountTab": "Conta",
+      "brandTab": "Marca",
+      "fullName": "Nome Completo",
+      "fullNamePlaceholder": "João Silva",
+      "email": "E-mail",
+      "emailPlaceholder": "joao@exemplo.com",
+      "password": "Senha",
+      "passwordPlaceholder": "Crie uma senha",
+      "confirmPassword": "Confirmar Senha",
+      "confirmPasswordPlaceholder": "Confirme sua senha",
+      "nextButton": "Próximo",
+      "brandName": "Nome da Marca",
+      "brandNamePlaceholder": "Sua Marca de Moda",
+      "brandDescription": "Descrição da Marca",
+      "brandDescriptionPlaceholder": "Conte-nos sobre sua marca e o que a torna única...",
+      "brandCategory": "Categoria Principal",
+      "selectCategory": "Selecione a categoria",
+      "website": "Website",
+      "websitePlaceholder": "https://suamarca.com",
+      "foundedYear": "Ano de Fundação",
+      "foundedYearPlaceholder": "2025",
+      "backButton": "Voltar",
+      "completeSetup": "Concluir Configuração",
+      "creatingAccount": "Criando Conta...",
+      "alreadyHaveAccount": "Já tem uma conta?",
+      "logIn": "Entrar"
+    },
+    "logout": {
+      "button": "Sair",
+      "confirmMessage": "Tem certeza que deseja sair?"
+    }
+  },
+  "navigation": {
+    "dashboard": "Painel",
+    "trendSignals": "Sinais de Tendência",
+    "analytics": "Análises",
+    "catalog": "Catálogo",
+    "team": "Equipe",
+    "profile": "Perfil",
+    "settings": "Configurações",
+    "help": "Obter Ajuda",
+    "search": "Pesquisar",
+    "newChat": "Novo Chat",
+    "inbox": "Caixa de Entrada",
+    "notifications": "Notificações",
+    "documents": "Documentos",
+    "trendLibrary": "Biblioteca de Tendências",
+    "reports": "Relatórios",
+    "trendInsights": "Insights de Tendências",
+    "activeTrends": "Tendências Ativas",
+    "archived": "Arquivado",
+    "catalogMatching": "Correspondência de Catálogo",
+    "matchedProducts": "Produtos Correspondentes",
+    "pendingMatches": "Correspondências Pendentes",
+    "recommendations": "Recomendações",
+    "promotionOpportunities": "Oportunidades de Promoção",
+    "restockAlerts": "Alertas de Reabastecimento",
+    "brandSelector": "Selecionar Marca",
+    "lookiTitle": "Looki Inteligência de Tendências"
+  },
+  "dashboard": {
+    "title": "Painel",
+    "overview": "Visão Geral",
+    "performance": "Desempenho",
+    "trends": "Tendências",
+    "inventory": "Inventário",
+    "insights": "Insights",
+    "statistics": {
+      "totalProducts": "Total de Produtos",
+      "activeTrends": "Tendências Ativas",
+      "recommendations": "Recomendações",
+      "inventoryAlerts": "Alertas de Inventário"
+    },
+    "trendsTable": {
+      "title": {
+        "trends": "Tendências da Moda ao Vivo",
+        "catalog": "Correspondências de Catálogo",
+        "inventory": "Ações de Inventário"
+      },
+      "description": {
+        "trends": "Análise de tendências de moda em tempo real de fontes globais (Ativas e Emergentes)",
+        "catalog": "Seu catálogo de produtos integrado com análise de tendências",
+        "inventory": "Ações de inventário recomendadas com base em tendências"
+      },
+      "runTrendAgent": "Executar Agente de Tendências",
+      "running": "Executando...",
+      "stopAutoRun": "Parar Execução Automática",
+      "startAutoRun": "Iniciar Agente Automático",
+      "nextRun": "Próxima execução:",
+      "initializingAgent": "Inicializando agente de tendências...",
+      "agentCompleted": "Agente de tendências concluído! Encontradas {{inserted}} novas tendências e atualizadas {{updated}} tendências existentes.",
+      "agentFailed": "Falha ao executar agente de tendências: {{error}}",
+      "autoRunStopped": "Execução automática parada",
+      "autoRunStarted": "Execução automática iniciada! Próxima execução em 3 horas.",
+      "insufficientCredits": "Créditos insuficientes",
+      "usingCredits": "Usando {{cost}} créditos para agente de tendências"
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "accountInfo": {
+      "title": "Informações da Conta",
+      "description": "Atualize seus dados pessoais",
+      "fullName": "Nome Completo",
+      "email": "E-mail",
+      "emailNote": "O e-mail não pode ser alterado"
+    },
+    "brandInfo": {
+      "title": "Informações da Marca",
+      "description": "Gerencie os detalhes e configurações da sua marca",
+      "brandName": "Nome da Marca",
+      "brandDescription": "Descrição da Marca",
+      "primaryCategory": "Categoria Principal",
+      "website": "Website",
+      "foundedYear": "Ano de Fundação"
+    },
+    "categories": {
+      "womenswear": "Moda Feminina",
+      "menswear": "Moda Masculina",
+      "accessories": "Acessórios",
+      "footwear": "Calçados",
+      "jewelry": "Joias",
+      "childrenswear": "Moda Infantil",
+      "other": "Outros"
+    },
+    "saveChanges": "Salvar Alterações",
+    "savingChanges": "Salvando Alterações...",
+    "profileUpdated": "Perfil atualizado com sucesso!",
+    "loadingProfile": "Carregando dados do perfil...",
+    "errors": {
+      "loadUserData": "Falha ao carregar dados do usuário",
+      "loadBrandData": "Falha ao carregar dados da marca",
+      "userNotFound": "Dados do usuário não encontrados",
+      "brandNotFound": "Dados da marca não encontrados",
+      "updateAccount": "Falha ao atualizar informações da conta",
+      "updateBrand": "Falha ao atualizar informações da marca",
+      "requiredFields": "Por favor, preencha todos os campos obrigatórios",
+      "invalidUrl": "Por favor, insira um URL válido",
+      "profileNotLoaded": "Dados do perfil não carregados",
+      "unexpectedError": "Ocorreu um erro inesperado"
+    }
+  },
+  "catalog": {
+    "title": "Catálogo de Produtos",
+    "searchPlaceholder": "Pesquisar produtos...",
+    "columns": {
+      "sku": "SKU",
+      "product": "Produto",
+      "category": "Categoria",
+      "price": "Preço",
+      "stock": "Estoque",
+      "actions": "Ações",
+      "color": "Cor",
+      "selectAll": "Selecionar todos"
+    },
+    "stockStatus": {
+      "inStock": "Em Estoque",
+      "outOfStock": "Fora de Estoque",
+      "lowStock": "Estoque Baixo"
+    },
+    "units": "unidades",
+    "noProducts": "Nenhum produto encontrado.",
+    "rowsSelected": "{{count}} de {{total}} linha(s) selecionada(s).",
+    "columnsMenu": "Colunas",
+    "categories": {
+      "clothing": "Roupas",
+      "shoes": "Sapatos",
+      "accessories": "Acessórios",
+      "uncategorized": "Sem categoria"
+    }
+  },
+  "catalogIntegration": {
+    "title": "Integração de Catálogo",
+    "importTitle": "Importar Produtos",
+    "tabs": {
+      "websiteImport": "Importar do Website",
+      "fileUpload": "Upload de Arquivo",
+      "adidasCatalog": "Catálogo Adidas",
+      "marisaCatalog": "Catálogo Marisa"
+    },
+    "websiteImport": {
+      "title": "Importar do Website",
+      "description": "Importe automaticamente seu catálogo de produtos inserindo o URL do seu website",
+      "urlLabel": "URL do Website",
+      "urlPlaceholder": "https://suamarca.com",
+      "urlHelper": "Insira o URL principal do seu site de e-commerce",
+      "startImport": "Iniciar Importação",
+      "starting": "Iniciando Importação...",
+      "importInProgress": "Importação em Andamento..."
+    },
+    "fileUpload": {
+      "title": "Enviar Arquivo de Produtos",
+      "description": "Envie um arquivo CSV ou Excel contendo seu catálogo de produtos",
+      "dragDropText": "Arraste e solte seu arquivo aqui, ou",
+      "browseFiles": "procurar arquivos",
+      "supportedFormats": "Formatos suportados: CSV, XLS, XLSX",
+      "maxFileSize": "Tamanho máximo do arquivo: 50MB",
+      "uploadAndProcess": "Enviar e Processar",
+      "uploading": "Enviando...",
+      "processing": "Processando..."
+    },
+    "manualEntry": {
+      "title": "Entrada Manual de Produtos",
+      "description": "Adicione produtos um por um ao seu catálogo"
+    },
+    "importProgress": {
+      "processing": "Processando lote {{current}} de {{total}} ({{processed}} / {{totalProducts}} produtos)",
+      "completed": "Importação concluída! {{count}} produtos importados com sucesso",
+      "failed": "Importação falhou: {{error}}",
+      "paused": "Importação pausada",
+      "initializing": "Inicializando importação...",
+      "calculating": "Calculando tempo restante...",
+      "timeRemaining": "~{{time}} restante",
+      "minutesRemaining": "~{{minutes}} minutos restantes",
+      "hoursRemaining": "~{{hours}}h {{minutes}}m restantes",
+      "statistics": {
+        "processed": "Processados",
+        "successful": "Bem-sucedidos",
+        "batchSize": "Tamanho do Lote"
+      },
+      "controls": {
+        "pause": "Pausar",
+        "resume": "Retomar",
+        "stop": "Parar",
+        "confirmStop": "Tem certeza que deseja parar esta importação? Isso não pode ser desfeito."
+      }
+    },
+    "status": {
+      "pending": "Pendente",
+      "processing": "Processando",
+      "completed": "Concluído",
+      "failed": "Falhou",
+      "paused": "Pausado"
+    }
+  },
+  "trends": {
+    "title": "Análise de Tendências",
+    "tabs": {
+      "trends": "Tendências",
+      "catalog": "Catálogo",
+      "inventory": "Ações de Inventário"
+    },
+    "searchPlaceholder": "Pesquisar tendências...",
+    "generateRecommendations": "Gerar Recomendações de IA",
+    "generating": "Gerando recomendações...",
+    "generatingFor": "Gerando recomendações para {{count}} tendências...",
+    "applyingRecommendations": "Aplicando recomendações...",
+    "fetchingTrends": "Buscando últimas tendências...",
+    "columns": {
+      "trend": "Tendência",
+      "category": "Categoria",
+      "trendScore": "Pontuação da Tendência",
+      "matchedProducts": "Produtos Correspondentes",
+      "recommendedAction": "Ação Recomendada",
+      "reason": "Motivo",
+      "confidence": "Confiança",
+      "lastUpdated": "Última Atualização",
+      "selectAll": "Selecionar todos"
+    },
+    "actions": {
+      "promote": "Promover",
+      "strongPromote": "Promover Fortemente",
+      "markdown": "Reduzir Preço",
+      "restockUrgent": "Reabastecer Urgente",
+      "phaseOut": "Descontinuar Gradualmente",
+      "hold": "Manter",
+      "monitor": "Monitorar",
+      "reduce": "Reduzir",
+      "discount": "Desconto",
+      "restock": "Reabastecer",
+      "discontinue": "Descontinuar",
+      "bundle": "Agrupar",
+      "noAction": "Sem Ação"
+    },
+    "confidence": {
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
+    },
+    "noTrends": "Nenhuma tendência encontrada.",
+    "rowsSelected": "{{count}} de {{total}} linha(s) selecionada(s).",
+    "brandContext": {
+      "label": "Contexto de IA",
+      "usingBrand": "Usando contexto da marca:",
+      "ages": "Idades {{min}}-{{max}}"
+    },
+    "errors": {
+      "fetchTrends": "Falha ao buscar tendências",
+      "generateRecommendations": "Falha ao gerar recomendações",
+      "noTrendsSelected": "Por favor, selecione pelo menos uma tendência",
+      "unexpected": "Ocorreu um erro inesperado"
+    }
+  },
+  "inventory": {
+    "title": "Ações de Inventário",
+    "searchPlaceholder": "Pesquisar produtos...",
+    "applySelected": "Aplicar Ações Selecionadas",
+    "applying": "Aplicando ações...",
+    "columns": {
+      "product": "Produto",
+      "currentAction": "Ação Atual",
+      "recommendedAction": "Ação Recomendada",
+      "reason": "Motivo",
+      "apply": "Aplicar",
+      "selectAll": "Selecionar todos"
+    },
+    "noActions": "Nenhuma ação de inventário disponível.",
+    "rowsSelected": "{{count}} de {{total}} linha(s) selecionada(s).",
+    "successMessage": "{{count}} ações de inventário aplicadas com sucesso",
+    "errors": {
+      "applyActions": "Falha ao aplicar algumas ações",
+      "noActionsSelected": "Por favor, selecione pelo menos uma ação para aplicar"
+    }
+  },
+  "chat": {
+    "title": "Assistente de IA",
+    "newChat": "Novo Chat",
+    "messagePlaceholder": "Pergunte-me qualquer coisa sobre tendências, produtos ou recomendações...",
+    "send": "Enviar",
+    "regenerate": "Regenerar",
+    "copyMessage": "Copiar mensagem",
+    "editMessage": "Editar mensagem",
+    "deleteMessage": "Excluir mensagem",
+    "likeMessage": "Curtir",
+    "dislikeMessage": "Não curtir",
+    "saveAndSend": "Salvar e Enviar",
+    "cancel": "Cancelar",
+    "thinking": "Pensando...",
+    "errors": {
+      "sendMessage": "Falha ao enviar mensagem",
+      "loadChat": "Falha ao carregar chat",
+      "saveChat": "Falha ao salvar chat"
+    }
+  },
+  "credits": {
+    "title": "Créditos",
+    "available": "Créditos Disponíveis",
+    "low": "Créditos Baixos",
+    "costs": {
+      "title": "Custos de Crédito:",
+      "trendAgent": "Agente de Tendências: {{cost}} créditos",
+      "recommendations": "Recomendações: {{cost}} créditos",
+      "chatMessage": "Mensagem de Chat: {{cost}} créditos",
+      "imageGeneration": "Geração de Imagem: {{cost}} créditos",
+      "webSearch": "Pesquisa na Web: {{cost}} créditos",
+      "fileAnalysis": "Análise de Arquivo: {{cost}} créditos"
+    },
+    "resetInfo": "Os créditos são redefinidos para 1.000 no dia 1º de cada mês"
+  },
+  "errors": {
+    "generic": "Ocorreu um erro",
+    "tryAgain": "Por favor, tente novamente",
+    "networkError": "Erro de rede. Por favor, verifique sua conexão.",
+    "unauthorized": "Não autorizado. Por favor, faça login novamente.",
+    "forbidden": "Você não tem permissão para realizar esta ação.",
+    "notFound": "O recurso solicitado não foi encontrado.",
+    "serverError": "Erro do servidor. Por favor, tente novamente mais tarde.",
+    "validationError": "Por favor, verifique sua entrada e tente novamente."
+  }
+} 

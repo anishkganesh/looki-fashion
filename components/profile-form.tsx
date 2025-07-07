@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useTranslation } from 'react-i18next'
 
 interface UserData {
   id: number
@@ -36,6 +37,7 @@ interface BrandData {
 
 export function ProfileForm() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
@@ -79,7 +81,7 @@ export function ProfileForm() {
         console.error('Error fetching user data:', userError)
         setAlert({
           type: "error",
-          message: "Failed to load user data"
+          message: t('profile.errors.loadUserData')
         })
         return
       }
@@ -87,7 +89,7 @@ export function ProfileForm() {
       if (!userResult) {
         setAlert({
           type: "error",
-          message: "User data not found"
+          message: t('profile.errors.userNotFound')
         })
         return
       }
@@ -254,7 +256,7 @@ export function ProfileForm() {
       <Card>
         <CardContent className="py-10">
           <div className="text-center">
-            <p className="text-muted-foreground">Loading profile data...</p>
+            <p className="text-muted-foreground">{t('profile.loadingProfile')}</p>
           </div>
         </CardContent>
       </Card>
@@ -278,14 +280,14 @@ export function ProfileForm() {
           {/* Account Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Account Information</CardTitle>
+              <CardTitle>{t('profile.accountInfo.title')}</CardTitle>
               <CardDescription>
-                Update your personal account details
+                {t('profile.accountInfo.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t('profile.accountInfo.fullName')}</Label>
                 <Input
                   id="name"
                   placeholder="John Smith"
@@ -295,7 +297,7 @@ export function ProfileForm() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t('profile.accountInfo.email')}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -304,7 +306,7 @@ export function ProfileForm() {
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Email cannot be changed
+                  {t('profile.accountInfo.emailNote')}
                 </p>
               </div>
             </CardContent>
@@ -313,9 +315,9 @@ export function ProfileForm() {
           {/* Brand Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Brand Information</CardTitle>
+              <CardTitle>{t('profile.brandInfo.title')}</CardTitle>
               <CardDescription>
-                Manage your brand details and settings
+                {t('profile.brandInfo.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -347,13 +349,13 @@ export function ProfileForm() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="womenswear">Womenswear</SelectItem>
-                    <SelectItem value="menswear">Menswear</SelectItem>
-                    <SelectItem value="accessories">Accessories</SelectItem>
-                    <SelectItem value="footwear">Footwear</SelectItem>
-                    <SelectItem value="jewelry">Jewelry</SelectItem>
-                    <SelectItem value="childrenswear">Childrenswear</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="womenswear">{t('profile.categories.womenswear')}</SelectItem>
+                    <SelectItem value="menswear">{t('profile.categories.menswear')}</SelectItem>
+                    <SelectItem value="accessories">{t('profile.categories.accessories')}</SelectItem>
+                    <SelectItem value="footwear">{t('profile.categories.footwear')}</SelectItem>
+                    <SelectItem value="jewelry">{t('profile.categories.jewelry')}</SelectItem>
+                    <SelectItem value="childrenswear">{t('profile.categories.childrenswear')}</SelectItem>
+                    <SelectItem value="other">{t('profile.categories.other')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -384,7 +386,7 @@ export function ProfileForm() {
 
           {/* Submit Button */}
           <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? "Saving Changes..." : "Save Changes"}
+            {isSaving ? t('profile.savingChanges') : t('profile.saveChanges')}
           </Button>
         </div>
       </form>

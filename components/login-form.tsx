@@ -18,11 +18,13 @@ import { useAuth } from "@/lib/auth-context"
 import { useRedirectIfAuthenticated } from "@/lib/auth-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle, Info } from "lucide-react"
+import { useTranslation } from 'react-i18next'
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const { t } = useTranslation()
   const router = useRouter()
   const { signIn } = useAuth()
   const [email, setEmail] = useState("")
@@ -81,9 +83,9 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardTitle className="text-xl">{t('auth.login.title')}</CardTitle>
           <CardDescription>
-            Login with your Apple or Google account
+            {t('auth.login.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,7 +110,7 @@ export function LoginForm({
                       fill="currentColor"
                     />
                   </svg>
-                  Login with Apple
+                  {t('auth.login.signInWithApple')}
                 </Button>
                 <Button type="button" variant="outline" className="w-full">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -117,12 +119,18 @@ export function LoginForm({
                       fill="currentColor"
                     />
                   </svg>
-                  Login with Google
+                  {t('auth.login.signInWithGoogle')}
                 </Button>
               </div>
               <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                 <span className="relative z-10 bg-background px-2 text-muted-foreground">
-                  Or continue with
+                  {t('auth.login.noAccount')}{" "}
+                  <Link
+                    href="/signup"
+                    className="underline underline-offset-4 hover:text-primary"
+                  >
+                    {t('auth.login.signUp')}
+                  </Link>
                 </span>
               </div>
               <div className="grid gap-6">
@@ -170,8 +178,8 @@ export function LoginForm({
         </CardContent>
       </Card>
       <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
+        {t('auth.login.termsText')} <a href="#">{t('auth.login.termsOfService')}</a>{" "}
+        {t('auth.login.and')} <a href="#">{t('auth.login.privacyPolicy')}</a>.
       </div>
     </div>
   )

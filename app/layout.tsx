@@ -7,6 +7,10 @@ import { GlobalChatProvider } from "@/lib/global-chat-context"
 import { CatalogImportProvider } from "@/lib/catalog-import-context"
 import { CatalogImportProgress } from "@/components/catalog-import-progress"
 import { Toaster } from "@/components/ui/toaster"
+import { I18nProvider } from "@/components/i18n-provider"
+import { ChromeTranslateFix } from "@/components/chrome-translate-fix"
+import { ChromeTranslateNotice } from "@/components/chrome-translate-notice"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
 
@@ -60,24 +64,30 @@ export default function RootLayout({
         )}
         suppressHydrationWarning={true}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <GlobalChatProvider>
-              <CatalogImportProvider>
-                <ChatProvider>
-                  {children}
-                </ChatProvider>
-                <CatalogImportProgress />
-              </CatalogImportProvider>
-            </GlobalChatProvider>
-          </AuthProvider>
-          <Toaster />
-        </ThemeProvider>
+        <ChromeTranslateFix />
+        <ErrorBoundary>
+          <I18nProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <AuthProvider>
+                <GlobalChatProvider>
+                  <CatalogImportProvider>
+                    <ChatProvider>
+                      {children}
+                    </ChatProvider>
+                    <CatalogImportProgress />
+                  </CatalogImportProvider>
+                </GlobalChatProvider>
+              </AuthProvider>
+              <Toaster />
+              <ChromeTranslateNotice />
+            </ThemeProvider>
+          </I18nProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

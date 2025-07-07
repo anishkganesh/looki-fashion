@@ -6,9 +6,12 @@ import { Building2 } from "lucide-react"
 import * as React from "react"
 import { supabase } from "@/lib/supabase"
 import { useRequireAuth } from "@/lib/auth-utils"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { useTranslation } from 'react-i18next'
 
 export function SiteHeader() {
   const { user, session } = useRequireAuth()
+  const { t } = useTranslation()
   const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
   const [availableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
@@ -91,14 +94,14 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
       <SidebarTrigger />
       <div className="flex items-center gap-4 flex-1">
-        <h1 className="text-base font-medium">Looki Trend Intelligence</h1>
+        <h1 className="text-base font-medium">{t('navigation.lookiTitle')}</h1>
         
         {/* Brand Selector */}
         <div className="ml-auto flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
           <Select value={selectedBrandId} onValueChange={handleBrandChange}>
             <SelectTrigger className="w-[180px] font-medium">
-              <SelectValue placeholder="Select Brand" />
+              <SelectValue placeholder={t('navigation.brandSelector')} />
             </SelectTrigger>
             <SelectContent>
               {availableBrands.map((brand) => (
@@ -109,6 +112,9 @@ export function SiteHeader() {
             </SelectContent>
           </Select>
         </div>
+        
+        {/* Language Switcher */}
+        <LanguageSwitcher />
       </div>
     </header>
   )

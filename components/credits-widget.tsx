@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useTranslation } from 'react-i18next'
 
 // Credit costs for operations
 export const CREDIT_COSTS = {
@@ -25,6 +26,7 @@ export const CREDIT_COSTS = {
 
 export function CreditsWidget() {
   const { user } = useRequireAuth()
+  const { t } = useTranslation()
   const [credits, setCredits] = React.useState<number>(0)
   const [loading, setLoading] = React.useState(true)
   const maxCredits = 1000
@@ -119,23 +121,23 @@ export function CreditsWidget() {
                 className="h-1.5 mb-1"
               />
               <Badge variant={variant} className="text-xs w-full justify-center font-medium">
-                {isLow ? 'Low Credits' : 'Credits Available'}
+                {isLow ? t('credits.low') : t('credits.available')}
               </Badge>
             </div>
           </TooltipTrigger>
           <TooltipContent side="left" className="max-w-xs">
             <div className="space-y-2">
-              <p className="font-semibold">Credit Costs:</p>
+              <p className="font-semibold">{t('credits.costs.title')}</p>
               <ul className="text-sm space-y-1">
-                <li>• Trend Agent: {CREDIT_COSTS.trend_agent} credits</li>
-                <li>• Recommendations: {CREDIT_COSTS.recommendations} credits</li>
-                <li>• Chat Message: {CREDIT_COSTS.chat} credits</li>
-                <li>• Image Generation: {CREDIT_COSTS.image_generation} credits</li>
-                <li>• Web Search: {CREDIT_COSTS.web_search} credits</li>
-                <li>• File Analysis: {CREDIT_COSTS.file_analysis} credits</li>
+                <li>• {t('credits.costs.trendAgent', { cost: CREDIT_COSTS.trend_agent })}</li>
+                <li>• {t('credits.costs.recommendations', { cost: CREDIT_COSTS.recommendations })}</li>
+                <li>• {t('credits.costs.chatMessage', { cost: CREDIT_COSTS.chat })}</li>
+                <li>• {t('credits.costs.imageGeneration', { cost: CREDIT_COSTS.image_generation })}</li>
+                <li>• {t('credits.costs.webSearch', { cost: CREDIT_COSTS.web_search })}</li>
+                <li>• {t('credits.costs.fileAnalysis', { cost: CREDIT_COSTS.file_analysis })}</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-2">
-                Credits reset to 1,000 on the 1st of each month
+                {t('credits.resetInfo')}
               </p>
             </div>
           </TooltipContent>
