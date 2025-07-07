@@ -44,9 +44,18 @@
     "remove": "Remover",
     "language": "Idioma",
     "english": "English",
-    "portuguese": "Português"
+    "portuguese": "Português",
+    "showing": "Mostrando {{start}}-{{end}} de {{total}} {{item}}",
+    "rowsPerPage": "Linhas por página",
+    "page": "Página",
+    "of": "de",
+    "goToFirstPage": "Ir para a primeira página",
+    "goToPreviousPage": "Ir para a página anterior",
+    "goToNextPage": "Ir para a próxima página",
+    "goToLastPage": "Ir para a última página"
   },
   "auth": {
+    "loginRequired": "Por favor, faça login para ver este conteúdo",
     "login": {
       "title": "Bem-vindo de volta",
       "description": "Faça login com sua conta Apple ou Google",
@@ -212,6 +221,7 @@
   "catalog": {
     "title": "Catálogo de Produtos",
     "searchPlaceholder": "Pesquisar produtos...",
+    "loadingProducts": "Carregando catálogo...",
     "columns": {
       "sku": "SKU",
       "product": "Produto",
@@ -305,8 +315,8 @@
   "trends": {
     "title": "Análise de Tendências",
     "tabs": {
-      "trends": "Tendências",
-      "catalog": "Catálogo",
+      "trends": "Sinais de Tendência",
+      "catalog": "Correspondências de Catálogo",
       "inventory": "Ações de Inventário"
     },
     "searchPlaceholder": "Pesquisar tendências...",

@@ -95,6 +95,7 @@ import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 import { HydrationWrapper } from "@/components/hydration-wrapper"
 import { formatDate, formatRelativeDate } from "@/lib/date-utils"
 import { supabase } from "@/lib/supabase"
+import { useTranslation } from 'react-i18next'
 
 interface Trend {
   trend_id: number
@@ -1259,6 +1260,7 @@ export function DataTableTrends({ onTabChange, session }: {
   onTabChange?: (tab: 'trends' | 'catalog' | 'inventory') => void
   session?: any
 }) {
+  const { t } = useTranslation()
   const [data, setData] = React.useState<Trend[]>([])
   const [loading, setLoading] = React.useState(true)
   const [sorting, setSorting] = React.useState<SortingState>([
@@ -1871,42 +1873,42 @@ export function DataTableTrends({ onTabChange, session }: {
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="flex items-center justify-between mb-4">
-            <TabsList className="flex">
+            <TabsList className="flex" translate="no">
               <TabsTrigger value="trends" className="flex items-center gap-2">
-              Trend Signals
+                {t('trends.tabs.trends')}
                 {data.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                     {data.length}
-                </Badge>
-              )}
-            </TabsTrigger>
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="catalog" className="flex items-center gap-2">
-                Catalog Matches
+                {t('trends.tabs.catalog')}
                 {catalogProducts.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                     {catalogProducts.length}
-              </Badge>
+                </Badge>
                 )}
-            </TabsTrigger>
+              </TabsTrigger>
               <TabsTrigger value="inventory" className="flex items-center gap-2">
-                Inventory Actions
+                {t('trends.tabs.inventory')}
                 {inventoryCount > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                     {inventoryCount}
               </Badge>
                 )}
             </TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-2">
+            </TabsList>
+            <div className="flex items-center gap-2">
               
               {/* Universal Search Bar */}
               <div className="relative">
                 <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={
-                    activeTab === 'trends' ? "Search trends..." :
-                    activeTab === 'catalog' ? "Search products..." :
-                    "Search inventory..."
+                    activeTab === 'trends' ? t('trends.searchPlaceholder') :
+                    activeTab === 'catalog' ? t('catalog.searchPlaceholder') :
+                    t('inventory.searchPlaceholder')
                   }
                   value={searchQuery}
                   onChange={(e) => {
@@ -1917,6 +1919,7 @@ export function DataTableTrends({ onTabChange, session }: {
                     }
                   }}
                   className="pl-8 w-[300px]"
+                  translate="no"
                 />
               </div>
               {activeTab !== 'catalog' && activeTab !== 'inventory' && (
@@ -2104,7 +2107,7 @@ export function DataTableTrends({ onTabChange, session }: {
                         colSpan={columns.length}
                         className="h-24 text-center"
                       >
-                        No trends found.
+                        {t('trends.noTrends')}
                       </TableCell>
                     </TableRow>
                   )}
@@ -2113,13 +2116,17 @@ export function DataTableTrends({ onTabChange, session }: {
             </div>
             <div className="flex items-center justify-between px-4">
               <div className="flex-1 text-sm text-muted-foreground">
-                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
-                {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length)} of {filteredData.length} trends
+                {t('common.showing', { 
+                  start: table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1,
+                  end: Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredData.length),
+                  total: filteredData.length,
+                  item: t('dashboard.trends').toLowerCase()
+                })}
               </div>
               <div className="flex items-center gap-8">
                 <div className="flex items-center gap-2">
                     <Label htmlFor="rows-per-page-trends" className="text-sm font-medium">
-                    Rows per page
+                    {t('common.rowsPerPage')}
                   </Label>
                   <Select
                     value={`${table.getState().pagination.pageSize}`}
@@ -2140,7 +2147,7 @@ export function DataTableTrends({ onTabChange, session }: {
                   </Select>
                 </div>
                 <div className="flex w-fit items-center justify-center text-sm font-medium">
-                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                  {t('common.page')} {table.getState().pagination.pageIndex + 1} {t('common.of')} {table.getPageCount()}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -2148,36 +2155,40 @@ export function DataTableTrends({ onTabChange, session }: {
                     size="sm"
                     onClick={() => table.setPageIndex(0)}
                     disabled={!table.getCanPreviousPage()}
+                    aria-label={t('common.goToFirstPage')}
                   >
                     <ChevronsLeftIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to first page</span>
+                    <span className="sr-only">{t('common.goToFirstPage')}</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => table.previousPage()}
                     disabled={!table.getCanPreviousPage()}
+                    aria-label={t('common.goToPreviousPage')}
                   >
                     <ChevronLeftIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to previous page</span>
+                    <span className="sr-only">{t('common.goToPreviousPage')}</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => table.nextPage()}
                     disabled={!table.getCanNextPage()}
+                    aria-label={t('common.goToNextPage')}
                   >
                     <ChevronRightIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to next page</span>
+                    <span className="sr-only">{t('common.goToNextPage')}</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                     disabled={!table.getCanNextPage()}
+                    aria-label={t('common.goToLastPage')}
                   >
                     <ChevronsRightIcon className="h-4 w-4" />
-                    <span className="sr-only">Go to last page</span>
+                    <span className="sr-only">{t('common.goToLastPage')}</span>
                   </Button>
                 </div>
               </div>
@@ -2187,7 +2198,7 @@ export function DataTableTrends({ onTabChange, session }: {
           <TabsContent value="catalog" className="flex flex-col gap-4 m-0 p-0">
               {catalogLoading ? (
             <div className="flex items-center justify-center py-10 rounded-lg border">
-                  <div className="text-muted-foreground">Loading catalog...</div>
+                  <div className="text-muted-foreground">{t('catalog.loadingProducts')}</div>
             </div>
               ) : (
                 <CatalogTable 
@@ -2210,7 +2221,7 @@ export function DataTableTrends({ onTabChange, session }: {
               ) : (
             <div className="flex items-center justify-center py-10 rounded-lg border">
                   <div className="text-muted-foreground">
-                    {!session?.user ? "Please log in to view inventory actions" : "Loading..."}
+                    {!session?.user ? t('auth.loginRequired') : t('common.loading')}
             </div>
                 </div>
               )}
@@ -2236,6 +2247,7 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
 }) {
+  const { t } = useTranslation()
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState({})
   const [selectedProduct, setSelectedProduct] = React.useState<any>(null)
@@ -2578,7 +2590,7 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
             </Select>
           </div>
           <div className="flex w-fit items-center justify-center text-sm font-medium">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            {t('common.page')} {table.getState().pagination.pageIndex + 1} {t('common.of')} {table.getPageCount()}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -2586,36 +2598,40 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
               size="sm"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
+              aria-label={t('common.goToFirstPage')}
             >
               <ChevronsLeftIcon className="h-4 w-4" />
-              <span className="sr-only">Go to first page</span>
+              <span className="sr-only">{t('common.goToFirstPage')}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              aria-label={t('common.goToPreviousPage')}
             >
               <ChevronLeftIcon className="h-4 w-4" />
-              <span className="sr-only">Go to previous page</span>
+              <span className="sr-only">{t('common.goToPreviousPage')}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              aria-label={t('common.goToNextPage')}
             >
               <ChevronRightIcon className="h-4 w-4" />
-              <span className="sr-only">Go to next page</span>
+              <span className="sr-only">{t('common.goToNextPage')}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
               disabled={!table.getCanNextPage()}
+              aria-label={t('common.goToLastPage')}
             >
               <ChevronsRightIcon className="h-4 w-4" />
-              <span className="sr-only">Go to last page</span>
+              <span className="sr-only">{t('common.goToLastPage')}</span>
             </Button>
           </div>
         </div>
