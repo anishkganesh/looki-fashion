@@ -219,19 +219,42 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
   }, [brandId, supabase])
 
   const handleProductClick = (product: ProductPerformance) => {
-    // Dispatch event to open product details in the main catalog view
-    const productData = product.product || {
+    // Create product data structure matching what ProductDetailSheet expects
+    const productData = {
       product_id: product.product_id,
       product_name: product.product_name,
+      variant_sku: product.product_code,
       product_code: product.product_code,
-      current_price: product.revenue_7d / product.units_sold_7d, // Estimate
+      current_price: product.revenue_7d / (product.units_sold_7d || 1),
+      original_price: product.revenue_7d / (product.units_sold_7d || 1),
+      currency: 'USD',
       current_inventory_level: product.units_sold_7d * 2, // Estimate
       stock_status: 'InStock',
-      brand_id: brandId
+      brand_id: brandId,
+      category_hierarchy: 'Fashion',
+      color: 'N/A',
+      size: 'N/A',
+      images: [],
+      revenue_last_30d: product.revenue_7d * 4, // Estimate 30d from 7d
+      units_sold_last_30d: product.units_sold_7d * 4,
+      inventory_velocity: product.units_sold_7d / 7,
+      days_of_supply: 30,
+      conversion_rate: 2.5,
+      return_rate: 5,
+      margin_percentage: 40,
+      discount_percentage: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      description: `Product optimized with ${product.applied_action} strategy`,
+      style_attributes: {},
+      material_attributes: {},
+      target_demographics: {},
+      // Add any API data if available
+      api_data: product.product?.api_data || {}
     }
     
-    // Trigger a custom event that the dashboard can listen to
-    window.dispatchEvent(new CustomEvent('openProductDetails', { 
+    // Dispatch event to switch to catalog tab and open product details
+    window.dispatchEvent(new CustomEvent('switchToCatalogAndOpenProduct', { 
       detail: { product: productData } 
     }))
     

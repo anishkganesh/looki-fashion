@@ -25,7 +25,6 @@ import { supabase } from "@/lib/supabase"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 import { useTranslation } from 'react-i18next'
-import { ProductDetailsPanel } from "@/components/product-details-panel"
 
 export default function DashboardPage() {
   const { user, session, isLoading } = useRequireAuth()
@@ -49,8 +48,6 @@ export default function DashboardPage() {
   const [selectedBrandId, setSelectedBrandId] = useState<string>("")
   const [statsLoading, setStatsLoading] = useState(true)
   const [chartLoading, setChartLoading] = useState(true)
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
-  const [productDetailOpen, setProductDetailOpen] = useState(false)
 
   // Fetch user's selected brand
   React.useEffect(() => {
@@ -98,19 +95,7 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Listen for product detail events
-  React.useEffect(() => {
-    const handleOpenProductDetails = (event: CustomEvent) => {
-      const { product } = event.detail
-      setSelectedProduct(product)
-      setProductDetailOpen(true)
-    }
-    
-    window.addEventListener('openProductDetails', handleOpenProductDetails as any)
-    return () => {
-      window.removeEventListener('openProductDetails', handleOpenProductDetails as any)
-    }
-  }, [])
+
 
   // Check catalog integration status
   const checkCatalogStatus = async () => {
@@ -479,13 +464,6 @@ export default function DashboardPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
-      
-      {/* Product Details Panel */}
-      <ProductDetailsPanel
-        product={selectedProduct}
-        open={productDetailOpen}
-        onOpenChange={setProductDetailOpen}
-      />
     </ChatLayout>
   )
 }

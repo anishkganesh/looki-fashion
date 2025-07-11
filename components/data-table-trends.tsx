@@ -99,6 +99,10 @@ import { formatDate, formatRelativeDate } from "@/lib/date-utils"
 import { supabase } from "@/lib/supabase"
 import { useTranslation } from 'react-i18next'
 
+// Add type definitions
+type InventoryActionsTableRef = any
+type CampaignTableRef = any
+
 interface Trend {
   trend_id: number
   trend_identifier: string
@@ -1277,20 +1281,12 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
   trendAgentProgress?: string
 }) {
   const { t } = useTranslation()
+  const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory' | 'campaigns'>('trends')
   const [data, setData] = React.useState<Trend[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [catalogProducts, setCatalogProducts] = React.useState<any[]>([])
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'created_at', desc: true }
   ])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
-  const [selectedTrend, setSelectedTrend] = React.useState<Trend | null>(null)
-  const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory' | 'campaigns'>('trends')
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [catalogProducts, setCatalogProducts] = React.useState<any[]>([])
-  const [catalogLoading, setCatalogLoading] = React.useState(false)
   const [catalogSorting, setCatalogSorting] = React.useState<SortingState>([
     { id: 'created_at', desc: true }
   ])
@@ -1300,7 +1296,18 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
   const [campaignSorting, setCampaignSorting] = React.useState<SortingState>([
     { id: 'created_at', desc: true }
   ])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
+  const [selectedTrend, setSelectedTrend] = React.useState<Trend | null>(null)
+  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [loading, setLoading] = React.useState(true)
+  const [catalogLoading, setCatalogLoading] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const inventoryTableRef = React.useRef<InventoryActionsTableRef>(null)
+  const campaignTableRef = React.useRef<CampaignTableRef>(null)
   const [userBrandId, setUserBrandId] = React.useState<number | null>(null)
+  const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
   const [inventoryCount, setInventoryCount] = React.useState(0)
   const [productCount, setProductCount] = React.useState(0)
   const [campaignCount, setCampaignCount] = React.useState(0)
@@ -1310,9 +1317,7 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
   const [campaignProgress, setCampaignProgress] = React.useState("")
   const [marisaSyncing, setMarisaSyncing] = React.useState(false)
   const [marisaSyncProgress, setMarisaSyncProgress] = React.useState("")
-  const inventoryTableRef = React.useRef<any>(null)
-  const campaignTableRef = React.useRef<any>(null)
-  const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
+  const [catalogProductToOpen, setCatalogProductToOpen] = React.useState<any | null>(null)
   const [availableBrands, setAvailableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
     { id: "2", name: "Cris Barros" },
@@ -1977,6 +1982,35 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
     }
   }, [fetchCatalogProducts, fetchBrandDetails, fetchInventoryCount, fetchCampaignCount])
 
+  // Listen for switch to catalog and open product event
+  React.useEffect(() => {
+    const handleSwitchToCatalogAndOpenProduct = (event: CustomEvent) => {
+      const { product } = event.detail
+      // Switch to catalog tab
+      setActiveTab('catalog')
+      // Store the product to open after catalog loads
+      setCatalogProductToOpen(product)
+    }
+    
+    window.addEventListener('switchToCatalogAndOpenProduct', handleSwitchToCatalogAndOpenProduct as any)
+    return () => {
+      window.removeEventListener('switchToCatalogAndOpenProduct', handleSwitchToCatalogAndOpenProduct as any)
+    }
+  }, [])
+
+  // Open product when catalog tab is active and product is set
+  React.useEffect(() => {
+    if (activeTab === 'catalog' && catalogProductToOpen && !catalogLoading) {
+      // Small delay to ensure catalog is rendered
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('openCatalogProduct', { 
+          detail: { product: catalogProductToOpen } 
+        }))
+        setCatalogProductToOpen(null)
+      }, 100)
+    }
+  }, [activeTab, catalogProductToOpen, catalogLoading])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -2544,6 +2578,20 @@ function CatalogTable({ products, searchQuery, sorting, onSortingChange }: {
     pageIndex: 0,
     pageSize: 20,
   })
+
+  // Listen for open catalog product event
+  React.useEffect(() => {
+    const handleOpenCatalogProduct = (event: CustomEvent) => {
+      const { product } = event.detail
+      setSelectedProduct(product)
+      setSheetOpen(true)
+    }
+    
+    window.addEventListener('openCatalogProduct', handleOpenCatalogProduct as any)
+    return () => {
+      window.removeEventListener('openCatalogProduct', handleOpenCatalogProduct as any)
+    }
+  }, [])
 
   const columns: ColumnDef<any>[] = [
     {
