@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { ProductDetailsPanel } from './product-details-panel'
 
 interface RevenueMetrics {
   totalTrackedProducts: number
@@ -35,6 +36,8 @@ interface ProductPerformance {
   units_sold_7d: number
   applied_action: string
   applied_date: string
+  // Full product data for detail panel
+  product?: any
 }
 
 export function RevenueMetrics({ brandId }: { brandId: number }) {
@@ -42,6 +45,8 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
   const [loading, setLoading] = React.useState(true)
   const [productPerformance, setProductPerformance] = React.useState<ProductPerformance[]>([])
   const [selectedMetric, setSelectedMetric] = React.useState<string | null>(null)
+  const [selectedProduct, setSelectedProduct] = React.useState<any | null>(null)
+  const [productDetailOpen, setProductDetailOpen] = React.useState(false)
   
   const supabase = React.useMemo(
     () => createClient(
@@ -70,6 +75,18 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
           return
         }
         
+        // Fetch actual product data
+        const productIds = trackingData.map(item => item.product_id)
+        const { data: products, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .in('product_id', productIds)
+        
+        if (productsError) throw productsError
+        
+        // Create a map of products by ID
+        const productMap = new Map(products?.map(p => [p.product_id, p]) || [])
+        
         // Generate realistic mock metrics and product performance for demonstration
         const totalProducts = trackingData.length
         
@@ -88,17 +105,21 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
           // Performance vs brand average: -5% to +10%
           const vsBrand = -5 + Math.random() * 15
           
-          // Generate mock product performance data
-          const mockProductPerformance: ProductPerformance[] = trackingData.map((item, index) => ({
-            product_id: item.product_id,
-            product_name: `Product ${item.product_id}`,
-            product_code: `SKU-${item.product_id}`,
-            revenue_change: -10 + Math.random() * 40, // -10% to +30%
-            revenue_7d: 1000 + Math.random() * 9000, // $1k to $10k
-            units_sold_7d: 10 + Math.floor(Math.random() * 90), // 10 to 100 units
-            applied_action: item.action_type || 'promote',
-            applied_date: new Date(item.applied_at).toLocaleDateString()
-          }))
+          // Generate product performance data with real product names
+          const mockProductPerformance: ProductPerformance[] = trackingData.map((item, index) => {
+            const product = productMap.get(item.product_id)
+            return {
+              product_id: item.product_id,
+              product_name: product?.product_name || `Product ${item.product_id}`,
+              product_code: product?.variant_sku || product?.product_code || `SKU-${item.product_id}`,
+              revenue_change: -10 + Math.random() * 40, // -10% to +30%
+              revenue_7d: product?.revenue_last_7d || (1000 + Math.random() * 9000), // Use real data if available
+              units_sold_7d: product?.units_sold_last_7d || (10 + Math.floor(Math.random() * 90)),
+              applied_action: item.action_type || 'promote',
+              applied_date: new Date(item.applied_at).toLocaleDateString(),
+              product: product // Store full product data
+            }
+          })
           
           // Sort by revenue change descending
           mockProductPerformance.sort((a, b) => b.revenue_change - a.revenue_change)
@@ -185,6 +206,19 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
       window.removeEventListener('revenueMetricsUpdated', handleRevenueUpdate)
     }
   }, [brandId, supabase])
+
+  const handleProductClick = (product: ProductPerformance) => {
+    setSelectedProduct(product.product || {
+      product_id: product.product_id,
+      product_name: product.product_name,
+      product_code: product.product_code,
+      current_price: product.revenue_7d / product.units_sold_7d, // Estimate
+      current_inventory_level: product.units_sold_7d * 2, // Estimate
+      stock_status: 'InStock',
+      brand_id: brandId
+    })
+    setProductDetailOpen(true)
+  }
   
   if (loading) {
     return (
@@ -363,17 +397,21 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
 
     {/* Metric Detail Dialogs */}
     <Dialog open={selectedMetric === 'average'} onOpenChange={() => setSelectedMetric(null)}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Average Revenue Performance</DialogTitle>
           <DialogDescription>
             Detailed breakdown of revenue changes across all tracked products
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[400px] mt-4">
-          <div className="space-y-4">
+        <ScrollArea className="h-[calc(80vh-8rem)] mt-4">
+          <div className="space-y-4 pr-4">
             {productPerformance.map((product) => (
-              <div key={product.product_id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div 
+                key={product.product_id} 
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                onClick={() => handleProductClick(product)}
+              >
                 <div className="space-y-1">
                   <p className="font-medium">{product.product_name}</p>
                   <p className="text-sm text-muted-foreground">{product.product_code}</p>
@@ -403,29 +441,35 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
             Products with the highest revenue increase since optimization
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 space-y-4">
-          {productPerformance
-            .filter(p => p.revenue_change > 0)
-            .slice(0, 5)
-            .map((product, index) => (
-              <div key={product.product_id} className="flex items-center gap-4">
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                  index === 0 ? 'bg-chart-2 text-white' : 'bg-secondary'
-                }`}>
-                  {index + 1}
+        <ScrollArea className="h-[calc(80vh-8rem)] mt-4">
+          <div className="space-y-4 pr-4">
+            {productPerformance
+              .filter(p => p.revenue_change > 0)
+              .slice(0, 10)
+              .map((product, index) => (
+                <div 
+                  key={product.product_id} 
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => handleProductClick(product)}
+                >
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    index === 0 ? 'bg-chart-2 text-white' : 'bg-secondary'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">{product.product_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {product.applied_action} strategy • ${product.revenue_7d.toLocaleString()} revenue
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-chart-2">+{product.revenue_change.toFixed(1)}%</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium">{product.product_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {product.applied_action} strategy • ${product.revenue_7d.toLocaleString()} revenue
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-chart-2">+{product.revenue_change.toFixed(1)}%</p>
-                </div>
-              </div>
-            ))}
-        </div>
+              ))}
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
 
@@ -437,38 +481,47 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
             Breakdown of products by performance category
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 space-y-6">
-          <div>
-            <h4 className="font-medium mb-3 text-primary">Positive Growth ({productPerformance.filter(p => p.revenue_change > 0).length} products)</h4>
-            <div className="space-y-2">
-              {productPerformance
-                .filter(p => p.revenue_change > 0)
-                .slice(0, 3)
-                .map((product) => (
-                  <div key={product.product_id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                    <span className="text-sm">{product.product_name}</span>
-                    <span className="text-sm font-medium text-primary">+{product.revenue_change.toFixed(1)}%</span>
-                  </div>
-                ))}
+        <ScrollArea className="h-[calc(80vh-8rem)] mt-4">
+          <div className="space-y-6 pr-4">
+            <div>
+              <h4 className="font-medium mb-3 text-primary">Positive Growth ({productPerformance.filter(p => p.revenue_change > 0).length} products)</h4>
+              <div className="space-y-2">
+                {productPerformance
+                  .filter(p => p.revenue_change > 0)
+                  .map((product) => (
+                    <div 
+                      key={product.product_id} 
+                      className="flex items-center justify-between p-3 bg-primary/5 rounded-lg hover:bg-primary/10 cursor-pointer transition-colors"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      <span className="text-sm font-medium">{product.product_name}</span>
+                      <span className="text-sm font-medium text-primary">+{product.revenue_change.toFixed(1)}%</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-medium mb-3 text-destructive">Negative Growth ({productPerformance.filter(p => p.revenue_change < 0).length} products)</h4>
+              <div className="space-y-2">
+                {productPerformance
+                  .filter(p => p.revenue_change < 0)
+                  .map((product) => (
+                    <div 
+                      key={product.product_id} 
+                      className="flex items-center justify-between p-3 bg-destructive/5 rounded-lg hover:bg-destructive/10 cursor-pointer transition-colors"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      <span className="text-sm font-medium">{product.product_name}</span>
+                      <span className="text-sm font-medium text-destructive">{product.revenue_change.toFixed(1)}%</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
-          
-          <Separator />
-          
-          <div>
-            <h4 className="font-medium mb-3 text-destructive">Negative Growth ({productPerformance.filter(p => p.revenue_change < 0).length} products)</h4>
-            <div className="space-y-2">
-              {productPerformance
-                .filter(p => p.revenue_change < 0)
-                .map((product) => (
-                  <div key={product.product_id} className="flex items-center justify-between p-3 bg-destructive/5 rounded-lg">
-                    <span className="text-sm">{product.product_name}</span>
-                    <span className="text-sm font-medium text-destructive">{product.revenue_change.toFixed(1)}%</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
 
@@ -480,44 +533,57 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
             How optimized products compare to brand average
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 space-y-4">
-          <div className="p-4 bg-secondary rounded-lg">
-            <p className="text-sm text-muted-foreground mb-2">Brand Average Revenue</p>
-            <p className="text-2xl font-bold">$12,450</p>
-            <p className="text-xs text-muted-foreground mt-1">Per product per week</p>
-          </div>
-          
-          <div className="p-4 bg-primary/10 rounded-lg">
-            <p className="text-sm text-muted-foreground mb-2">Optimized Products Average</p>
-            <p className="text-2xl font-bold text-primary">$13,485</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {metrics?.revenueVsBrandAverage > 0 ? '+' : ''}{metrics?.revenueVsBrandAverage.toFixed(1)}% vs brand average
-            </p>
-          </div>
-          
-          <Separator />
-          
-          <div>
-            <h4 className="font-medium mb-3">Top Outperformers</h4>
-            <div className="space-y-2">
-              {productPerformance
-                .slice(0, 3)
-                .map((product) => (
-                  <div key={product.product_id} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{product.product_name}</p>
-                      <p className="text-xs text-muted-foreground">${product.revenue_7d.toLocaleString()} weekly revenue</p>
+        <ScrollArea className="h-[calc(80vh-8rem)] mt-4">
+          <div className="space-y-4 pr-4">
+            <div className="p-4 bg-secondary rounded-lg">
+              <p className="text-sm text-muted-foreground mb-2">Brand Average Revenue</p>
+              <p className="text-2xl font-bold">$12,450</p>
+              <p className="text-xs text-muted-foreground mt-1">Per product per week</p>
+            </div>
+            
+            <div className="p-4 bg-primary/10 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-2">Optimized Products Average</p>
+              <p className="text-2xl font-bold text-primary">$13,485</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {metrics?.revenueVsBrandAverage > 0 ? '+' : ''}{metrics?.revenueVsBrandAverage.toFixed(1)}% vs brand average
+              </p>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-medium mb-3">Top Outperformers</h4>
+              <div className="space-y-2">
+                {productPerformance
+                  .slice(0, 10)
+                  .map((product) => (
+                    <div 
+                      key={product.product_id} 
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{product.product_name}</p>
+                        <p className="text-xs text-muted-foreground">${product.revenue_7d.toLocaleString()} weekly revenue</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {((product.revenue_7d / 12450 - 1) * 100).toFixed(0)}% above avg
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {((product.revenue_7d / 12450 - 1) * 100).toFixed(0)}% above avg
-                    </Badge>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
           </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    {/* Product Details Panel */}
+    <ProductDetailsPanel
+      product={selectedProduct}
+      open={productDetailOpen}
+      onOpenChange={setProductDetailOpen}
+    />
     </>
   )
 } 

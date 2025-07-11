@@ -99,6 +99,13 @@ export async function PATCH(request: NextRequest) {
           status: 'active'
         }
         break
+      case 'unapply':
+        updateData = {
+          is_applied: false,
+          applied_at: null,
+          status: 'draft'
+        }
+        break
       case 'pause':
         updateData = { status: 'paused' }
         break
