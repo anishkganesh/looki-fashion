@@ -253,14 +253,20 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const prompt = `Hyperrealistic professional B2B fashion photography of ${action.product.product_name}. Stock status: ${action.product.stock_status || 'In Stock'}. Showing ${action.recommendation_action} strategy. Luxury commercial fashion photography, ultra high-end quality, photorealistic detail, professional studio lighting, fashion magazine quality, premium brand aesthetic, 8K resolution, award-winning editorial photography.`
+      const prompt = `Professional fashion product photography of ${action.product.product_name}. Stock status: ${action.product.stock_status || 'In Stock'}. Showing ${action.recommendation_action} strategy. Clean commercial fashion photography, studio lighting, editorial quality, authentic materials and textures.`
       
       const response = await fetch('/api/images/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ 
+          prompt,
+          brandContext: {
+            style: 'contemporary',
+            price_point: 'premium'
+          }
+        })
       })
       
       if (!response.ok) {

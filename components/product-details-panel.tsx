@@ -127,14 +127,20 @@ ${productAttributes?.url ? `Product URL: ${productAttributes.url}` : ''}`
     
     setGeneratingImage(true)
     try {
-      const prompt = `Hyperrealistic professional B2B fashion photography of ${product.product_name}. ${product.attributes?.description || ''} Category: ${product.category || 'N/A'}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
+      const prompt = `Professional fashion product photography of ${product.product_name}. ${product.attributes?.description || ''} Category: ${product.category || 'N/A'}. Clean commercial product photography, pristine white background, studio lighting, editorial quality, authentic materials and textures.`
       
       const response = await fetch('/api/images/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ 
+          prompt,
+          brandContext: {
+            style: 'contemporary',
+            price_point: 'premium'
+          }
+        })
       })
       
       if (!response.ok) {

@@ -317,7 +317,8 @@
     "tabs": {
       "trends": "Trend Signals",
       "catalog": "Catalog Matches",
-      "inventory": "Inventory Actions"
+      "inventory": "Inventory Actions",
+      "campaigns": "Campaigns"
     },
     "searchPlaceholder": "Search trends...",
     "generateRecommendations": "Generate AI Recommendations",
@@ -435,5 +436,64 @@
     "notFound": "The requested resource was not found.",
     "serverError": "Server error. Please try again later.",
     "validationError": "Please check your input and try again."
+  },
+  "campaigns": {
+    "searchPlaceholder": "Search campaigns...",
+    "generating": "Generating campaigns...",
+    "noCredits": "Insufficient credits for campaign generation",
+    "generateButton": "Generate Campaigns",
+    "status": {
+      "draft": "Draft",
+      "active": "Active",
+      "paused": "Paused",
+      "completed": "Completed"
+    },
+    "table": {
+      "campaign": "Campaign",
+      "bundle": "Bundle",
+      "trends": "Trends",
+      "budget": "Budget",
+      "duration": "Duration",
+      "performance": "Performance",
+      "confidence": "Confidence",
+      "status": "Status",
+      "notApplied": "Not Applied",
+      "daysLeft": "{{days}} days left",
+      "products": "{{count}} products",
+      "trendsCount": "{{count}} trends",
+      "ctr": "CTR",
+      "roi": "ROI"
+    },
+    "detail": {
+      "campaignPeriod": "Campaign Period",
+      "budgetRange": "Budget Range",
+      "bundleCriteria": "Bundle Criteria",
+      "targetAudience": "Target Audience",
+      "marketingCopy": "Marketing Copy",
+      "hashtags": "Hashtags",
+      "products": "Products",
+      "associatedTrends": "Associated Trends",
+      "performanceMetrics": "Performance Metrics",
+      "impressions": "Impressions",
+      "clicks": "Clicks",
+      "conversions": "Conversions",
+      "revenue": "Revenue",
+      "campaignVisual": "Campaign Visual",
+      "applyCampaign": "Apply Campaign",
+      "generateVisual": "Generate Visual",
+      "export": "Export",
+      "addToChat": "Add to Chat",
+      "match": "match"
+    },
+    "messages": {
+      "generated": "Generated {{count}} campaigns",
+      "noOpportunities": "No campaign opportunities found",
+      "applySuccess": "Campaign applied successfully",
+      "applyError": "Failed to apply campaign",
+      "visualGenerated": "Campaign visual generated",
+      "visualError": "Failed to generate visual",
+      "exported": "Campaign data exported",
+      "addedToChat": "Added to chat context"
+    }
   }
 } 

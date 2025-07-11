@@ -45,6 +45,7 @@ import {
   StarIcon,
   Building2,
   ArrowUpDown,
+  RocketIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -90,6 +91,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Checkbox } from "@/components/ui/checkbox"
 import { InventoryActionsTable } from "@/components/inventory-actions-table"
+import { CampaignTable } from "@/components/campaign-table"
 import { getTrendDisplayName } from "@/lib/format-utils"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 import { HydrationWrapper } from "@/components/hydration-wrapper"
@@ -549,14 +551,20 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
     setGeneratingImage(true)
     try {
       const trendName = getTrendDisplayName(trend)
-      const prompt = `Hyperrealistic professional B2B fashion photography showcasing ${trendName} trend. ${trend.trend_description || ''} Style: ${trend.trend_category}, ${trend.lifecycle_stage} trend. Luxury commercial fashion photography, ultra high-end quality, photorealistic detail, professional studio lighting, fashion magazine quality, premium brand aesthetic, 8K resolution, award-winning editorial photography.`
+      const prompt = `Professional fashion photography showcasing ${trendName} trend. ${trend.trend_description || ''} Style: ${trend.trend_category}, ${trend.lifecycle_stage} trend. Clean commercial fashion photography, editorial quality, authentic styling, natural lighting.`
       
       const response = await fetch('/api/images/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ 
+          prompt,
+          brandContext: {
+            style: 'contemporary',
+            price_point: 'premium'
+          }
+        })
       })
       
       if (!response.ok) {
@@ -923,14 +931,20 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const prompt = `Hyperrealistic professional B2B fashion photography of ${product.product_name}. ${product.product_description || ''} Category: ${product.category}. Luxury commercial product photography, pristine white background, ultra high-end quality, professional studio lighting, fashion magazine quality, premium brand aesthetic, photorealistic detail, 8K resolution, award-winning commercial photography.`
+      const prompt = `Professional fashion product photography of ${product.product_name}. ${product.product_description || ''} Category: ${product.category}. Clean commercial product photography, pristine white background, studio lighting, editorial quality.`
       
       const response = await fetch('/api/images/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ 
+          prompt,
+          brandContext: {
+            style: 'contemporary',
+            price_point: 'premium'
+          }
+        })
       })
       
       if (!response.ok) {
@@ -1257,7 +1271,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
 }
 
 export function DataTableTrends({ onTabChange, session }: { 
-  onTabChange?: (tab: 'trends' | 'catalog' | 'inventory') => void
+  onTabChange?: (tab: 'trends' | 'catalog' | 'inventory' | 'campaigns') => void
   session?: any
 }) {
   const { t } = useTranslation()
@@ -1271,7 +1285,7 @@ export function DataTableTrends({ onTabChange, session }: {
   const [rowSelection, setRowSelection] = React.useState({})
   const [selectedTrend, setSelectedTrend] = React.useState<Trend | null>(null)
   const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory'>('trends')
+  const [activeTab, setActiveTab] = React.useState<'trends' | 'catalog' | 'inventory' | 'campaigns'>('trends')
   const [searchQuery, setSearchQuery] = React.useState("")
   const [catalogProducts, setCatalogProducts] = React.useState<any[]>([])
   const [catalogLoading, setCatalogLoading] = React.useState(false)
@@ -1284,9 +1298,11 @@ export function DataTableTrends({ onTabChange, session }: {
   const [userBrandId, setUserBrandId] = React.useState<number | null>(null)
   const [inventoryCount, setInventoryCount] = React.useState(0)
   const [productCount, setProductCount] = React.useState(0)
+  const [campaignCount, setCampaignCount] = React.useState(0)
   const [generating, setGenerating] = React.useState(false)
   const [generationProgress, setGenerationProgress] = React.useState("")
   const inventoryTableRef = React.useRef<any>(null)
+  const campaignTableRef = React.useRef<any>(null)
   const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
   const [availableBrands, setAvailableBrands] = React.useState<{id: string, name: string}[]>([
     { id: "1", name: "Arvind Fashions" },
@@ -1633,7 +1649,7 @@ export function DataTableTrends({ onTabChange, session }: {
 
   // Update parent when tab changes
   const handleTabChange = (value: string) => {
-    const tab = value as 'trends' | 'catalog' | 'inventory'
+    const tab = value as 'trends' | 'catalog' | 'inventory' | 'campaigns'
     setActiveTab(tab)
     
     // Refresh catalog when switching to catalog tab
@@ -1898,6 +1914,14 @@ export function DataTableTrends({ onTabChange, session }: {
               </Badge>
                 )}
             </TabsTrigger>
+            <TabsTrigger value="campaigns" className="flex items-center gap-2">
+              {t('trends.tabs.campaigns')}
+              {campaignCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {campaignCount}
+                </Badge>
+              )}
+            </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2">
               
@@ -1908,7 +1932,8 @@ export function DataTableTrends({ onTabChange, session }: {
                   placeholder={
                     activeTab === 'trends' ? t('trends.searchPlaceholder') :
                     activeTab === 'catalog' ? t('catalog.searchPlaceholder') :
-                    t('inventory.searchPlaceholder')
+                    activeTab === 'inventory' ? t('inventory.searchPlaceholder') :
+                    t('campaigns.searchPlaceholder')
                   }
                   value={searchQuery}
                   onChange={(e) => {
@@ -1922,7 +1947,7 @@ export function DataTableTrends({ onTabChange, session }: {
                   translate="no"
                 />
               </div>
-              {activeTab !== 'catalog' && activeTab !== 'inventory' && (
+              {activeTab !== 'catalog' && activeTab !== 'inventory' && activeTab !== 'campaigns' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -2055,6 +2080,62 @@ export function DataTableTrends({ onTabChange, session }: {
                       <>
                         <RefreshCwIcon className="mr-2 h-4 w-4" />
                         Generate Recommendations
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+              {activeTab === 'campaigns' && (
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <ArrowUpDown className="mr-2 h-4 w-4" />
+                        <span className="hidden lg:inline">Sort</span>
+                        <ChevronDownIcon className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => {
+                        // Sort by created date
+                      }}>
+                        Newest First
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        // Sort by confidence
+                      }}>
+                        Confidence (High to Low)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        // Sort by status
+                      }}>
+                        Status
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        // Sort by budget
+                      }}>
+                        Budget (High to Low)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    onClick={() => {
+                      if (campaignTableRef.current?.generateCampaigns) {
+                        campaignTableRef.current.generateCampaigns()
+                      }
+                    }}
+                    disabled={generating}
+                    size="sm"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <RocketIcon className="mr-2 h-4 w-4" />
+                        Generate Campaigns
                       </>
                     )}
                   </Button>
@@ -2225,6 +2306,31 @@ export function DataTableTrends({ onTabChange, session }: {
             </div>
                 </div>
               )}
+          </TabsContent>
+          <TabsContent value="campaigns" className="flex flex-col gap-4 m-0 p-0">
+            {session?.user && userBrandId ? (
+              <CampaignTable 
+                ref={campaignTableRef}
+                brandId={selectedBrandId ? parseInt(selectedBrandId) : userBrandId} 
+                session={session}
+                onCampaignsGenerated={() => {
+                  // Fetch campaign count
+                  supabase
+                    .from('campaigns')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('brand_id', selectedBrandId ? parseInt(selectedBrandId) : userBrandId)
+                    .then(({ count }) => {
+                      setCampaignCount(count || 0)
+                    })
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-center py-10 rounded-lg border">
+                <div className="text-muted-foreground">
+                  {!session?.user ? t('auth.loginRequired') : t('common.loading')}
+                </div>
+              </div>
+            )}
           </TabsContent>
         </div>
       </Tabs>

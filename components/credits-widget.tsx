@@ -16,13 +16,14 @@ import { useTranslation } from 'react-i18next'
 
 // Credit costs for operations
 export const CREDIT_COSTS = {
-  trend_agent: 50,
-  recommendations: 30,
-  chat: 2,
-  image_generation: 10,
-  web_search: 5,
-  file_analysis: 3,
-}
+  trend_agent: 10,
+  recommendations: 20,
+  chat: 5,
+  image_generation: 15,
+  web_search: 10,
+  file_analysis: 15,
+  campaign_generation: 30
+} as const
 
 export function CreditsWidget() {
   const { user } = useRequireAuth()

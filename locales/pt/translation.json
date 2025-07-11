@@ -317,7 +317,8 @@
     "tabs": {
       "trends": "Sinais de Tendência",
       "catalog": "Correspondências de Catálogo",
-      "inventory": "Ações de Inventário"
+      "inventory": "Ações de Inventário",
+      "campaigns": "Campanhas"
     },
     "searchPlaceholder": "Pesquisar tendências...",
     "generateRecommendations": "Gerar Recomendações de IA",
@@ -435,5 +436,64 @@
     "notFound": "O recurso solicitado não foi encontrado.",
     "serverError": "Erro do servidor. Por favor, tente novamente mais tarde.",
     "validationError": "Por favor, verifique sua entrada e tente novamente."
+  },
+  "campaigns": {
+    "searchPlaceholder": "Pesquisar campanhas...",
+    "generating": "Gerando campanhas...",
+    "noCredits": "Créditos insuficientes para geração de campanha",
+    "generateButton": "Gerar Campanhas",
+    "status": {
+      "draft": "Rascunho",
+      "active": "Ativa",
+      "paused": "Pausada",
+      "completed": "Concluída"
+    },
+    "table": {
+      "campaign": "Campanha",
+      "bundle": "Pacote",
+      "trends": "Tendências",
+      "budget": "Orçamento",
+      "duration": "Duração",
+      "performance": "Desempenho",
+      "confidence": "Confiança",
+      "status": "Status",
+      "notApplied": "Não Aplicada",
+      "daysLeft": "{{days}} dias restantes",
+      "products": "{{count}} produtos",
+      "trendsCount": "{{count}} tendências",
+      "ctr": "CTR",
+      "roi": "ROI"
+    },
+    "detail": {
+      "campaignPeriod": "Período da Campanha",
+      "budgetRange": "Faixa de Orçamento",
+      "bundleCriteria": "Critérios do Pacote",
+      "targetAudience": "Público-Alvo",
+      "marketingCopy": "Texto de Marketing",
+      "hashtags": "Hashtags",
+      "products": "Produtos",
+      "associatedTrends": "Tendências Associadas",
+      "performanceMetrics": "Métricas de Desempenho",
+      "impressions": "Impressões",
+      "clicks": "Cliques",
+      "conversions": "Conversões",
+      "revenue": "Receita",
+      "campaignVisual": "Visual da Campanha",
+      "applyCampaign": "Aplicar Campanha",
+      "generateVisual": "Gerar Visual",
+      "export": "Exportar",
+      "addToChat": "Adicionar ao Chat",
+      "match": "correspondência"
+    },
+    "messages": {
+      "generated": "{{count}} campanhas geradas",
+      "noOpportunities": "Nenhuma oportunidade de campanha encontrada",
+      "applySuccess": "Campanha aplicada com sucesso",
+      "applyError": "Falha ao aplicar campanha",
+      "visualGenerated": "Visual da campanha gerado",
+      "visualError": "Falha ao gerar visual",
+      "exported": "Dados da campanha exportados",
+      "addedToChat": "Adicionado ao contexto do chat"
+    }
   }
 } 
