@@ -1098,7 +1098,7 @@ export async function POST(request: Request) {
         try {
           // Get search results with content, prioritizing brand-specific sources
           const searchResult = await firecrawl.search(query, {
-            limit: 5, // Increased back to 5 for more trends
+            limit: 3, // Reduced from 5 to 3 for higher quality
             scrapeOptions: {
               formats: ["markdown"],
               timeout: 1500, // Fast timeout
@@ -1211,7 +1211,7 @@ export async function POST(request: Request) {
       const trendMentions = new Map<string, number>()
       
       for (const trend of allTrends) {
-        if (uniqueTrends.size >= 50) break // Target 50 unique trends
+        if (uniqueTrends.size >= 20) break // Reduced from 50 to 20 unique trends
         
         // Check for similar existing trend using fuzzy matching
         const similarTrendId = findSimilarTrend(trend.name, uniqueTrends)
@@ -1231,6 +1231,9 @@ export async function POST(request: Request) {
             existingTrend.confidence = trend.confidence
           }
         } else {
+          // Only add high-quality trends (confidence > 0.7)
+          if (trend.confidence && trend.confidence < 0.7) continue
+          
           // Create a URL-safe identifier while preserving the original name
           const trendId = trend.name.toLowerCase()
             .replace(/^#/, '') // Remove leading hashtag for the ID

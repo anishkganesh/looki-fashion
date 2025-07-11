@@ -1638,11 +1638,13 @@ export function DataTableTrends({ onTabChange, session }: {
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setSearchQuery,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      globalFilter: searchQuery,
     },
     meta: {
       onRowClick: (trend: Trend) => {
@@ -1689,11 +1691,32 @@ export function DataTableTrends({ onTabChange, session }: {
     }
   }, [userBrandId, selectedBrandId, supabase])
 
+  // Fetch campaign count
+  const fetchCampaignCount = React.useCallback(async () => {
+    if (!userBrandId) return
+    
+    const brandIdToUse = selectedBrandId ? parseInt(selectedBrandId) : userBrandId
+    
+    try {
+      const { count, error } = await supabase
+        .from('campaigns')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', brandIdToUse)
+      
+      if (!error && count !== null) {
+        setCampaignCount(count)
+      }
+    } catch (error) {
+      console.error('Error fetching campaign count:', error)
+    }
+  }, [userBrandId, selectedBrandId, supabase])
+
   React.useEffect(() => {
     if (userBrandId) {
       fetchInventoryCount()
+      fetchCampaignCount()
     }
-  }, [userBrandId, fetchInventoryCount])
+  }, [userBrandId, fetchInventoryCount, fetchCampaignCount])
 
   // Generate recommendations handler
   const handleGenerateRecommendations = React.useCallback(async () => {
@@ -1859,13 +1882,14 @@ export function DataTableTrends({ onTabChange, session }: {
       fetchCatalogProducts()
       fetchBrandDetails(brandId)
       fetchInventoryCount()
+      fetchCampaignCount()
     }
     
     window.addEventListener('brandChanged', handleBrandChange as any)
     return () => {
       window.removeEventListener('brandChanged', handleBrandChange as any)
     }
-  }, [fetchCatalogProducts, fetchBrandDetails, fetchInventoryCount])
+  }, [fetchCatalogProducts, fetchBrandDetails, fetchInventoryCount, fetchCampaignCount])
 
   if (loading) {
     return (

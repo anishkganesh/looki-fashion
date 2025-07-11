@@ -40,123 +40,123 @@ import { useTranslation } from 'react-i18next'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
-  
-  const data = {
-    user: {
-      name: "johndoe",
-      email: "john@example.com",
-      avatar: "/avatars/shadcn.jpg",
-    },
-    navMain: [
-      {
+
+const data = {
+  user: {
+    name: "johndoe",
+    email: "john@example.com",
+    avatar: "/avatars/shadcn.jpg",
+  },
+  navMain: [
+    {
         title: t('navigation.dashboard'),
-        url: "#",
-        icon: LayoutDashboardIcon,
-      },
-      {
+      url: "#",
+      icon: LayoutDashboardIcon,
+    },
+    {
         title: t('navigation.trendSignals'),
-        url: "#",
-        icon: TrendingUpIcon,
-      },
-      {
+      url: "#",
+      icon: TrendingUpIcon,
+    },
+    {
         title: t('navigation.analytics'),
-        url: "#",
-        icon: BarChartIcon,
-      },
-      {
+      url: "#",
+      icon: BarChartIcon,
+    },
+    {
         title: t('navigation.catalog'),
-        url: "#",
-        icon: ShoppingBagIcon,
-      },
-      {
+      url: "#",
+      icon: ShoppingBagIcon,
+    },
+    {
         title: t('navigation.team'),
-        url: "#",
-        icon: UsersIcon,
-      },
-    ],
-    navClouds: [
-      {
+      url: "#",
+      icon: UsersIcon,
+    },
+  ],
+  navClouds: [
+    {
         title: t('navigation.trendInsights'),
-        icon: CameraIcon,
-        isActive: true,
-        url: "#",
-        items: [
-          {
+      icon: CameraIcon,
+      isActive: true,
+      url: "#",
+      items: [
+        {
             title: t('navigation.activeTrends'),
-            url: "#",
-          },
-          {
+          url: "#",
+        },
+        {
             title: t('navigation.archived'),
-            url: "#",
-          },
-        ],
-      },
-      {
+          url: "#",
+        },
+      ],
+    },
+    {
         title: t('navigation.catalogMatching'),
-        icon: FileTextIcon,
-        url: "#",
-        items: [
-          {
+      icon: FileTextIcon,
+      url: "#",
+      items: [
+        {
             title: t('navigation.matchedProducts'),
-            url: "#",
-          },
-          {
+          url: "#",
+        },
+        {
             title: t('navigation.pendingMatches'),
-            url: "#",
-          },
-        ],
-      },
-      {
+          url: "#",
+        },
+      ],
+    },
+    {
         title: t('navigation.recommendations'),
-        icon: FileCodeIcon,
-        url: "#",
-        items: [
-          {
+      icon: FileCodeIcon,
+      url: "#",
+      items: [
+        {
             title: t('navigation.promotionOpportunities'),
-            url: "#",
-          },
-          {
+          url: "#",
+        },
+        {
             title: t('navigation.restockAlerts'),
-            url: "#",
-          },
-        ],
-      },
-    ],
-    navSecondary: [
-      {
+          url: "#",
+        },
+      ],
+    },
+  ],
+  navSecondary: [
+    {
         title: t('navigation.settings'),
-        url: "#",
-        icon: SettingsIcon,
-      },
-      {
+      url: "#",
+      icon: SettingsIcon,
+    },
+    {
         title: t('navigation.help'),
-        url: "#",
-        icon: HelpCircleIcon,
-      },
-      {
+      url: "#",
+      icon: HelpCircleIcon,
+    },
+    {
         title: t('navigation.search'),
-        url: "#",
-        icon: SearchIcon,
-      },
-    ],
-    documents: [
-      {
+      url: "#",
+      icon: SearchIcon,
+    },
+  ],
+  documents: [
+    {
         name: t('navigation.trendLibrary'),
-        url: "#",
-        icon: DatabaseIcon,
-      },
-      {
+      url: "#",
+      icon: DatabaseIcon,
+    },
+    {
         name: t('navigation.reports'),
-        url: "#",
-        icon: ClipboardListIcon,
-      },
-      {
+      url: "#",
+      icon: ClipboardListIcon,
+    },
+    {
         name: t('navigation.trendInsights'),
-        url: "#",
-        icon: FileIcon,
-      },
-    ],
-  }
+      url: "#",
+      icon: FileIcon,
+    },
+  ],
+}
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

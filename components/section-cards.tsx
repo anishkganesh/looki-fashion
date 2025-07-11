@@ -98,7 +98,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           recommendationsData,
           productsData,
           brandSpecificTrendsData,
-          allRecommendationsData // Add a debug query
+          campaignsData
         ] = await Promise.all([
           // Active trends query (global) - removed time filter
           supabase
@@ -126,11 +126,12 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             .eq('brand_id', brandId)
             .single(),
             
-          // Debug: get all recommendations without filters
+          // Get active campaigns
           supabase
-            .from('recommendations')
-            .select('recommendation_id, brand_id, is_active')
-            .limit(10)
+            .from('campaigns')
+            .select('campaign_id, budget_min, budget_max, confidence_score, is_applied')
+            .eq('brand_id', brandId)
+            .eq('status', 'active')
         ])
 
         // Log all query results
@@ -143,15 +144,15 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           productsError: productsData.error,
           brandData: brandSpecificTrendsData.data,
           brandError: brandSpecificTrendsData.error,
-          allRecommendations: allRecommendationsData.data,
-          allRecommendationsError: allRecommendationsData.error
+          campaignsCount: campaignsData.data?.length || 0,
+          campaignsError: campaignsData.error
         })
 
         // Check for errors
         if (trendsData.error) console.error('Error fetching trends:', trendsData.error)
         if (recommendationsData.error) console.error('Error fetching recommendations:', recommendationsData.error)
         if (productsData.error) console.error('Error fetching products:', productsData.error)
-        if (allRecommendationsData.error) console.error('Error fetching all recommendations:', allRecommendationsData.error)
+        if (campaignsData.error) console.error('Error fetching campaigns:', campaignsData.error)
 
         // 1. Active Trends calculation - filter by brand region
         // Determine brand region
@@ -215,10 +216,12 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           sampleAlignments: alignments.slice(0, 3).map(r => r.alignment_score)
         })
 
-        // 3. Optimization Opportunities (all recommendations)
+        // 3. Optimization Opportunities (recommendations + campaigns)
         const currentRecommendations = recommendationsData.data || []
+        const activeCampaigns = campaignsData.data || []
         
-        const opportunitiesCount = currentRecommendations.length
+        // Count both recommendations and campaigns as opportunities
+        const opportunitiesCount = currentRecommendations.length + activeCampaigns.length
         // For now, estimate previous count based on current activity
         const previousOpportunitiesCount = Math.max(0, opportunitiesCount - 10)
         const opportunitiesChange = opportunitiesCount - previousOpportunitiesCount
@@ -232,7 +235,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           productMap.set(product.product_id, product)
         })
 
-        // Calculate potential revenue from recommended products
+        // Calculate potential revenue from recommended products and campaigns
         let potentialRevenue = 0
         let highAlignmentRevenue = 0 // Revenue from high-alignment products (opportunity)
         let productsWithRevenue = 0
@@ -258,6 +261,18 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             }
           } else {
             productsMissingFromMap++
+          }
+        })
+        
+        // Add campaign potential revenue (average of budget range)
+        activeCampaigns.forEach(campaign => {
+          const avgBudget = (campaign.budget_min + campaign.budget_max) / 2
+          potentialRevenue += avgBudget
+          
+          // High confidence campaigns (>= 80%) contribute to opportunity revenue
+          if (campaign.confidence_score >= 0.8) {
+            const confidenceBoost = (campaign.confidence_score - 0.7) // e.g., 0.85 - 0.7 = 0.15 boost
+            highAlignmentRevenue += avgBudget * confidenceBoost
           }
         })
         
@@ -432,7 +447,8 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
               trendsData,
               recommendationsData,
               productsData,
-              brandSpecificTrendsData
+              brandSpecificTrendsData,
+              campaignsData
             ] = await Promise.all([
               supabase
                 .from('trends')
@@ -451,7 +467,12 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
                 .from('brands')
                 .select('brand_name, country')
                 .eq('brand_id', brandId)
-                .single()
+                .single(),
+              supabase
+                .from('campaigns')
+                .select('campaign_id, budget_min, budget_max, confidence_score, is_applied')
+                .eq('brand_id', brandId)
+                .eq('status', 'active')
             ])
 
             // Calculate stats (same logic as before)
@@ -489,6 +510,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
               : 100
 
             const activeRecommendations = recommendationsData.data || []
+            const activeCampaigns = campaignsData.data || []
             const averageAlignment = activeRecommendations.length > 0
               ? activeRecommendations.reduce((sum, r) => sum + (r.alignment_score || 0), 0) / activeRecommendations.length
               : 0
@@ -497,9 +519,10 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
               new Date(r.created_at) >= weekAgo
             ).length || 0
             
+            const totalOpportunities = activeRecommendations.length + activeCampaigns.length
             const opportunityChange = currentWeekRecommendations
-            const opportunityPercentage = activeRecommendations.length > 0 
-              ? (currentWeekRecommendations / activeRecommendations.length) * 100 
+            const opportunityPercentage = totalOpportunities > 0 
+              ? (currentWeekRecommendations / totalOpportunities) * 100 
               : 0
 
             const productMap = new Map((productsData.data || []).map(p => [p.product_id, p]))
@@ -529,7 +552,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
                 percentage: ((averageAlignment - 70) / 70) * 100 
               },
               optimizationOpportunities: { 
-                value: activeRecommendations.length || 0, 
+                value: totalOpportunities || 0, 
                 change: opportunityChange, 
                 percentage: opportunityPercentage 
               },

@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const [catalogIntegrated, setCatalogIntegrated] = useState(false)
   const [productCount, setProductCount] = useState(0)
   const [recommendationCount, setRecommendationCount] = useState(0)
-  const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory'>('trends')
+  const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory' | 'campaigns'>('trends')
   const [selectedBrandId, setSelectedBrandId] = useState<string>("")
   const [statsLoading, setStatsLoading] = useState(true)
   const [chartLoading, setChartLoading] = useState(true)
@@ -352,11 +352,13 @@ export default function DashboardPage() {
                         {activeTab === 'trends' && t('dashboard.trendsTable.title.trends')}
                         {activeTab === 'catalog' && t('dashboard.trendsTable.title.catalog')}
                         {activeTab === 'inventory' && t('dashboard.trendsTable.title.inventory')}
+                        {activeTab === 'campaigns' && t('dashboard.trendsTable.title.campaigns')}
                       </h1>
                       <p className="text-sm text-muted-foreground">
                         {activeTab === 'trends' && t('dashboard.trendsTable.description.trends')}
                         {activeTab === 'catalog' && t('dashboard.trendsTable.description.catalog')}
                         {activeTab === 'inventory' && t('dashboard.trendsTable.description.inventory')}
+                        {activeTab === 'campaigns' && t('dashboard.trendsTable.description.campaigns')}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -371,13 +373,13 @@ export default function DashboardPage() {
                         {catalogIntegrated && productCount > 0 && (
                           <Badge variant="outline" className="gap-1">
                             <Database className="h-3 w-3" />
-                            {productCount} {t('catalog.title').toLowerCase()}
+                            {productCount} Products
                           </Badge>
                         )}
                         {recommendationCount > 0 && (
                           <Badge variant="outline" className="gap-1">
                             <Lightbulb className="h-3 w-3" />
-                            {recommendationCount} {t('trends.actions.noAction').toLowerCase()}
+                            {recommendationCount} Actions
                           </Badge>
                         )}
                         {autoRunEnabled && countdown && activeTab === 'trends' && (

@@ -799,6 +799,20 @@ export const CampaignTable = React.forwardRef<
         )
       },
     },
+    {
+      accessorKey: "created_at",
+      header: () => null,
+      cell: () => null,
+      enableHiding: true,
+      enableColumnFilter: false,
+    },
+    {
+      accessorKey: "budget_max",
+      header: () => null,
+      cell: () => null,
+      enableHiding: true,
+      enableColumnFilter: false,
+    },
   ]
 
   const table = useReactTable({

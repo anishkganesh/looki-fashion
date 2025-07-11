@@ -67,25 +67,25 @@ export default function RootLayout({
         <ChromeTranslateFix />
         <ErrorBoundary>
           <I18nProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="light"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <AuthProvider>
-                <GlobalChatProvider>
-                  <CatalogImportProvider>
-                    <ChatProvider>
-                      {children}
-                    </ChatProvider>
-                    <CatalogImportProgress />
-                  </CatalogImportProvider>
-                </GlobalChatProvider>
-              </AuthProvider>
-              <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <GlobalChatProvider>
+              <CatalogImportProvider>
+                <ChatProvider>
+                  {children}
+                </ChatProvider>
+                <CatalogImportProgress />
+              </CatalogImportProvider>
+            </GlobalChatProvider>
+          </AuthProvider>
+          <Toaster />
               <ChromeTranslateNotice />
-            </ThemeProvider>
+        </ThemeProvider>
           </I18nProvider>
         </ErrorBoundary>
       </body>
