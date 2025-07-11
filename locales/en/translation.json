@@ -153,12 +153,14 @@
       "title": {
         "trends": "Live Fashion Trends",
         "catalog": "Catalog Matches",
-        "inventory": "Inventory Actions"
+        "inventory": "Inventory Actions",
+        "campaigns": "Marketing Campaigns"
       },
       "description": {
         "trends": "Real-time fashion trend analysis from global sources (Active & Emerging)",
         "catalog": "Your integrated product catalog with trend analysis",
-        "inventory": "Recommended inventory actions based on trends"
+        "inventory": "Recommended inventory actions based on trends",
+        "campaigns": "AI-generated marketing campaigns bundling trending products"
       },
       "runTrendAgent": "Run Trend Agent",
       "running": "Running...",

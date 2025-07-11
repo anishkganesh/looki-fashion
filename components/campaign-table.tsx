@@ -31,6 +31,7 @@ import {
   FileDownIcon,
   MessageSquare,
   CheckCircle2Icon,
+  Check,
   PauseIcon,
   PlayIcon,
   HashIcon,
@@ -123,29 +124,41 @@ function CampaignDetailSheet({
   const [applying, setApplying] = React.useState(false)
   const [generatingImage, setGeneratingImage] = React.useState(false)
   const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
+  const [applied, setApplied] = React.useState(campaign?.is_applied || false)
+
+  React.useEffect(() => {
+    if (campaign) {
+      setApplied(campaign.is_applied || false)
+      setGeneratedImage(null)
+      setGeneratingImage(false)
+    }
+  }, [campaign])
   
   if (!campaign) return null
 
   const handleApply = async () => {
     setApplying(true)
     try {
+      const newAppliedState = !applied
+      
       const response = await fetch('/api/campaigns', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaign_id: campaign.campaign_id,
-          action: 'apply'
+          action: newAppliedState ? 'apply' : 'unapply'
         })
       })
 
-      if (!response.ok) throw new Error('Failed to apply campaign')
+      if (!response.ok) throw new Error('Failed to update campaign')
       
       const { campaign: updatedCampaign } = await response.json()
+      setApplied(newAppliedState)
       onUpdateCampaign(updatedCampaign)
-      toast.success('Campaign applied successfully')
+      toast.success(newAppliedState ? 'Campaign applied - performance will be tracked' : 'Campaign unapplied')
     } catch (error) {
       console.error('Error applying campaign:', error)
-      toast.error('Failed to apply campaign')
+      toast.error('Failed to update campaign')
     } finally {
       setApplying(false)
     }
@@ -234,20 +247,24 @@ function CampaignDetailSheet({
 
         {/* Action Buttons - Moved to top */}
         <div className="flex gap-2 mt-6">
-          {!campaign.is_applied && (
-            <Button 
-              onClick={handleApply} 
-              disabled={applying}
-              className="flex-1"
-            >
-              {applying ? (
-                <Loader2Icon className="h-4 w-4 animate-spin mr-2" />
-              ) : (
+          <Button 
+            onClick={handleApply} 
+            disabled={applying}
+            variant={applied ? "secondary" : "default"}
+            className="flex-1"
+          >
+            {applied ? (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Applied
+              </>
+            ) : (
+              <>
                 <CheckCircle2Icon className="h-4 w-4 mr-2" />
-              )}
-              Apply Campaign
-            </Button>
-          )}
+                Apply Campaign
+              </>
+            )}
+          </Button>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

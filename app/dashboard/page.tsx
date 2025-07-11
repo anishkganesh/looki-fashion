@@ -7,8 +7,9 @@ import { SectionCards } from "../../components/section-cards"
 import { SiteHeader } from "../../components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ChatLayout } from "@/components/chat-layout"
+import { RevenueMetrics } from "@/components/revenue-metrics"
 import { useRequireAuth } from "@/lib/auth-utils"
-import { Loader2, Clock, Database, StopCircle, PlayCircle, CheckCircle2, Lightbulb } from "lucide-react"
+import { Loader2, Clock, Database, StopCircle, PlayCircle, CheckCircle2, Lightbulb, RocketIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import * as React from "react"
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const [catalogIntegrated, setCatalogIntegrated] = useState(false)
   const [productCount, setProductCount] = useState(0)
   const [recommendationCount, setRecommendationCount] = useState(0)
+  const [campaignCount, setCampaignCount] = useState(0)
   const [activeTab, setActiveTab] = useState<'trends' | 'catalog' | 'inventory' | 'campaigns'>('trends')
   const [selectedBrandId, setSelectedBrandId] = useState<string>("")
   const [statsLoading, setStatsLoading] = useState(true)
@@ -131,6 +133,15 @@ export default function DashboardPage() {
           .eq('is_active', true)
         
         setRecommendationCount(recCount || 0)
+        
+        // Get campaign count
+        const { count: campCount, error: campError } = await supabase
+          .from('campaigns')
+          .select('*', { count: 'exact', head: true })
+          .eq('brand_id', userData.brand_id)
+        
+        console.log('Campaign count fetch:', { count: campCount, error: campError, brandId: userData.brand_id })
+        setCampaignCount(campCount || 0)
       }
     } catch (error) {
       console.error('Error checking catalog status:', error)
@@ -141,9 +152,9 @@ export default function DashboardPage() {
     checkCatalogStatus()
   }, [user])
   
-  // Refresh recommendation count when inventory tab is active
+  // Refresh counts when tabs are active
   useEffect(() => {
-    if (activeTab === 'inventory') {
+    if (activeTab === 'inventory' || activeTab === 'campaigns') {
       checkCatalogStatus()
     }
   }, [activeTab])
@@ -339,11 +350,14 @@ export default function DashboardPage() {
                   selectedBrandId={selectedBrandId} 
                   onLoadComplete={() => setStatsLoading(false)}
                 />
-                <div className="px-4 lg:px-6">
+                <div className="px-4 lg:px-6 space-y-4">
                   <ChartAreaInteractive 
                     selectedBrandId={selectedBrandId} 
                     onLoadComplete={() => setChartLoading(false)}
                   />
+                  {selectedBrandId && (
+                    <RevenueMetrics brandId={parseInt(selectedBrandId)} />
+                  )}
                 </div>
                 <div className="px-4 lg:px-6 space-y-4">
                   <div className="flex items-center justify-between">
@@ -380,6 +394,12 @@ export default function DashboardPage() {
                           <Badge variant="outline" className="gap-1">
                             <Lightbulb className="h-3 w-3" />
                             {recommendationCount} Actions
+                          </Badge>
+                        )}
+                        {campaignCount > 0 && (
+                          <Badge variant="outline" className="gap-1">
+                            <RocketIcon className="h-3 w-3" />
+                            {campaignCount} Campaigns
                           </Badge>
                         )}
                         {autoRunEnabled && countdown && activeTab === 'trends' && (
@@ -430,14 +450,12 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   
-                  {/* Progress Message */}
-                  {progressMessage && activeTab === 'trends' && (
-                    <div className="text-sm text-muted-foreground animate-pulse">
-                      {progressMessage}
-                    </div>
-                  )}
-                  
-                  <DataTableTrends onTabChange={setActiveTab} session={session} />
+                  <DataTableTrends 
+                    onTabChange={setActiveTab} 
+                    session={session}
+                    trendAgentGenerating={isScrapingManually}
+                    trendAgentProgress={progressMessage}
+                  />
                 </div>
               </div>
             </div>

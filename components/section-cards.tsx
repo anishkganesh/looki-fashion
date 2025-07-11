@@ -359,7 +359,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
               percentage: alignmentChangePercentage 
             },
             optimizationOpportunities: { 
-              value: totalRecommendations, 
+              value: opportunitiesCount, // Use the count that includes both recommendations and campaigns
               change: opportunitiesChange, 
               percentage: opportunitiesPercentage 
             },
@@ -618,7 +618,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
       percentage: `${stats.optimizationOpportunities.percentage >= 0 ? '+' : ''}${stats.optimizationOpportunities.percentage.toFixed(2)}%`
     },
     type: 'widget',
-    description: 'Total actionable recommendations available'
+    description: 'Total actionable recommendations and campaigns available'
   });
 
   const revenueContext = useContextMenu({

@@ -1270,9 +1270,11 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
   )
 }
 
-export function DataTableTrends({ onTabChange, session }: { 
+export function DataTableTrends({ onTabChange, session, trendAgentGenerating, trendAgentProgress }: { 
   onTabChange?: (tab: 'trends' | 'catalog' | 'inventory' | 'campaigns') => void
   session?: any
+  trendAgentGenerating?: boolean
+  trendAgentProgress?: string
 }) {
   const { t } = useTranslation()
   const [data, setData] = React.useState<Trend[]>([])
@@ -1306,6 +1308,8 @@ export function DataTableTrends({ onTabChange, session }: {
   const [generationProgress, setGenerationProgress] = React.useState("")
   const [campaignGenerating, setCampaignGenerating] = React.useState(false)
   const [campaignProgress, setCampaignProgress] = React.useState("")
+  const [marisaSyncing, setMarisaSyncing] = React.useState(false)
+  const [marisaSyncProgress, setMarisaSyncProgress] = React.useState("")
   const inventoryTableRef = React.useRef<any>(null)
   const campaignTableRef = React.useRef<any>(null)
   const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
@@ -1718,9 +1722,81 @@ export function DataTableTrends({ onTabChange, session }: {
     }
   }, [userBrandId, fetchInventoryCount, fetchCampaignCount])
 
+  // Handle Marisa product sync
+  const handleMarisaSync = React.useCallback(async () => {
+    if (!userBrandId || userBrandId !== 13) return // Only for Marisa brand
+    
+    try {
+      setMarisaSyncing(true)
+      setMarisaSyncProgress('Authenticating with Marisa API...')
+      
+      // Show progress messages
+      const progressMessages = [
+        { delay: 1000, message: "Fetching product catalog from Marisa..." },
+        { delay: 3000, message: "Processing product data..." },
+        { delay: 5000, message: "Mapping product attributes..." },
+        { delay: 7000, message: "Updating local catalog..." },
+        { delay: 9000, message: "Syncing revenue metrics..." },
+        { delay: 11000, message: "Finalizing sync..." }
+      ]
+      
+      const timeouts: NodeJS.Timeout[] = []
+      progressMessages.forEach(({ delay, message }) => {
+        const timeout = setTimeout(() => setMarisaSyncProgress(message), delay)
+        timeouts.push(timeout)
+      })
+      
+      const response = await fetch('/api/catalog/marisa/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ brandId: userBrandId })
+      })
+      
+      // Clear timeouts
+      timeouts.forEach(timeout => clearTimeout(timeout))
+      
+      if (!response.ok) {
+        let errorMessage = 'Sync failed'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = `Sync failed: ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        toast.success(`Sync complete! ${result.summary.inserted} new, ${result.summary.updated} updated, ${result.summary.deleted} removed`)
+        // Refresh catalog
+        await fetchCatalogProducts()
+        // Update product count
+        setProductCount(result.summary.totalProducts)
+        // Trigger revenue metrics refresh
+        window.dispatchEvent(new CustomEvent('revenueMetricsUpdated'))
+      } else {
+        throw new Error(result.error || 'Sync failed')
+      }
+    } catch (error: any) {
+      console.error('Marisa sync error:', error)
+      toast.error(`Sync failed: ${error.message}`)
+    } finally {
+      setMarisaSyncing(false)
+      setMarisaSyncProgress('')
+    }
+  }, [userBrandId, session, fetchCatalogProducts])
+
   // Generate recommendations handler
   const handleGenerateRecommendations = React.useCallback(async () => {
     if (!userBrandId || !session?.user?.email) return
+    
+    const timeouts: NodeJS.Timeout[] = []
     
     try {
       // Check credits first
@@ -1759,12 +1835,20 @@ export function DataTableTrends({ onTabChange, session }: {
       setGenerating(true)
       setGenerationProgress("Analyzing product catalog...")
       
-      // Add delay to show progress
-      setTimeout(() => setGenerationProgress("Identifying relevant fashion trends..."), 800)
-      setTimeout(() => setGenerationProgress("Matching products with trends..."), 2000)
-      setTimeout(() => setGenerationProgress("Calculating alignment scores..."), 3500)
-      setTimeout(() => setGenerationProgress("Generating personalized recommendations..."), 5000)
-      setTimeout(() => setGenerationProgress("Finalizing recommendations..."), 6500)
+      // Show progress messages
+      const progressMessages = [
+        { delay: 1000, message: "Identifying relevant fashion trends..." },
+        { delay: 2500, message: "Matching products with trends..." },
+        { delay: 4000, message: "Calculating alignment scores..." },
+        { delay: 5500, message: "Determining inventory actions..." },
+        { delay: 7000, message: "Generating personalized recommendations..." },
+        { delay: 8500, message: "Finalizing recommendations..." }
+      ]
+
+      progressMessages.forEach(({ delay, message }) => {
+        const timeout = setTimeout(() => setGenerationProgress(message), delay)
+        timeouts.push(timeout)
+      })
       
       const response = await fetch('/api/recommendations/generate', {
         method: 'POST',
@@ -1825,10 +1909,12 @@ export function DataTableTrends({ onTabChange, session }: {
       console.error('Error generating recommendations:', error)
       toast.error('Failed to generate recommendations')
     } finally {
+      // Clear all timeouts
+      timeouts.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout))
       setGenerating(false)
       setGenerationProgress("")
     }
-  }, [userBrandId, selectedBrandId])
+  }, [userBrandId, selectedBrandId, session?.user?.email, fetchInventoryCount])
 
   // Get current catalog sort label
   const getCurrentCatalogSortLabel = () => {
@@ -1903,13 +1989,6 @@ export function DataTableTrends({ onTabChange, session }: {
     <HydrationWrapper>
     <div suppressHydrationWarning>
       <div className="space-y-4">
-        {/* Progress message for recommendations */}
-        {generating && generationProgress && (
-          <div className="text-sm text-muted-foreground animate-pulse">
-            {generationProgress}
-          </div>
-        )}
-        
         {/* Active Brand Context Indicator */}
         {activeBrandContext && (
           <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg border">
@@ -2066,6 +2145,25 @@ export function DataTableTrends({ onTabChange, session }: {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  {userBrandId === 13 && ( // Show sync button only for Marisa brand
+                    <Button
+                      onClick={handleMarisaSync}
+                      disabled={marisaSyncing}
+                      size="sm"
+                    >
+                      {marisaSyncing ? (
+                        <>
+                          <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCwIcon className="mr-2 h-4 w-4" />
+                          Sync Products
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </>
               )}
               {activeTab === 'inventory' && (
@@ -2194,25 +2292,23 @@ export function DataTableTrends({ onTabChange, session }: {
           </div>
         </div>
 
-        {/* Progress message for recommendations */}
-        {activeTab === 'inventory' && generating && generationProgress && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 text-sm text-muted-foreground">
-            <Loader2Icon className="h-4 w-4 animate-spin" />
-            {generationProgress}
-          </div>
-        )}
 
-        {/* Progress message for campaigns */}
-        {activeTab === 'campaigns' && campaignGenerating && campaignProgress && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 text-sm text-muted-foreground">
-            <Loader2Icon className="h-4 w-4 animate-spin" />
-            {campaignProgress}
-          </div>
-        )}
 
         <div className="flex-1 overflow-hidden">
           <TabsContent value="trends" className="flex flex-col gap-4 m-0 p-0">
-            <div className="overflow-hidden rounded-lg border">
+            <div className="overflow-hidden rounded-lg border bg-card relative">
+              {/* Loading overlay when running trend agent */}
+              {trendAgentGenerating && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
+                    <div className="text-sm text-muted-foreground font-medium">
+                      {trendAgentProgress || "Running trend agent..."}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-muted font-sans">
                   {table.getHeaderGroups().map((headerGroup) => (
@@ -2349,12 +2445,25 @@ export function DataTableTrends({ onTabChange, session }: {
                   <div className="text-muted-foreground">{t('catalog.loadingProducts')}</div>
             </div>
               ) : (
-                <CatalogTable 
-                  products={catalogProducts} 
-                  searchQuery={searchQuery}
-                  sorting={catalogSorting}
-                  onSortingChange={setCatalogSorting}
-                />
+                <div className="relative">
+                  {/* Loading overlay when syncing */}
+                  {marisaSyncing && (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                      <div className="flex flex-col items-center gap-4">
+                        <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
+                        <div className="text-sm text-muted-foreground font-medium">
+                          {marisaSyncProgress || "Syncing products..."}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <CatalogTable 
+                    products={catalogProducts} 
+                    searchQuery={searchQuery}
+                    sorting={catalogSorting}
+                    onSortingChange={setCatalogSorting}
+                  />
+                </div>
               )}
           </TabsContent>
           
@@ -2365,6 +2474,8 @@ export function DataTableTrends({ onTabChange, session }: {
                   brandId={selectedBrandId ? parseInt(selectedBrandId) : userBrandId} 
                   session={session}
                   onRecommendationsGenerated={fetchInventoryCount}
+                  generating={generating}
+                  generationProgress={generationProgress}
                 />
               ) : (
             <div className="flex items-center justify-center py-10 rounded-lg border">

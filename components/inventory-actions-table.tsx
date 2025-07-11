@@ -42,7 +42,8 @@ import {
   Check,
   MinusCircleIcon,
   ArchiveIcon,
-  MinusCircle
+  MinusCircle,
+  ClockIcon
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -585,12 +586,18 @@ export const InventoryActionsTable = React.forwardRef<
     brandId: number; 
     session?: any;
     onRecommendationsGenerated?: () => void;
+    generating?: boolean;
+    generationProgress?: string;
   }
->(({ brandId, session, onRecommendationsGenerated }, ref) => {
+>(({ brandId, session, onRecommendationsGenerated, generating: parentGenerating, generationProgress: parentProgress }, ref) => {
   const [data, setData] = React.useState<InventoryAction[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [generating, setGenerating] = React.useState(false)
-  const [generationProgress, setGenerationProgress] = React.useState<string>("")
+  const [localGenerating, setLocalGenerating] = React.useState(false)
+  const [localProgress, setLocalProgress] = React.useState<string>("")
+  
+  // Use parent state if provided, otherwise use local state
+  const generating = parentGenerating !== undefined ? parentGenerating : localGenerating
+  const generationProgress = parentProgress !== undefined ? parentProgress : localProgress
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'confidence_score', desc: true }
   ])
@@ -929,6 +936,23 @@ export const InventoryActionsTable = React.forwardRef<
         return <span className="text-muted-foreground">-</span>
       },
     },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const isApplied = row.original.is_applied || row.original.applied_at
+        const status = isApplied ? 'active' : 'pending'
+        const variant = status === 'active' ? 'default' : 'secondary'
+        const icon = status === 'active' ? <CheckCircle2Icon className="h-3 w-3" /> : <ClockIcon className="h-3 w-3" />
+        
+        return (
+          <Badge variant={variant} className="gap-1">
+            {icon}
+            {status}
+          </Badge>
+        )
+      },
+    },
   ]
 
   const table = useReactTable({
@@ -995,6 +1019,7 @@ export const InventoryActionsTable = React.forwardRef<
                 <TableHead className="w-[150px]">Action</TableHead>
                 <TableHead className="w-[150px]">Confidence</TableHead>
                 <TableHead>Primary Reason</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1040,6 +1065,9 @@ export const InventoryActionsTable = React.forwardRef<
                   <TableCell>
                     <div className="h-4 w-48 bg-muted rounded animate-pulse" />
                   </TableCell>
+                  <TableCell>
+                    <div className="h-5 w-20 bg-muted rounded animate-pulse" />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -1059,7 +1087,19 @@ export const InventoryActionsTable = React.forwardRef<
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-hidden rounded-lg border bg-card relative">
+        {/* Loading overlay when generating */}
+        {generating && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
+              <div className="text-sm text-muted-foreground font-medium">
+                {generationProgress || "Generating recommendations..."}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (

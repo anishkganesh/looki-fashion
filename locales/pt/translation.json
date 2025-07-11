@@ -153,12 +153,14 @@
       "title": {
         "trends": "Tendências da Moda ao Vivo",
         "catalog": "Correspondências de Catálogo",
-        "inventory": "Ações de Inventário"
+        "inventory": "Ações de Inventário",
+        "campaigns": "Campanhas de Marketing"
       },
       "description": {
         "trends": "Análise de tendências de moda em tempo real de fontes globais (Ativas e Emergentes)",
         "catalog": "Seu catálogo de produtos integrado com análise de tendências",
-        "inventory": "Ações de inventário recomendadas com base em tendências"
+        "inventory": "Ações de inventário recomendadas com base em tendências",
+        "campaigns": "Campanhas de marketing geradas por IA agrupando produtos em tendência"
       },
       "runTrendAgent": "Executar Agente de Tendências",
       "running": "Executando...",
