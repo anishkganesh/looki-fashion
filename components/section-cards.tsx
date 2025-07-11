@@ -470,9 +470,9 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
                 .single(),
               supabase
                 .from('campaigns')
-                .select('campaign_id, budget_min, budget_max, confidence_score, is_applied')
+                .select('campaign_id, budget_min, budget_max, confidence_score, is_applied, status')
                 .eq('brand_id', brandId)
-                .eq('status', 'active')
+                .in('status', ['active', 'draft', 'paused'])
             ])
 
             // Calculate stats (same logic as before)
@@ -530,15 +530,27 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
               .filter(r => productMap.has(r.product_id))
               .map(r => productMap.get(r.product_id)!)
             
-            const potentialRevenue = currentRecommendedProducts.reduce((sum, p) => 
-              sum + ((p.current_price || 0) * Math.min(p.current_inventory_level || 0, 10)), 0
-            )
+            // Calculate potential revenue from products
+            let totalPotentialRevenue = 0
+            let opportunityRevenue = 0
             
-            const previousPotentialRevenue = potentialRevenue * 0.825
-            const revenueChange = potentialRevenue - previousPotentialRevenue
-            const revenuePercentage = previousPotentialRevenue > 0 
-              ? ((potentialRevenue - previousPotentialRevenue) / previousPotentialRevenue) * 100 
-              : 0
+            currentRecommendedProducts.forEach(p => {
+              const price = p.current_price || 0
+              const stock = Math.min(p.current_inventory_level || 0, 50) // Cap at 50 units
+              const productRevenue = price * stock
+              totalPotentialRevenue += productRevenue
+            })
+            
+            // Add campaign budgets to potential revenue
+            activeCampaigns.forEach(campaign => {
+              const avgBudget = (campaign.budget_min + campaign.budget_max) / 2
+              totalPotentialRevenue += avgBudget
+            })
+            
+            // Calculate opportunity revenue (15% improvement potential)
+            opportunityRevenue = totalPotentialRevenue * 0.15
+            
+            const revenuePercentage = 15 // 15% opportunity
 
             const updatedStats = {
               activeTrends: { 
@@ -557,8 +569,8 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
                 percentage: opportunityPercentage 
               },
               potentialRevenue: { 
-                value: Math.round(potentialRevenue) || 0, 
-                change: Math.round(revenueChange), 
+                value: Math.round(totalPotentialRevenue) || 0, 
+                change: Math.round(opportunityRevenue), 
                 percentage: revenuePercentage 
               }
             }

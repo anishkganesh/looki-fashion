@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { ProductDetailsPanel } from './product-details-panel'
+
 
 interface RevenueMetrics {
   totalTrackedProducts: number
@@ -45,8 +45,7 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
   const [loading, setLoading] = React.useState(true)
   const [productPerformance, setProductPerformance] = React.useState<ProductPerformance[]>([])
   const [selectedMetric, setSelectedMetric] = React.useState<string | null>(null)
-  const [selectedProduct, setSelectedProduct] = React.useState<any | null>(null)
-  const [productDetailOpen, setProductDetailOpen] = React.useState(false)
+
   
   const supabase = React.useMemo(
     () => createClient(
@@ -108,13 +107,25 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
           // Generate product performance data with real product names
           const mockProductPerformance: ProductPerformance[] = trackingData.map((item, index) => {
             const product = productMap.get(item.product_id)
+            
+            // Use real revenue data from product if available
+            const actualRevenue7d = product?.revenue_last_7d || 0
+            const actualUnitsSold = product?.units_sold_last_7d || 0
+            
+            // If no real data, calculate based on price and inventory
+            const estimatedRevenue = actualRevenue7d > 0 ? actualRevenue7d : 
+              (product?.current_price || 100) * Math.min(product?.current_inventory_level || 10, 50)
+            
+            const estimatedUnits = actualUnitsSold > 0 ? actualUnitsSold :
+              Math.min(product?.current_inventory_level || 10, 30)
+            
             return {
               product_id: item.product_id,
               product_name: product?.product_name || `Product ${item.product_id}`,
               product_code: product?.variant_sku || product?.product_code || `SKU-${item.product_id}`,
               revenue_change: -10 + Math.random() * 40, // -10% to +30%
-              revenue_7d: product?.revenue_last_7d || (1000 + Math.random() * 9000), // Use real data if available
-              units_sold_7d: product?.units_sold_last_7d || (10 + Math.floor(Math.random() * 90)),
+              revenue_7d: estimatedRevenue,
+              units_sold_7d: estimatedUnits,
               applied_action: item.action_type || 'promote',
               applied_date: new Date(item.applied_at).toLocaleDateString(),
               product: product // Store full product data
@@ -208,7 +219,8 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
   }, [brandId, supabase])
 
   const handleProductClick = (product: ProductPerformance) => {
-    setSelectedProduct(product.product || {
+    // Dispatch event to open product details in the main catalog view
+    const productData = product.product || {
       product_id: product.product_id,
       product_name: product.product_name,
       product_code: product.product_code,
@@ -216,8 +228,15 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
       current_inventory_level: product.units_sold_7d * 2, // Estimate
       stock_status: 'InStock',
       brand_id: brandId
-    })
-    setProductDetailOpen(true)
+    }
+    
+    // Trigger a custom event that the dashboard can listen to
+    window.dispatchEvent(new CustomEvent('openProductDetails', { 
+      detail: { product: productData } 
+    }))
+    
+    // Close the dialog
+    setSelectedMetric(null)
   }
   
   if (loading) {
@@ -537,13 +556,13 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
           <div className="space-y-4 pr-4">
             <div className="p-4 bg-secondary rounded-lg">
               <p className="text-sm text-muted-foreground mb-2">Brand Average Revenue</p>
-              <p className="text-2xl font-bold">$12,450</p>
+              <p className="text-2xl font-bold">$2,450</p>
               <p className="text-xs text-muted-foreground mt-1">Per product per week</p>
             </div>
             
             <div className="p-4 bg-primary/10 rounded-lg">
               <p className="text-sm text-muted-foreground mb-2">Optimized Products Average</p>
-              <p className="text-2xl font-bold text-primary">$13,485</p>
+              <p className="text-2xl font-bold text-primary">${Math.round(2450 * (1 + (metrics?.revenueVsBrandAverage || 0) / 100)).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {metrics?.revenueVsBrandAverage > 0 ? '+' : ''}{metrics?.revenueVsBrandAverage.toFixed(1)}% vs brand average
               </p>
@@ -556,21 +575,28 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
               <div className="space-y-2">
                 {productPerformance
                   .slice(0, 10)
-                  .map((product) => (
-                    <div 
-                      key={product.product_id} 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => handleProductClick(product)}
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{product.product_name}</p>
-                        <p className="text-xs text-muted-foreground">${product.revenue_7d.toLocaleString()} weekly revenue</p>
+                  .map((product) => {
+                    const brandAvg = 2450
+                    const percentAboveAvg = ((product.revenue_7d - brandAvg) / brandAvg * 100)
+                    return (
+                      <div 
+                        key={product.product_id} 
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                        onClick={() => handleProductClick(product)}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{product.product_name}</p>
+                          <p className="text-xs text-muted-foreground">${product.revenue_7d.toLocaleString()} weekly revenue</p>
+                        </div>
+                        <Badge 
+                          variant={percentAboveAvg > 0 ? "default" : "secondary"} 
+                          className="text-xs"
+                        >
+                          {percentAboveAvg > 0 ? '+' : ''}{percentAboveAvg.toFixed(0)}% {percentAboveAvg > 0 ? 'above' : 'below'} avg
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        {((product.revenue_7d / 12450 - 1) * 100).toFixed(0)}% above avg
-                      </Badge>
-                    </div>
-                  ))}
+                    )
+                  })}
               </div>
             </div>
           </div>
@@ -578,12 +604,6 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
       </DialogContent>
     </Dialog>
 
-    {/* Product Details Panel */}
-    <ProductDetailsPanel
-      product={selectedProduct}
-      open={productDetailOpen}
-      onOpenChange={setProductDetailOpen}
-    />
     </>
   )
 } 
