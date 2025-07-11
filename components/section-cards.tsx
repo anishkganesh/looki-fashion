@@ -237,7 +237,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
 
         // Calculate potential revenue from recommended products and campaigns
         let potentialRevenue = 0
-        let highAlignmentRevenue = 0 // Revenue from high-alignment products (opportunity)
+        let opportunityRevenue = 0 // Revenue opportunity
         let productsWithRevenue = 0
         let productsMissingFromMap = 0
         
@@ -245,19 +245,12 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           const product = productMap.get(rec.product_id)
           if (product) {
             const price = product.current_price || 0
-            const stock = product.current_inventory_level || 0
+            const stock = Math.min(product.current_inventory_level || 0, 50) // Cap at 50 units
             // Simple calculation: price × stock
             const productRevenue = price * stock
             if (productRevenue > 0) {
               potentialRevenue += productRevenue
               productsWithRevenue++
-              
-              // Calculate opportunity revenue from high-alignment products (>= 80%)
-              if (rec.alignment_score && rec.alignment_score >= 80) {
-                // The opportunity is a portion of the revenue based on how much above baseline (70%) the alignment is
-                const alignmentBoost = (rec.alignment_score - 70) / 100 // e.g., 85% - 70% = 15% boost
-                highAlignmentRevenue += productRevenue * alignmentBoost
-              }
             }
           } else {
             productsMissingFromMap++
@@ -268,13 +261,10 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
         activeCampaigns.forEach(campaign => {
           const avgBudget = (campaign.budget_min + campaign.budget_max) / 2
           potentialRevenue += avgBudget
-          
-          // High confidence campaigns (>= 80%) contribute to opportunity revenue
-          if (campaign.confidence_score >= 0.8) {
-            const confidenceBoost = (campaign.confidence_score - 0.7) // e.g., 0.85 - 0.7 = 0.15 boost
-            highAlignmentRevenue += avgBudget * confidenceBoost
-          }
         })
+        
+        // Calculate opportunity revenue as 15% of total potential
+        opportunityRevenue = Math.round(potentialRevenue * 0.15)
         
         console.log('SectionCards - Revenue calculation:', {
           totalRecommendations: currentRecommendations.length,
@@ -282,7 +272,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
           productsWithRevenue,
           productsMissingFromMap,
           potentialRevenue,
-          highAlignmentRevenue,
+          opportunityRevenue,
           sampleRecommendations: currentRecommendations.slice(0, 3).map(r => ({
             product_id: r.product_id,
             alignment_score: r.alignment_score
@@ -329,12 +319,10 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             ? ((alignmentPercentage - 70) / 70) * 100 
             : 0
 
-          // Revenue opportunity is the high-alignment revenue
-          const revenueOpportunity = Math.round(highAlignmentRevenue)
-          // Percentage is the opportunity as a percentage of total potential revenue
-          const revenueOpportunityPercentage = potentialRevenue > 0
-            ? (highAlignmentRevenue / potentialRevenue) * 100
-            : 0
+          // Revenue opportunity is already calculated above
+          const revenueOpportunity = opportunityRevenue
+          // Percentage is the opportunity as a percentage of total potential revenue (15%)
+          const revenueOpportunityPercentage = 15
 
           console.log('SectionCards - Final calculations:', {
             totalRecommendations,
@@ -756,7 +744,7 @@ export const SectionCards = React.forwardRef<{ clearCache: () => void }, { selec
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
               {stats.optimizationOpportunities.value}
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Product recommendations based on trend analysis</p>
+            <p className="text-xs text-muted-foreground mt-1">Product recommendations and marketing campaigns</p>
             <div className="absolute right-4 top-2 flex">
               <PackageIcon className={`h-4 w-4 ${stats.optimizationOpportunities.change >= 0 ? 'text-primary' : 'text-destructive'}`} />
             </div>

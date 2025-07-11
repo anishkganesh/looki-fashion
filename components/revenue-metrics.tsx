@@ -101,8 +101,8 @@ export function RevenueMetrics({ brandId }: { brandId: number }) {
           const successRate = 0.6 + Math.random() * 0.2
           const positiveGrowth = Math.round(totalProducts * successRate)
           
-          // Performance vs brand average: -5% to +10%
-          const vsBrand = -5 + Math.random() * 15
+          // Performance vs brand average: always positive 2% to 15%
+          const vsBrand = 2 + Math.random() * 13
           
           // Generate product performance data with real product names
           const mockProductPerformance: ProductPerformance[] = trackingData.map((item, index) => {
