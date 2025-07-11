@@ -981,22 +981,23 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting smart recommendation generation for brand:', brand_id)
 
-    // Fetch a mix of products - both high and low performers
+    // Fetch a mix of products - focus on best performers and problem products
     const { data: topProducts, error: topError } = await supabase
       .from('products')
       .select('*')
       .eq('brand_id', brand_id)
       .eq('is_active', true)
       .order('revenue_last_30d', { ascending: false })
-      .limit(30) // Top performers
+      .limit(15) // Reduced from 30 to focus on top performers
 
     const { data: bottomProducts, error: bottomError } = await supabase
       .from('products')
       .select('*')
       .eq('brand_id', brand_id)
       .eq('is_active', true)
+      .or('current_inventory_level.gt.300,days_of_supply.gt.60') // Focus on overstocked items
       .order('revenue_last_30d', { ascending: true })
-      .limit(20) // Low performers
+      .limit(10) // Reduced from 20
 
     if (topError || bottomError) {
       console.error('Error fetching products:', topError || bottomError)
@@ -1023,16 +1024,16 @@ export async function POST(request: NextRequest) {
       }, { status: 200 })
     }
     
-    console.log(`Found ${products.length} products (mix of high and low performers)`)
+    console.log(`Found ${products.length} products (top performers and problem inventory)`)
 
-    // Fetch more trends with lower threshold
+    // Fetch only the most relevant trends
     const { data: trends, error: trendsError } = await supabase
       .from('trends')
       .select('*')
       .in('lifecycle_stage', ['emerging', 'growing', 'peak'])
-      .gte('momentum_score', 15) // Lowered from 20 to 15
+      .gte('momentum_score', 40) // Increased from 15 to 40 for higher quality
       .order('momentum_score', { ascending: false })
-      .limit(150) // Increased from 100 to 150
+      .limit(50) // Reduced from 150 to focus on best trends
 
     if (trendsError) {
       console.error('Error fetching trends:', trendsError)
@@ -1052,7 +1053,7 @@ export async function POST(request: NextRequest) {
       }, { status: 200 })
     }
     
-    console.log(`Found ${trends.length} relevant trends`)
+    console.log(`Found ${trends.length} high-quality trends`)
 
     // Transform products to include category names
     const enrichedProducts = products.map(product => ({
@@ -1060,18 +1061,28 @@ export async function POST(request: NextRequest) {
       category: product.category_hierarchy || product.category || 'General'
     }))
 
-    // Find best product-trend pairs with increased pairs per product
+    // Find best product-trend pairs with higher quality threshold
     console.log('Finding best product-trend matches...')
-    const rawPairs = await findBestProductTrendPairs(enrichedProducts, trends, 4, 35) // Reduced from 5 to 2 for higher quality
+    const rawPairs = await findBestProductTrendPairs(
+      enrichedProducts, 
+      trends, 
+      2, // Reduced from 4 to 2 pairs per product for higher quality
+      50 // Increased from 35 to 50 minimum quality threshold
+    )
     
-    // The pairs are already curved by the findBestProductTrendPairs function
-    const pairs = rawPairs
+    // Sort by match score and take only the best
+    const sortedPairs = rawPairs.sort((a, b) => b.matchScore - a.matchScore)
+    const maxRecommendations = 30 // Target 30 high-quality recommendations
+    const pairs = sortedPairs.slice(0, maxRecommendations)
     
-    console.log(`Generated ${pairs.length} product-trend pairs with curved scores`)
+    console.log(`Generated ${pairs.length} high-quality product-trend pairs`)
     
-    // Ensure we have at least 100 recommendations
-    if (pairs.length < 100) {
-      console.warn(`Only ${pairs.length} pairs generated, which is less than the target of 100`)
+    if (pairs.length === 0) {
+      return NextResponse.json({ 
+        error: 'No high-quality matches found',
+        recommendations_count: 0,
+        message: 'Unable to find strong product-trend matches. Try adding more products or wait for new trends.'
+      }, { status: 200 })
     }
 
     // Clear existing recommendations

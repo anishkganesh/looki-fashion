@@ -1295,6 +1295,9 @@ export function DataTableTrends({ onTabChange, session }: {
   const [inventorySorting, setInventorySorting] = React.useState<SortingState>([
     { id: 'confidence_score', desc: true }
   ])
+  const [campaignSorting, setCampaignSorting] = React.useState<SortingState>([
+    { id: 'created_at', desc: true }
+  ])
   const [userBrandId, setUserBrandId] = React.useState<number | null>(null)
   const [inventoryCount, setInventoryCount] = React.useState(0)
   const [productCount, setProductCount] = React.useState(0)
@@ -1834,6 +1837,19 @@ export function DataTableTrends({ onTabChange, session }: {
     return sortMap[sortField] || 'Sort by'
   }
 
+  // Get current campaign sort label
+  const getCurrentCampaignSortLabel = () => {
+    if (campaignSorting.length === 0) return 'Newest First'
+    const sortField = campaignSorting[0].id
+    const sortMap: Record<string, string> = {
+      'created_at': 'Newest First',
+      'confidence_score': 'Confidence',
+      'status': 'Status',
+      'budget_max': 'Budget'
+    }
+    return sortMap[sortField] || 'Sort by'
+  }
+
   // Listen for brand changes from header
   React.useEffect(() => {
     const handleBrandChange = (event: CustomEvent) => {
@@ -1943,6 +1959,10 @@ export function DataTableTrends({ onTabChange, session }: {
                     // For inventory tab, update the table filter
                     if (activeTab === 'inventory' && inventoryTableRef.current?.setSearchFilter) {
                       inventoryTableRef.current.setSearchFilter(e.target.value)
+                    }
+                    // For campaigns tab, update the table filter
+                    if (activeTab === 'campaigns' && campaignTableRef.current?.setSearchFilter) {
+                      campaignTableRef.current.setSearchFilter(e.target.value)
                     }
                   }}
                   className="pl-8 w-[300px]"
@@ -2093,28 +2113,32 @@ export function DataTableTrends({ onTabChange, session }: {
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">
                         <ArrowUpDown className="mr-2 h-4 w-4" />
-                        <span className="hidden lg:inline">Sort</span>
+                        <span className="hidden lg:inline">{getCurrentCampaignSortLabel()}</span>
                         <ChevronDownIcon className="ml-2 h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuItem onClick={() => {
-                        // Sort by created date
+                        setCampaignSorting([{ id: 'created_at', desc: true }])
+                        campaignTableRef.current?.setSorting([{ id: 'created_at', desc: true }])
                       }}>
                         Newest First
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
-                        // Sort by confidence
+                        setCampaignSorting([{ id: 'confidence_score', desc: true }])
+                        campaignTableRef.current?.setSorting([{ id: 'confidence_score', desc: true }])
                       }}>
                         Confidence (High to Low)
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
-                        // Sort by status
+                        setCampaignSorting([{ id: 'status', desc: false }])
+                        campaignTableRef.current?.setSorting([{ id: 'status', desc: false }])
                       }}>
                         Status
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
-                        // Sort by budget
+                        setCampaignSorting([{ id: 'budget_max', desc: true }])
+                        campaignTableRef.current?.setSorting([{ id: 'budget_max', desc: true }])
                       }}>
                         Budget (High to Low)
                       </DropdownMenuItem>

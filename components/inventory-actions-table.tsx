@@ -345,81 +345,67 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
           </SheetDescription>
         </SheetHeader>
         
-        <div className="mt-6 space-y-6">
-          {/* Action Icons */}
-          <div>
-            <div className="flex gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleApplyRecommendation}
-                    >
-                      {applied ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <CheckCircle2Icon className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {applied ? 'Unapply Recommendation' : 'Apply Recommendation'}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={handleExport}>
-                      <FileDownIcon className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Export Data</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleGenerateImage}
-                      disabled={generatingImage}
-                    >
-                      {generatingImage ? (
-                        <Loader2Icon className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ImageIcon className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Generate Image</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleAddToChat}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Add to Chat</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            {applied && (
-              <p className="text-sm text-muted-foreground mt-2">
-                Recommendation applied and sales will be tracked
-              </p>
+        {/* Action Buttons - Moved to top */}
+        <div className="flex gap-2 mt-6">
+          <Button 
+            onClick={handleApplyRecommendation}
+            variant={applied ? "secondary" : "default"}
+            className="flex-1"
+          >
+            {applied ? (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Applied
+              </>
+            ) : (
+              <>
+                <CheckCircle2Icon className="h-4 w-4 mr-2" />
+                Apply Recommendation
+              </>
             )}
-          </div>
-          
+          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage}
+                >
+                  {generatingImage ? (
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Generate Image</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleExport}>
+                  <FileDownIcon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export Data</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleAddToChat}>
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Add to Chat</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        
+        <div className="mt-6 space-y-6">
           {generatedImage && (
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Generated Image</Label>
@@ -998,8 +984,75 @@ export const InventoryActionsTable = React.forwardRef<
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2Icon className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-muted">
+              <TableRow>
+                <TableHead className="w-[300px]">Product</TableHead>
+                <TableHead className="w-[250px]">Matched Trend</TableHead>
+                <TableHead className="w-[280px]">Match Score</TableHead>
+                <TableHead className="w-[150px]">Action</TableHead>
+                <TableHead className="w-[150px]">Confidence</TableHead>
+                <TableHead>Primary Reason</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-muted rounded animate-pulse" />
+                      <div className="space-y-2">
+                        <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+                        <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      <div className="h-4 w-40 bg-muted rounded animate-pulse" />
+                      <div className="h-5 w-20 bg-muted rounded animate-pulse" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-3">
+                      <div className="h-8 w-16 bg-muted rounded animate-pulse" />
+                      <div className="grid grid-cols-2 gap-2">
+                        {[...Array(4)].map((_, j) => (
+                          <div key={j} className="h-3 w-full bg-muted rounded animate-pulse" />
+                        ))}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+                      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-16 bg-muted rounded animate-pulse" />
+                      <div className="h-4 w-12 bg-muted rounded animate-pulse" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex items-center justify-between px-4">
+          <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+          <div className="flex items-center gap-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-8 w-8 bg-muted rounded animate-pulse" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }

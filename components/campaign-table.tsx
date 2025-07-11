@@ -444,6 +444,8 @@ export const CampaignTable = React.forwardRef<
   { 
     fetchCampaigns: () => void;
     generateCampaigns: () => void;
+    setSearchFilter: (value: string) => void;
+    setSorting: (sorting: SortingState) => void;
   },
   { 
     brandId: number; 
@@ -466,6 +468,7 @@ export const CampaignTable = React.forwardRef<
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null)
   const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [globalFilter, setGlobalFilter] = React.useState('')
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 20,
@@ -586,8 +589,10 @@ export const CampaignTable = React.forwardRef<
   // Expose methods to parent
   React.useImperativeHandle(ref, () => ({
     fetchCampaigns,
-    generateCampaigns
-  }), [fetchCampaigns, generateCampaigns])
+    generateCampaigns,
+    setSearchFilter: setGlobalFilter,
+    setSorting: setSorting,
+  }), [fetchCampaigns, generateCampaigns, setGlobalFilter, setSorting])
 
   const handleUpdateCampaign = (updatedCampaign: Campaign) => {
     setData(prev => prev.map(c => 
@@ -810,6 +815,7 @@ export const CampaignTable = React.forwardRef<
       sorting,
       columnFilters,
       pagination,
+      globalFilter,
     },
   })
 
