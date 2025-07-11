@@ -1301,6 +1301,8 @@ export function DataTableTrends({ onTabChange, session }: {
   const [campaignCount, setCampaignCount] = React.useState(0)
   const [generating, setGenerating] = React.useState(false)
   const [generationProgress, setGenerationProgress] = React.useState("")
+  const [campaignGenerating, setCampaignGenerating] = React.useState(false)
+  const [campaignProgress, setCampaignProgress] = React.useState("")
   const inventoryTableRef = React.useRef<any>(null)
   const campaignTableRef = React.useRef<any>(null)
   const [selectedBrandId, setSelectedBrandId] = React.useState<string>("")
@@ -2124,10 +2126,10 @@ export function DataTableTrends({ onTabChange, session }: {
                         campaignTableRef.current.generateCampaigns()
                       }
                     }}
-                    disabled={generating}
+                    disabled={campaignGenerating}
                     size="sm"
                   >
-                    {generating ? (
+                    {campaignGenerating ? (
                       <>
                         <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                         Generating...
@@ -2143,7 +2145,24 @@ export function DataTableTrends({ onTabChange, session }: {
               )}
           </div>
         </div>
-        <div className="w-full">
+
+        {/* Progress message for recommendations */}
+        {activeTab === 'inventory' && generating && generationProgress && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 text-sm text-muted-foreground">
+            <Loader2Icon className="h-4 w-4 animate-spin" />
+            {generationProgress}
+          </div>
+        )}
+
+        {/* Progress message for campaigns */}
+        {activeTab === 'campaigns' && campaignGenerating && campaignProgress && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 text-sm text-muted-foreground">
+            <Loader2Icon className="h-4 w-4 animate-spin" />
+            {campaignProgress}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-hidden">
           <TabsContent value="trends" className="flex flex-col gap-4 m-0 p-0">
             <div className="overflow-hidden rounded-lg border">
               <Table>
@@ -2313,6 +2332,10 @@ export function DataTableTrends({ onTabChange, session }: {
                 ref={campaignTableRef}
                 brandId={selectedBrandId ? parseInt(selectedBrandId) : userBrandId} 
                 session={session}
+                generating={campaignGenerating}
+                generationProgress={campaignProgress}
+                onGeneratingChange={setCampaignGenerating}
+                onProgressChange={setCampaignProgress}
                 onCampaignsGenerated={() => {
                   // Fetch campaign count
                   supabase

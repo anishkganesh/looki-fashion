@@ -449,12 +449,17 @@ export const CampaignTable = React.forwardRef<
     brandId: number; 
     session?: any;
     onCampaignsGenerated?: () => void;
+    generating?: boolean;
+    generationProgress?: string;
+    onGeneratingChange?: (generating: boolean) => void;
+    onProgressChange?: (progress: string) => void;
   }
->(({ brandId, session, onCampaignsGenerated }, ref) => {
+>(({ brandId, session, onCampaignsGenerated, generating: parentGenerating, generationProgress: parentProgress, onGeneratingChange, onProgressChange }, ref) => {
   const { t } = useTranslation()
   const [data, setData] = React.useState<Campaign[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [generating, setGenerating] = React.useState(false)
+  const [localGenerating, setLocalGenerating] = React.useState(false)
+  const [localProgress, setLocalProgress] = React.useState("")
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'created_at', desc: true }
   ])
@@ -465,6 +470,26 @@ export const CampaignTable = React.forwardRef<
     pageIndex: 0,
     pageSize: 20,
   })
+
+  // Use parent state if provided, otherwise use local state
+  const generating = parentGenerating !== undefined ? parentGenerating : localGenerating
+  const generationProgress = parentProgress !== undefined ? parentProgress : localProgress
+
+  const setGenerating = (value: boolean) => {
+    if (onGeneratingChange) {
+      onGeneratingChange(value)
+    } else {
+      setLocalGenerating(value)
+    }
+  }
+
+  const setProgress = (value: string) => {
+    if (onProgressChange) {
+      onProgressChange(value)
+    } else {
+      setLocalProgress(value)
+    }
+  }
 
   // Fetch campaigns
   const fetchCampaigns = React.useCallback(async () => {
@@ -504,6 +529,24 @@ export const CampaignTable = React.forwardRef<
     }
 
     setGenerating(true)
+    setProgress("Analyzing product catalog...")
+    
+    // Show progress messages
+    const progressMessages = [
+      { delay: 1000, message: "Identifying bundling opportunities..." },
+      { delay: 2500, message: "Analyzing product similarities..." },
+      { delay: 4000, message: "Matching with trending topics..." },
+      { delay: 5500, message: "Generating campaign strategies..." },
+      { delay: 7000, message: "Creating marketing content..." },
+      { delay: 8500, message: "Finalizing campaigns..." }
+    ]
+
+    const timeouts: NodeJS.Timeout[] = []
+    progressMessages.forEach(({ delay, message }) => {
+      const timeout = setTimeout(() => setProgress(message), delay)
+      timeouts.push(timeout)
+    })
+
     try {
       const response = await fetch('/api/campaigns/generate', {
         method: 'POST',
@@ -519,19 +562,22 @@ export const CampaignTable = React.forwardRef<
       const result = await response.json()
       
       if (result.campaigns_generated > 0) {
-        toast.success(`Generated ${result.campaigns_generated} campaigns`)
+        toast.success(t('campaigns.messages.generated', { count: result.campaigns_generated }))
         await fetchCampaigns()
         onCampaignsGenerated?.()
       } else {
-        toast.info('No campaign opportunities found')
+        toast.info(t('campaigns.messages.noOpportunities'))
       }
     } catch (error: any) {
       console.error('Error generating campaigns:', error)
       toast.error(error.message || 'Failed to generate campaigns')
     } finally {
+      // Clear all timeouts
+      timeouts.forEach(timeout => clearTimeout(timeout))
       setGenerating(false)
+      setProgress("")
     }
-  }, [brandId, session, onCampaignsGenerated, fetchCampaigns])
+  }, [brandId, session, onCampaignsGenerated, fetchCampaigns, t])
 
   React.useEffect(() => {
     fetchCampaigns()
@@ -777,7 +823,19 @@ export const CampaignTable = React.forwardRef<
 
   return (
     <>
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-lg border bg-card relative">
+        {/* Loading overlay when generating */}
+        {generating && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
+              <div className="text-sm text-muted-foreground font-medium">
+                {generationProgress || "Generating campaigns..."}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
