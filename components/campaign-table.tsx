@@ -232,6 +232,63 @@ function CampaignDetailSheet({
           <SheetDescription>{campaign.campaign_description}</SheetDescription>
         </SheetHeader>
 
+        {/* Action Buttons - Moved to top */}
+        <div className="flex gap-2 mt-6">
+          {!campaign.is_applied && (
+            <Button 
+              onClick={handleApply} 
+              disabled={applying}
+              className="flex-1"
+            >
+              {applying ? (
+                <Loader2Icon className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle2Icon className="h-4 w-4 mr-2" />
+              )}
+              Apply Campaign
+            </Button>
+          )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage}
+                >
+                  {generatingImage ? (
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Generate Visual</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleExport}>
+                  <FileDownIcon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleAddToChat}>
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Add to Chat</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
         <div className="mt-6 space-y-6">
           {/* Campaign Dates */}
           <div className="space-y-2">
@@ -317,7 +374,7 @@ function CampaignDetailSheet({
             <Label className="text-sm text-muted-foreground">
               Associated Trends ({campaign.trends?.length || 0})
             </Label>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-40 overflow-y-auto">
               {campaign.trends?.map((trend, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded-md">
                   <div>
@@ -377,63 +434,6 @@ function CampaignDetailSheet({
               />
             </div>
           )}
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-4">
-            {!campaign.is_applied && (
-              <Button 
-                onClick={handleApply} 
-                disabled={applying}
-                className="flex-1"
-              >
-                {applying ? (
-                  <Loader2Icon className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <CheckCircle2Icon className="h-4 w-4 mr-2" />
-                )}
-                Apply Campaign
-              </Button>
-            )}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={handleGenerateImage}
-                    disabled={generatingImage}
-                  >
-                    {generatingImage ? (
-                      <Loader2Icon className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ImageIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Generate Visual</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={handleExport}>
-                    <FileDownIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={handleAddToChat}>
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add to Chat</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
         </div>
       </SheetContent>
     </Sheet>

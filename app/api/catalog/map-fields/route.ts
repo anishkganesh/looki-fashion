@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
+import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!
@@ -48,8 +50,9 @@ export async function POST(request: NextRequest) {
       }
     `
 
+    const config = getAIConfig('structured')
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: config.model,
       messages: [
         { 
           role: 'system', 
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
         },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.3,
+      temperature: config.temperature,
       response_format: { type: 'json_object' }
     })
 

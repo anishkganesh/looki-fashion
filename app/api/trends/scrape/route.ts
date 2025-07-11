@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+import OpenAI from 'openai'
+import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import { supabaseService } from '@/lib/supabase-service'
-import OpenAI from 'openai'
 
 // Initialize services
 const firecrawl = new FirecrawlApp({ 
@@ -696,11 +699,21 @@ For each trend, provide a JSON array with these exact fields:
 
 Important: Return ONLY a valid JSON array. Extract SPECIFIC items with properly formatted names, not general categories.`
 
+    const config = getAIConfig('analytical')
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 1500
+      model: config.model,
+      messages: [
+        {
+          role: "system",
+          content: AI_CONFIG.systemPrompts.trendAnalyst
+        },
+        {
+          role: 'user', 
+          content: prompt
+        }
+      ],
+      temperature: config.temperature,
+      max_tokens: AI_CONFIG.maxTokens.trends
     })
     
     let trendsJson = response.choices[0].message.content?.trim() || '[]'

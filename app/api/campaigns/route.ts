@@ -116,7 +116,30 @@ export async function PATCH(request: NextRequest) {
       .from('campaigns')
       .update(updateData)
       .eq('campaign_id', campaign_id)
-      .select()
+      .select(`
+        *,
+        campaign_products (
+          *,
+          product:products (
+            product_id,
+            product_name,
+            variant_sku,
+            current_price,
+            current_inventory_level,
+            images
+          )
+        ),
+        campaign_trends (
+          *,
+          trend:trends (
+            trend_id,
+            trend_identifier,
+            trend_category,
+            lifecycle_stage,
+            momentum_score
+          )
+        )
+      `)
       .single()
 
     if (error) {
@@ -124,7 +147,23 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update campaign' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, campaign: data })
+    // Transform the data like in GET
+    const transformedCampaign = {
+      ...data,
+      products: data.campaign_products?.map((cp: any) => ({
+        ...cp.product,
+        inclusion_reason: cp.inclusion_reason,
+        expected_performance: cp.expected_performance
+      })) || [],
+      trends: data.campaign_trends?.map((ct: any) => ({
+        ...ct.trend,
+        relevance_score: ct.relevance_score,
+        link_reason: ct.link_reason,
+        link_factors: ct.link_factors
+      })) || []
+    }
+
+    return NextResponse.json({ success: true, campaign: transformedCampaign })
 
   } catch (error: any) {
     console.error('Error in campaign update:', error)

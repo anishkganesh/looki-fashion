@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import openaiClient from '@/lib/openai'
+import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,6 +90,39 @@ async function findBundlingOpportunities(products: any[], trends: any[]) {
       criteria.seasonality = true
       reasons.push(`Season: ${season}`)
     }
+
+    // Material/fabric bundling
+    const material = product.attributes?.materials?.[0] || 
+                    product.material ||
+                    (product.product_name?.toLowerCase().match(/(cotton|silk|wool|leather|denim|polyester|linen|cashmere|velvet|satin)/)?.[0])
+    if (material) {
+      individualKeys.push(`material:${material.toLowerCase()}`)
+      criteria.inventory = true // Reusing inventory for material
+      reasons.push(`Material: ${material}`)
+    }
+
+    // Pattern bundling
+    const pattern = product.attributes?.pattern || 
+                   (product.product_name?.toLowerCase().match(/(striped|floral|plaid|polka|geometric|animal|abstract|solid)/)?.[0])
+    if (pattern) {
+      individualKeys.push(`pattern:${pattern.toLowerCase()}`)
+      reasons.push(`Pattern: ${pattern}`)
+    }
+
+    // Occasion bundling
+    const occasion = product.attributes?.occasion || 
+                    (product.product_name?.toLowerCase().match(/(work|party|casual|formal|beach|athletic|evening|weekend)/)?.[0])
+    if (occasion) {
+      individualKeys.push(`occasion:${occasion.toLowerCase()}`)
+      reasons.push(`Occasion: ${occasion}`)
+    }
+
+    // Price point bundling (luxury, premium, mid-range, budget)
+    const pricePoint = price > 200 ? 'luxury' : 
+                      price > 100 ? 'premium' : 
+                      price > 50 ? 'mid-range' : 'budget'
+    individualKeys.push(`pricepoint:${pricePoint}`)
+    reasons.push(`Price point: ${pricePoint}`)
 
     // Create bundles for individual criteria first
     for (const key of individualKeys) {
@@ -254,7 +288,7 @@ async function findBundlingOpportunities(products: any[], trends: any[]) {
 }
 
 // Generate campaign using AI
-async function generateCampaignContent(bundle: any, brandInfo: any) {
+async function generateCampaignContent(bundle: any, brandInfo: any, existingCampaignNames: string[]) {
   const productList = bundle.products.slice(0, 10).map((p: any) => 
     `- ${p.product_name} ($${p.current_price})`
   ).join('\n')
@@ -263,12 +297,32 @@ async function generateCampaignContent(bundle: any, brandInfo: any) {
     `- ${t.trend_identifier} (${t.lifecycle_stage}, relevance: ${Math.round(t.relevanceScore * 100)}%)`
   ).join('\n')
 
-  const prompt = `Create a marketing campaign for a fashion brand with these products and trends.
+  // Create a diverse prompt based on bundle characteristics
+  const bundleType = bundle.bundleKey.split(':')[0]
+  const bundleValue = bundle.bundleKey.split(':')[1]?.split('|')[0]
+  
+  const creativityHints = {
+    category: "Focus on the product category's unique benefits and use cases",
+    price: "Emphasize value proposition and quality at this price point",
+    color: "Create a color story and mood around the palette",
+    style: "Highlight the lifestyle and personality of the target customer",
+    gender: "Speak to specific needs and preferences of this demographic",
+    season: "Capture the seasonal mood and timely relevance",
+    material: "Emphasize quality, comfort, and material benefits",
+    pattern: "Create visual storytelling around the design elements",
+    occasion: "Focus on the experience and emotions of the occasion",
+    pricepoint: "Position appropriately for the market segment"
+  }
+
+  const hint = creativityHints[bundleType as keyof typeof creativityHints] || "Be creative and unique"
+
+  const prompt = `Create a unique marketing campaign for a fashion brand. ${hint}
 
 Brand: ${brandInfo.brand_name} (${brandInfo.category})
 Target: ${brandInfo.target_gender || 'all'} aged ${brandInfo.target_age_min || 18}-${brandInfo.target_age_max || 65}
 Income Level: ${brandInfo.target_income_level || 'medium'}
 
+Bundle Type: ${bundleType} (${bundleValue})
 Bundle Criteria: ${bundle.bundleReasons.join(', ')}
 
 Products (${bundle.products.length} total):
@@ -277,15 +331,28 @@ ${productList}
 Matching Trends:
 ${trendList}
 
+IMPORTANT: Create a campaign name that is UNIQUE and DIFFERENT from these existing campaigns:
+${existingCampaignNames.join(', ')}
+
+Be creative with naming! Use diverse approaches like:
+- Metaphors and imagery (e.g., "Midnight Bloom Collection")
+- Action-oriented names (e.g., "Elevate Your Everyday")
+- Emotional connections (e.g., "Confidence Redefined")
+- Trend-inspired names (e.g., "Future Heritage")
+- Seasonal stories (e.g., "Solstice Dreams")
+- Material focus (e.g., "Luxe Layers")
+- Lifestyle moments (e.g., "Weekend Warriors")
+
 Generate a comprehensive campaign with:
-1. Campaign name (catchy, relevant to products and trends)
-2. Campaign description (2-3 sentences)
-3. Target audience description (specific demographics and psychographics)
-4. Budget recommendation with reasoning
-5. Marketing copy (3-4 sentences for social media)
-6. Hashtags (5-8 relevant ones)
-7. Content suggestions (3 specific post ideas)
-8. Why this campaign will succeed (3 reasons)
+1. Campaign name (MUST be unique and creative, avoid generic terms like "essentials" or "collection")
+2. Campaign description (2-3 sentences that tell a story)
+3. Target audience description (specific demographics, psychographics, and lifestyle)
+4. Budget recommendation with strategic reasoning
+5. Marketing copy (3-4 sentences that inspire action)
+6. Hashtags (5-8 creative and relevant ones, mix branded and trending)
+7. Content suggestions (3 specific, creative post ideas with visual concepts)
+8. Why this campaign will succeed (3 data-driven reasons)
+9. Competitive positioning (how this stands out in the market)
 
 Return as JSON:
 {
@@ -298,18 +365,20 @@ Return as JSON:
   "marketingCopy": "",
   "hashtags": [],
   "contentSuggestions": [
-    { "type": "post|story|reel", "idea": "", "timing": "" }
+    { "type": "post|story|reel", "idea": "", "timing": "", "visualConcept": "" }
   ],
-  "successReasons": []
+  "successReasons": [],
+  "competitivePositioning": ""
 }`
 
   try {
+    const config = getAIConfig('creative')
     const response = await openaiClient.chat.completions.create({
-      model: "gpt-4o",
+      model: config.model,
       messages: [
         {
           role: "system",
-          content: "You are a fashion marketing strategist. Create data-driven campaigns that leverage trends and product bundles. Be specific and actionable."
+          content: AI_CONFIG.systemPrompts.marketingStrategist
         },
         {
           role: "user",
@@ -317,8 +386,8 @@ Return as JSON:
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 1000
+      temperature: config.temperature,
+      max_tokens: AI_CONFIG.maxTokens.campaigns
     })
 
     const content = response.choices[0]?.message?.content
@@ -460,7 +529,7 @@ export async function POST(request: NextRequest) {
     const campaigns = []
     for (const bundle of bundles.slice(0, 5)) { // Generate up to 5 campaigns
       try {
-        const aiContent = await generateCampaignContent(bundle, brandInfo)
+        const aiContent = await generateCampaignContent(bundle, brandInfo, campaigns.map(c => c.campaign_name))
         
         // Calculate campaign dates
         const startDate = new Date()

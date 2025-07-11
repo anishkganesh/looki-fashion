@@ -1,5 +1,7 @@
-import openaiClient from '@/lib/openai';
-import { supabaseService } from '@/lib/supabase-service';
+import { NextRequest, NextResponse } from 'next/server'
+import openaiClient from '@/lib/openai'
+import { supabaseService } from '@/lib/supabase-service'
+import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
 
 export async function POST(req: Request) {
   console.log("Chat API called");
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
     if (!systemMessageExists) {
       finalMessages.unshift({
         role: 'system',
-        content: `You are Looki AI, a helpful assistant specializing in fashion trend intelligence. You can provide information, analyze files, and help with trend-related queries. When web search results are provided to you, use them to answer questions, but do not mention "searching the web" unless you actually receive search results. Focus on providing clear, actionable insights.${brandContext}`
+        content: `${AI_CONFIG.systemPrompts.fashionExpert} You can provide information, analyze files, and help with trend-related queries. When web search results are provided to you, use them to answer questions, but do not mention "searching the web" unless you actually receive search results. Focus on providing clear, actionable insights.${brandContext}`
       });
     } else if (brandContext) {
       // If system message exists, append brand context to it
@@ -219,11 +221,9 @@ export async function POST(req: Request) {
     console.log("Sending OpenAI request with message count:", finalMessages.length);
     
     // Use GPT-4o for all requests (it has vision capabilities)
-    const model = 'gpt-4o';
-    
-    // Use OpenAI's API to get a response with appropriate configuration
+    const config = getAIConfig('balanced')
     const response = await openaiClient.chat.completions.create({
-      model: model,
+      model: config.model,
       messages: finalMessages.map(m => {
         // Handle special case for images
         if (m.content && typeof m.content !== 'string') {
@@ -232,7 +232,8 @@ export async function POST(req: Request) {
         return { role: m.role, content: m.content };
       }),
       stream: false, // Use non-streaming
-      max_tokens: 1024, // Increase token limit for complex responses
+      max_tokens: AI_CONFIG.maxTokens.chat,
+      temperature: config.temperature,
     });
     
     const content = response.choices[0]?.message?.content || "No response generated";

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import openaiClient from '@/lib/openai'
+import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
 
 // Verify imports are working
 if (process.env.NODE_ENV === 'development') {
@@ -891,12 +892,13 @@ Response must be in JSON format:
   ]
 }`
 
+    const config = getAIConfig('analytical')
     const response = await openaiClient.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: config.model,
       messages: [
         {
           role: "system",
-          content: "You are a fashion retail analyst. Provide specific, actionable recommendations based on data. Be concise but insightful. Always respond in valid JSON format."
+          content: AI_CONFIG.systemPrompts.inventoryOptimizer
         },
         {
           role: "user",
@@ -904,8 +906,8 @@ Response must be in JSON format:
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3,
-      max_tokens: 600
+      temperature: config.temperature,
+      max_tokens: AI_CONFIG.maxTokens.inventory
     })
 
     const content = response.choices[0]?.message?.content
