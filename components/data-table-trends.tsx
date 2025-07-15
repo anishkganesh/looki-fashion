@@ -566,11 +566,12 @@ const columns: ColumnDef<Trend>[] = [
   },
 ]
 
-function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: { 
+function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBrandId }: { 
   trend: any | null, 
   open: boolean, 
   onOpenChange: (open: boolean) => void,
-  onUpdateTrend: (trend: any) => void
+  onUpdateTrend: (trend: any) => void,
+  selectedBrandId: number | null
 }) {
   const router = useRouter()
   const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
@@ -707,20 +708,27 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
         return
       }
       
-      // Get user's brand ID using email
-      const { data: userData } = await supabase
-        .from('usr')
-        .select('brand_id')
-        .eq('email', user.email)
-        .single()
+      // Use selectedBrandId if available, otherwise get user's default brand
+      let brandIdToUse = selectedBrandId
       
-      if (!userData?.brand_id) {
-        toast.error('Brand not found')
-        setGeneratingCampaign(false)
-        return
+      if (!brandIdToUse) {
+        // Fallback to user's default brand if no brand selected
+        const { data: userData } = await supabase
+          .from('usr')
+          .select('brand_id')
+          .eq('email', user.email)
+          .single()
+        
+        if (!userData?.brand_id) {
+          toast.error('No brand selected')
+          setGeneratingCampaign(false)
+          return
+        }
+        
+        brandIdToUse = userData.brand_id
       }
       
-      console.log('Generating campaign for trend:', trend.trend_id, 'brand:', userData.brand_id)
+      console.log('Generating campaign for trend:', trend.trend_id, 'brand:', brandIdToUse)
       
       // Generate campaign from this specific trend
       const response = await fetch('/api/campaigns/generate-single', {
@@ -729,7 +737,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          brand_id: userData.brand_id,
+          brand_id: brandIdToUse,
           trend_id: trend.trend_id
         })
       })
@@ -2722,7 +2730,8 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
         open={sheetOpen} 
         onOpenChange={setSheetOpen}
         onUpdateTrend={handleUpdateTrend}
-        />
+        selectedBrandId={selectedBrandId ? parseInt(selectedBrandId) : userBrandId}
+      />
       </div>
     </div>
     </HydrationWrapper>
