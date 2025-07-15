@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import openaiClient from '@/lib/openai'
+import OpenAI from 'openai'
 import { getAIConfig } from '@/lib/ai-config'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+const openaiClient = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +21,22 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Generating campaign for trend:', trend_id, 'brand:', brand_id)
+    
+    // Test if campaigns table exists
+    const { data: tableCheck, error: tableError } = await supabase
+      .from('campaigns')
+      .select('campaign_id')
+      .limit(1)
+    
+    if (tableError) {
+      console.error('Error accessing campaigns table:', tableError)
+      return NextResponse.json({ 
+        error: 'Cannot access campaigns table',
+        details: tableError.message
+      }, { status: 500 })
+    }
+    
+    console.log('Campaigns table accessible')
 
     // Fetch brand info
     const { data: brandInfo, error: brandError } = await supabase
@@ -201,60 +221,78 @@ Format as JSON with these exact keys:
 
       const aiContent = JSON.parse(completion.choices[0].message.content || '{}')
       
+      console.log('AI generated campaign content:', aiContent)
+      
       // Create campaign
       const startDate = new Date()
       const endDate = new Date()
       endDate.setMonth(endDate.getMonth() + 2) // 2 month campaign for single trend
       
+      const campaignData = {
+        brand_id,
+        campaign_name: aiContent.campaign_name,
+        campaign_description: aiContent.campaign_description,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        status: 'draft',
+        bundle_criteria: {
+          trend: trend.trend_identifier,
+          productCount: selectedProducts.length,
+          trendMatch: 'direct'
+        },
+        bundle_reasons: [`Direct match with ${trend.trend_identifier} trend`, `${selectedProducts.length} products aligned`],
+        target_audience: {
+          age_min: trend.target_age_min || 18,
+          age_max: trend.target_age_max || 65,
+          gender: trend.target_gender || 'all',
+          locations: trend.target_locations || [],
+          income_level: trend.target_income_level || 'medium',
+          interests: trend.target_interests || []
+        },
+        target_audience_description: aiContent.target_audience,
+        budget_min: aiContent.budget_min,
+        budget_max: aiContent.budget_max,
+        budget_currency: 'USD',
+        budget_reasoning: aiContent.budget_reasoning,
+        marketing_copy: aiContent.marketing_copy,
+        hashtags: aiContent.hashtags,
+        content_suggestions: aiContent.content_suggestions,
+        confidence_score: 0.6 + (trend.momentum_score / 100) * 0.4,
+        generation_reasons: {
+          productCount: selectedProducts.length,
+          trend: trend.trend_identifier,
+          trendMomentum: trend.momentum_score,
+          matchingProducts: matchingProducts.length,
+          successPrediction: aiContent.success_prediction
+        },
+        trend_id: trend.trend_id,
+        social_reach: trend.social_reach
+      }
+      
+      console.log('Attempting to insert campaign with data:', JSON.stringify(campaignData, null, 2))
+      
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
-        .insert({
-          brand_id,
-          campaign_name: aiContent.campaign_name,
-          campaign_description: aiContent.campaign_description,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
-          status: 'draft',
-          bundle_criteria: {
-            trend: trend.trend_identifier,
-            productCount: selectedProducts.length,
-            trendMatch: 'direct'
-          },
-          bundle_reasons: [`Direct match with ${trend.trend_identifier} trend`, `${selectedProducts.length} products aligned`],
-          target_audience: {
-            age_min: trend.target_age_min || 18,
-            age_max: trend.target_age_max || 65,
-            gender: trend.target_gender || 'all',
-            locations: trend.target_locations || [],
-            income_level: trend.target_income_level || 'medium',
-            interests: trend.target_interests || []
-          },
-          target_audience_description: aiContent.target_audience,
-          budget_min: aiContent.budget_min,
-          budget_max: aiContent.budget_max,
-          budget_currency: 'USD',
-          budget_reasoning: aiContent.budget_reasoning,
-          marketing_copy: aiContent.marketing_copy,
-          hashtags: aiContent.hashtags,
-          content_suggestions: aiContent.content_suggestions,
-          confidence_score: 0.6 + (trend.momentum_score / 100) * 0.4,
-          generation_reasons: {
-            productCount: selectedProducts.length,
-            trend: trend.trend_identifier,
-            trendMomentum: trend.momentum_score,
-            matchingProducts: matchingProducts.length,
-            successPrediction: aiContent.success_prediction
-          },
-          trend_id: trend.trend_id,
-          social_reach: trend.social_reach
-        })
+        .insert(campaignData)
         .select()
         .single()
       
       if (campaignError) {
         console.error('Error creating campaign:', campaignError)
-        throw campaignError
+        console.error('Campaign error details:', {
+          message: campaignError.message,
+          details: campaignError.details,
+          hint: campaignError.hint,
+          code: campaignError.code
+        })
+        return NextResponse.json({ 
+          error: 'Failed to create campaign in database',
+          details: campaignError.message,
+          hint: campaignError.hint
+        }, { status: 500 })
       }
+      
+      console.log('Campaign created successfully:', campaign)
       
       // Insert campaign products
       const productInserts = selectedProducts.map((product: any, index: number) => ({

@@ -720,6 +720,8 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
         return
       }
       
+      console.log('Generating campaign for trend:', trend.trend_id, 'brand:', userData.brand_id)
+      
       // Generate campaign from this specific trend
       const response = await fetch('/api/campaigns/generate-single', {
         method: 'POST',
@@ -732,12 +734,25 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
         })
       })
       
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to generate campaign')
+      console.log('Campaign generation response status:', response.status)
+      
+      const responseText = await response.text()
+      console.log('Response text:', responseText)
+      
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse response:', responseText)
+        throw new Error('Invalid response from server')
       }
       
-      const result = await response.json()
+      if (!response.ok) {
+        console.error('Campaign generation failed:', result)
+        throw new Error(result.error || result.details || 'Failed to generate campaign')
+      }
+      
+      console.log('Campaign generated successfully:', result)
       toast.success(`Campaign "${result.campaign_name}" created successfully!`)
       
       // Close the sheet
@@ -745,6 +760,9 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
       
       // Refresh campaigns if the tab is active
       window.dispatchEvent(new CustomEvent('refreshCampaigns'))
+      
+      // Also refresh campaign count
+      window.dispatchEvent(new CustomEvent('campaignsUpdated'))
       
     } catch (error: any) {
       console.error('Error generating campaign:', error)
@@ -1837,7 +1855,21 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
       fetchInventoryCount()
       fetchCampaignCount()
     }
-  }, [userBrandId, fetchInventoryCount, fetchCampaignCount])
+  }, [userBrandId, selectedBrandId, fetchInventoryCount, fetchCampaignCount])
+  
+  // Listen for campaigns updated event
+  React.useEffect(() => {
+    const handleCampaignsUpdated = () => {
+      console.log('Campaigns updated, refreshing count...')
+      fetchCampaignCount()
+    }
+    
+    window.addEventListener('campaignsUpdated', handleCampaignsUpdated)
+    
+    return () => {
+      window.removeEventListener('campaignsUpdated', handleCampaignsUpdated)
+    }
+  }, [fetchCampaignCount])
 
   // Handle Marisa product sync
   const handleMarisaSync = React.useCallback(async () => {
