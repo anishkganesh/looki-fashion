@@ -31,15 +31,13 @@ export async function GET(request: NextRequest) {
             images
           )
         ),
-        campaign_trends (
-          *,
-          trend:trends (
-            trend_id,
-            trend_identifier,
-            trend_category,
-            lifecycle_stage,
-            momentum_score
-          )
+        trend:trends!trend_id (
+          trend_id,
+          trend_identifier,
+          trend_category,
+          lifecycle_stage,
+          momentum_score,
+          social_reach
         )
       `)
       .eq('brand_id', brand_id)
@@ -58,12 +56,7 @@ export async function GET(request: NextRequest) {
         inclusion_reason: cp.inclusion_reason,
         expected_performance: cp.expected_performance
       })) || [],
-      trends: campaign.campaign_trends?.map((ct: any) => ({
-        ...ct.trend,
-        relevance_score: ct.relevance_score,
-        link_reason: ct.link_reason,
-        link_factors: ct.link_factors
-      })) || []
+      trends: campaign.trend ? [campaign.trend] : [] // Convert single trend to array for compatibility
     }))
 
     return NextResponse.json({
@@ -136,15 +129,13 @@ export async function PATCH(request: NextRequest) {
             images
           )
         ),
-        campaign_trends (
-          *,
-          trend:trends (
-            trend_id,
-            trend_identifier,
-            trend_category,
-            lifecycle_stage,
-            momentum_score
-          )
+        trend:trends!trend_id (
+          trend_id,
+          trend_identifier,
+          trend_category,
+          lifecycle_stage,
+          momentum_score,
+          social_reach
         )
       `)
       .single()
@@ -162,12 +153,7 @@ export async function PATCH(request: NextRequest) {
         inclusion_reason: cp.inclusion_reason,
         expected_performance: cp.expected_performance
       })) || [],
-      trends: data.campaign_trends?.map((ct: any) => ({
-        ...ct.trend,
-        relevance_score: ct.relevance_score,
-        link_reason: ct.link_reason,
-        link_factors: ct.link_factors
-      })) || []
+      trends: data.trend ? [data.trend] : [] // Convert single trend to array for compatibility
     }
 
     return NextResponse.json({ success: true, campaign: transformedCampaign })

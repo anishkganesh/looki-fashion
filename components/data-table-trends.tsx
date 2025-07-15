@@ -98,6 +98,8 @@ import { HydrationWrapper } from "@/components/hydration-wrapper"
 import { formatDate, formatRelativeDate } from "@/lib/date-utils"
 import { supabase } from "@/lib/supabase"
 import { useTranslation } from 'react-i18next'
+import { ExportDropdown } from "@/components/ui/export-dropdown"
+import { exportTrends, exportProducts, exportRecommendations, exportCampaigns, type ExportFormat } from "@/lib/export-utils"
 
 // Add type definitions
 type InventoryActionsTableRef = any
@@ -118,7 +120,10 @@ interface Trend {
   risk_score: number
   predicted_peak_date: string
   predicted_decline_date: string
-  competitor_adoption: number
+  competitor_adoption?: {
+    brands: string[]
+    percentage: number
+  }
   seasonality_factor: number
   // Demographic fields
   target_age_min?: number
@@ -502,6 +507,43 @@ const columns: ColumnDef<Trend>[] = [
     },
   },
   {
+    accessorKey: "competitor_adoption",
+    header: "Competitors",
+    cell: ({ row }) => {
+      const adoption = row.original.competitor_adoption
+      if (!adoption || !adoption.brands || adoption.brands.length === 0) {
+        return <span className="text-sm text-muted-foreground">—</span>
+      }
+      
+      const displayBrands = adoption.brands.slice(0, 2).join(', ')
+      const moreBrands = adoption.brands.length > 2 ? ` +${adoption.brands.length - 2}` : ''
+      
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex flex-col gap-0.5 cursor-pointer">
+                <span className="text-sm truncate max-w-[120px]">
+                  {displayBrands}{moreBrands}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {adoption.percentage}% adoption
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="space-y-1">
+                <p className="font-semibold">Competitor Adoption</p>
+                <p className="text-sm">{adoption.brands.join(', ')}</p>
+                <p className="text-sm text-muted-foreground">{adoption.percentage}% of competitors</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    },
+  },
+  {
     accessorKey: "created_at",
     header: "Added",
     cell: ({ row }) => {
@@ -525,14 +567,18 @@ const columns: ColumnDef<Trend>[] = [
 ]
 
 function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: { 
-  trend: Trend | null, 
+  trend: any | null, 
   open: boolean, 
   onOpenChange: (open: boolean) => void,
-  onUpdateTrend: (trend: Trend) => void
+  onUpdateTrend: (trend: any) => void
 }) {
   const router = useRouter()
   const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
   const [generatingImage, setGeneratingImage] = React.useState(false)
+  const [updating, setUpdating] = React.useState(false)
+  const [generatingCampaign, setGeneratingCampaign] = React.useState(false)
+  const { t } = useTranslation()
+  
   const supabase = React.useMemo(
     () => createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -591,34 +637,33 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
   }
 
   const handleAddToWatchlist = async () => {
+    if (!trend) return
+    
+    setUpdating(true)
     try {
       const { error } = await supabase
         .from('trends')
         .update({ watchlist: !trend.watchlist })
         .eq('trend_id', trend.trend_id)
       
-      if (error) {
-        throw error
-      }
+      if (error) throw error
+      
+      // Update local state
+      const updatedTrend = { ...trend, watchlist: !trend.watchlist }
+      onUpdateTrend(updatedTrend)
       
       toast.success(trend.watchlist ? 'Removed from watchlist' : 'Added to watchlist')
-      onUpdateTrend({ ...trend, watchlist: !trend.watchlist })
     } catch (error) {
       console.error('Error updating watchlist:', error)
       toast.error('Failed to update watchlist')
+    } finally {
+      setUpdating(false)
     }
   }
 
-  const handleExport = () => {
-    const data = JSON.stringify(trend, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `trend-${trend.trend_identifier}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Trend data exported')
+  const handleExport = (format: ExportFormat) => {
+    exportTrends([trend], format)
+    toast.success(`Trend exported as ${format.toUpperCase()}`)
   }
 
   const handleAddContext = () => {
@@ -650,6 +695,56 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
     toast.success('Context added to chat');
   }
 
+  const handleGenerateCampaign = async () => {
+    setGeneratingCampaign(true)
+    try {
+      // Get user's brand ID
+      const { data: userData } = await supabase
+        .from('usr')
+        .select('brand_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single()
+      
+      if (!userData?.brand_id) {
+        toast.error('Brand not found')
+        setGeneratingCampaign(false)
+        return
+      }
+      
+      // Generate campaign from this specific trend
+      const response = await fetch('/api/campaigns/generate-single', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          brand_id: userData.brand_id,
+          trend_id: trend.trend_id
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate campaign')
+      }
+      
+      const result = await response.json()
+      toast.success(`Campaign "${result.campaign_name}" created successfully!`)
+      
+      // Close the sheet
+      onOpenChange(false)
+      
+      // Refresh campaigns if the tab is active
+      window.dispatchEvent(new CustomEvent('refreshCampaigns'))
+      
+    } catch (error: any) {
+      console.error('Error generating campaign:', error)
+      toast.error(error.message || 'Failed to generate campaign')
+    } finally {
+      setGeneratingCampaign(false)
+    }
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[540px] sm:max-w-[540px] overflow-y-auto">
@@ -665,11 +760,16 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
-                    variant={trend.watchlist ? "default" : "outline"} 
+                    variant={trend.watchlist ? "secondary" : "outline"} 
                     size="sm" 
                     onClick={handleAddToWatchlist}
+                    disabled={updating}
                   >
-                    <BookmarkIcon className={`h-4 w-4 ${trend.watchlist ? 'fill-current' : ''}`} />
+                    {updating ? (
+                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <BookmarkIcon className={`h-4 w-4 ${trend.watchlist ? 'fill-current' : ''}`} />
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -677,14 +777,24 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <ExportDropdown onExport={handleExport} size="sm" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <FileDownIcon className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleGenerateCampaign}
+                    disabled={generatingCampaign}
+                  >
+                    {generatingCampaign ? (
+                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RocketIcon className="h-4 w-4" />
+                    )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Export Data</TooltipContent>
+                <TooltipContent>Generate Campaign</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <TooltipProvider>
@@ -771,7 +881,16 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">Competitor Adoption</Label>
-              <p className="font-medium">{(trend.competitor_adoption * 100).toFixed(0)}%</p>
+              <div>
+                {trend.competitor_adoption?.brands && trend.competitor_adoption.brands.length > 0 ? (
+                  <div>
+                    <p className="font-medium">{trend.competitor_adoption.brands.slice(0, 3).join(', ')}</p>
+                    <p className="text-sm text-muted-foreground">{trend.competitor_adoption.percentage}% adoption</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Not available</p>
+                )}
+              </div>
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">Seasonality Factor</Label>
@@ -855,7 +974,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
               {(trend.sources && trend.sources.length > 0) || (trend.source_urls && trend.source_urls.length > 0) ? (
                 <>
                   {trend.sources && trend.sources.length > 0 ? (
-                    trend.sources.map((source, idx) => (
+                    trend.sources.map((source: any, idx: number) => (
                       <div key={idx} className="p-2 border rounded-md">
                         <a 
                           href={source.source_url} 
@@ -881,7 +1000,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
                       </div>
                     ))
                   ) : (
-                    trend.source_urls?.map((url, idx) => (
+                    trend.source_urls?.map((url: string, idx: number) => (
                       <div key={idx} className="p-2 border rounded-md">
                         <a 
                           href={url} 
@@ -970,16 +1089,9 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
     }
   }
 
-  const handleExport = () => {
-    const data = JSON.stringify(product, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `product-${product.variant_sku}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Product data exported')
+  const handleExport = (format: ExportFormat) => {
+    exportProducts([product], format)
+    toast.success(`Product exported as ${format.toUpperCase()}`)
   }
 
   const handleAddContext = () => {
@@ -1024,16 +1136,7 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
         </SheetHeader>
         <div className="mt-6 space-y-6">
           <div className="flex gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <FileDownIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export Data</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <ExportDropdown onExport={handleExport} size="sm" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -2261,6 +2364,17 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                       </>
                     )}
                   </Button>
+                  <ExportDropdown 
+                    onExport={(format) => {
+                      // Get recommendations data from the table ref
+                      if (inventoryTableRef.current?.getData) {
+                        const data = inventoryTableRef.current.getData()
+                        exportRecommendations(data, format)
+                        toast.success('Recommendations exported')
+                      }
+                    }}
+                    size="sm"
+                  />
                 </>
               )}
               {activeTab === 'campaigns' && (
@@ -2321,6 +2435,17 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                       </>
                     )}
                   </Button>
+                  <ExportDropdown 
+                    onExport={(format) => {
+                      // Get campaigns data from the table ref
+                      if (campaignTableRef.current?.getData) {
+                        const data = campaignTableRef.current.getData()
+                        exportCampaigns(data, format)
+                        toast.success('Campaigns exported')
+                      }
+                    }}
+                    size="sm"
+                  />
                 </>
               )}
           </div>

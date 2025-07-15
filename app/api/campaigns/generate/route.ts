@@ -20,383 +20,235 @@ type BundleCriteria = {
   performance?: boolean
 }
 
-// Function to analyze products for bundling opportunities
-async function findBundlingOpportunities(products: any[], trends: any[]) {
-  console.log(`Analyzing ${products.length} products for bundling opportunities`)
+// Function to create campaigns - one per trend with matching products
+async function createCampaignsFromTrends(products: any[], trends: any[]) {
+  console.log(`Creating campaigns from ${trends.length} trends and ${products.length} products`)
   
-  const bundles: Map<string, {
-    criteria: BundleCriteria
+  const campaigns: Array<{
+    trend: any
     products: any[]
-    matchingTrends: any[]
-    bundleKey: string
+    matchScore: number
     bundleReasons: string[]
-  }> = new Map()
+  }> = []
 
-  // Group products by various criteria
-  for (const product of products) {
-    const bundleKeys: string[] = []
-    const individualKeys: string[] = []
-    const criteria: BundleCriteria = {}
-    const reasons: string[] = []
-
-    // Category-based bundling (more flexible)
-    if (product.category || product.category_hierarchy) {
-      const category = product.category || product.category_hierarchy || 'general'
-      individualKeys.push(`category:${category.toLowerCase()}`)
-      criteria.category = true
-      reasons.push(`Category: ${category}`)
-    }
-
-    // Price range bundling (wider ranges)
-    const price = product.current_price || 0
-    const priceRange = Math.floor(price / 100) * 100 // $100 ranges instead of $50
-    individualKeys.push(`price:${priceRange}-${priceRange + 100}`)
-    criteria.priceRange = true
-    reasons.push(`Price range: $${priceRange}-${priceRange + 100}`)
-
-    // Color-based bundling (check multiple fields)
-    const color = product.attributes?.colors?.[0] || 
-                  product.color || 
-                  (product.product_name?.toLowerCase().match(/(black|white|red|blue|green|yellow|pink|purple|brown|grey|gray|beige|navy)/)?.[0])
-    if (color) {
-      individualKeys.push(`color:${color.toLowerCase()}`)
-      criteria.color = true
-      reasons.push(`Color: ${color}`)
-    }
-
-    // Style attributes bundling (extract from name if needed)
-    const style = product.attributes?.style || 
-                  product.style ||
-                  (product.product_name?.toLowerCase().includes('casual') ? 'casual' :
-                   product.product_name?.toLowerCase().includes('formal') ? 'formal' :
-                   product.product_name?.toLowerCase().includes('sport') ? 'sport' : null)
-    if (style) {
-      individualKeys.push(`style:${style.toLowerCase()}`)
-      criteria.style = true
-      reasons.push(`Style: ${style}`)
-    }
-
-    // Demographics bundling (use brand defaults if not specified)
-    const gender = product.demographics?.gender || product.target_gender || 'unisex'
-    individualKeys.push(`gender:${gender.toLowerCase()}`)
-    criteria.demographics = true
-    reasons.push(`Gender: ${gender}`)
-
-    // Season/occasion bundling
-    const season = product.attributes?.season || 
-                   (product.product_name?.toLowerCase().match(/(summer|winter|spring|fall|autumn)/)?.[0])
-    if (season) {
-      individualKeys.push(`season:${season.toLowerCase()}`)
-      criteria.seasonality = true
-      reasons.push(`Season: ${season}`)
-    }
-
-    // Material/fabric bundling
-    const material = product.attributes?.materials?.[0] || 
-                    product.material ||
-                    (product.product_name?.toLowerCase().match(/(cotton|silk|wool|leather|denim|polyester|linen|cashmere|velvet|satin)/)?.[0])
-    if (material) {
-      individualKeys.push(`material:${material.toLowerCase()}`)
-      criteria.inventory = true // Reusing inventory for material
-      reasons.push(`Material: ${material}`)
-    }
-
-    // Pattern bundling
-    const pattern = product.attributes?.pattern || 
-                   (product.product_name?.toLowerCase().match(/(striped|floral|plaid|polka|geometric|animal|abstract|solid)/)?.[0])
-    if (pattern) {
-      individualKeys.push(`pattern:${pattern.toLowerCase()}`)
-      reasons.push(`Pattern: ${pattern}`)
-    }
-
-    // Occasion bundling
-    const occasion = product.attributes?.occasion || 
-                    (product.product_name?.toLowerCase().match(/(work|party|casual|formal|beach|athletic|evening|weekend)/)?.[0])
-    if (occasion) {
-      individualKeys.push(`occasion:${occasion.toLowerCase()}`)
-      reasons.push(`Occasion: ${occasion}`)
-    }
-
-    // Price point bundling (luxury, premium, mid-range, budget)
-    const pricePoint = price > 200 ? 'luxury' : 
-                      price > 100 ? 'premium' : 
-                      price > 50 ? 'mid-range' : 'budget'
-    individualKeys.push(`pricepoint:${pricePoint}`)
-    reasons.push(`Price point: ${pricePoint}`)
-
-    // Create bundles for individual criteria first
-    for (const key of individualKeys) {
-      if (!bundles.has(key)) {
-        bundles.set(key, {
-          criteria: {},
-          products: [],
-          matchingTrends: [],
-          bundleKey: key,
-          bundleReasons: []
-        })
-      }
-      const bundle = bundles.get(key)!
-      bundle.products.push(product)
-      // Update criteria and reasons for this specific bundle
-      const [criteriaType] = key.split(':')
-      if (criteriaType === 'category') bundle.criteria.category = true
-      if (criteriaType === 'price') bundle.criteria.priceRange = true
-      if (criteriaType === 'color') bundle.criteria.color = true
-      if (criteriaType === 'style') bundle.criteria.style = true
-      if (criteriaType === 'gender') bundle.criteria.demographics = true
-      if (criteriaType === 'season') bundle.criteria.seasonality = true
-    }
-
-    // Also create composite bundles (but make them optional)
-    const compositeKeys = [
-      // Category + Price
-      individualKeys.filter(k => k.startsWith('category') || k.startsWith('price')).slice(0, 2).join('|'),
-      // Style + Color
-      individualKeys.filter(k => k.startsWith('style') || k.startsWith('color')).slice(0, 2).join('|'),
-      // Gender + Category
-      individualKeys.filter(k => k.startsWith('gender') || k.startsWith('category')).slice(0, 2).join('|'),
-      // Price + Gender
-      individualKeys.filter(k => k.startsWith('price') || k.startsWith('gender')).slice(0, 2).join('|')
-    ].filter(k => k.includes('|'))
-
-    // Add product to composite bundles
-    for (const key of compositeKeys) {
-      if (!bundles.has(key)) {
-        bundles.set(key, {
-          criteria,
-          products: [],
-          matchingTrends: [],
-          bundleKey: key,
-          bundleReasons: reasons
-        })
-      }
-      bundles.get(key)!.products.push(product)
-    }
-  }
-
-  console.log(`Created ${bundles.size} potential bundles`)
-
-  // Match trends to bundles (more lenient matching)
-  for (const [key, bundle] of bundles) {
-    // Update bundle reasons based on actual products
-    if (bundle.products.length > 0) {
-      const keyParts = key.split('|')
-      bundle.bundleReasons = keyParts.map(part => {
-        const [type, value] = part.split(':')
-        return `${type}: ${value}`
-      })
-    }
-
-    for (const trend of trends) {
-      let relevanceScore = 0
-      const factors: string[] = []
-
-      // Extract keywords from trend
+  // For each high-performing trend, find matching products
+  for (const trend of trends) {
+    // Skip low momentum trends
+    if (trend.momentum_score < 40) continue
+    
+    const matchingProducts: Array<{product: any, score: number, reasons: string[]}> = []
+    
+    for (const product of products) {
+      let matchScore = 0
+      const reasons: string[] = []
+      
+      // Convert trend data to searchable keywords
       const trendKeywords = [
         trend.trend_identifier,
         trend.trend_category,
         trend.trend_description,
-        ...(trend.hashtags || [])
+        ...(trend.target_interests || []),
+        ...(trend.target_lifestyle || []),
+        trend.target_gender
       ].filter(Boolean).join(' ').toLowerCase()
-
-      // Check category match (more flexible)
-      if (key.includes('category:')) {
-        const category = key.match(/category:([^|]+)/)?.[1]
-        if (category && (trendKeywords.includes(category) || category.includes('general'))) {
-          relevanceScore += 0.3
-          factors.push('Category alignment')
-        }
+      
+      // Check category match
+      const productCategory = (product.category || product.category_hierarchy || '').toLowerCase()
+      if (productCategory && (
+        trendKeywords.includes(productCategory) || 
+        trend.trend_category?.toLowerCase().includes(productCategory.split('/')[0])
+      )) {
+        matchScore += 0.3
+        reasons.push('Category match')
       }
-
-      // Check style match
-      if (key.includes('style:')) {
-        const style = key.match(/style:([^|]+)/)?.[1]
-        if (style && trendKeywords.includes(style)) {
-          relevanceScore += 0.3
-          factors.push('Style match')
-        }
-      }
-
+      
       // Check color match
-      if (key.includes('color:')) {
-        const color = key.match(/color:([^|]+)/)?.[1]
-        if (color && trendKeywords.includes(color)) {
-          relevanceScore += 0.2
-          factors.push('Color trend')
+      const productColor = (product.color || product.attributes?.colors?.[0] || '').toLowerCase()
+      if (productColor && trendKeywords.includes(productColor)) {
+        matchScore += 0.2
+        reasons.push('Color trend alignment')
+      }
+      
+      // Check style/material match
+      const productName = (product.product_name || '').toLowerCase()
+      const trendWords = trend.trend_identifier.toLowerCase().split(/[^a-z]+/)
+      for (const word of trendWords) {
+        if (word.length > 3 && productName.includes(word)) {
+          matchScore += 0.2
+          reasons.push(`Keyword match: ${word}`)
+          break
         }
       }
-
+      
       // Check demographic match
-      if (key.includes('gender:')) {
-        const gender = key.match(/gender:([^|]+)/)?.[1]
-        const trendGender = trend.target_gender?.toLowerCase() || 'unisex'
-        if (gender === trendGender || gender === 'unisex' || trendGender === 'unisex') {
-          relevanceScore += 0.2
-          factors.push('Demographic match')
-        }
+      const productGender = (product.target_gender || product.demographics?.gender || 'unisex').toLowerCase()
+      const trendGender = (trend.target_gender || 'unisex').toLowerCase()
+      if (productGender === trendGender || productGender === 'unisex' || trendGender === 'unisex') {
+        matchScore += 0.1
+        reasons.push('Target audience match')
       }
-
-      // Boost for trending lifecycle stages
-      if (trend.lifecycle_stage === 'emerging' || trend.lifecycle_stage === 'growing') {
-        relevanceScore += 0.2
-        factors.push(`${trend.lifecycle_stage} trend`)
-      } else if (trend.lifecycle_stage === 'peak') {
-        relevanceScore += 0.1
-        factors.push('Peak trend')
+      
+      // Check price point match based on trend income level
+      const price = product.current_price || 0
+      const incomeLevel = trend.target_income_level || 'medium'
+      if (
+        (incomeLevel === 'high' && price > 200) ||
+        (incomeLevel === 'medium' && price >= 50 && price <= 200) ||
+        (incomeLevel === 'low' && price < 50)
+      ) {
+        matchScore += 0.1
+        reasons.push('Price point alignment')
       }
-
-      // Add some relevance for any trend (to ensure we get matches)
-      if (relevanceScore === 0 && trend.momentum_score > 50) {
-        relevanceScore = 0.3
-        factors.push('High momentum trend')
+      
+      // Boost for high-performing products
+      if (product.revenue_last_30d > 1000 || product.units_sold_last_30d > 20) {
+        matchScore += 0.1
+        reasons.push('High-performing product')
       }
-
-      if (relevanceScore >= 0.2) { // Lower threshold
-        bundle.matchingTrends.push({
-          ...trend,
-          relevanceScore,
-          linkFactors: factors
-        })
+      
+      if (matchScore >= 0.3) {
+        matchingProducts.push({ product, score: matchScore, reasons })
       }
     }
+    
+    // Sort by match score and take top products
+    matchingProducts.sort((a, b) => b.score - a.score)
+    const selectedProducts = matchingProducts.slice(0, 15).map(mp => mp.product)
+    
+    // Only create campaign if we have enough matching products
+    if (selectedProducts.length >= 3) {
+      campaigns.push({
+        trend,
+        products: selectedProducts,
+        matchScore: matchingProducts[0]?.score || 0,
+        bundleReasons: [
+          `${trend.lifecycle_stage} trend with ${trend.momentum_score}% momentum`,
+          `${selectedProducts.length} matching products`,
+          ...matchingProducts.slice(0, 3).flatMap(mp => mp.reasons).filter((r, i, arr) => arr.indexOf(r) === i)
+        ]
+      })
+    }
   }
-
-  // Filter bundles with at least 2 products (reduced from 3)
-  const validBundles = Array.from(bundles.values())
-    .filter(bundle => bundle.products.length >= 2)
-    .map(bundle => ({
-      ...bundle,
-      // If no trends matched, add top trends as generic matches
-      matchingTrends: bundle.matchingTrends.length > 0 
-        ? bundle.matchingTrends 
-        : trends.slice(0, 3).map(t => ({
-            ...t,
-            relevanceScore: 0.3,
-            linkFactors: ['General trend opportunity']
-          }))
-    }))
-    .sort((a, b) => {
-      // Sort by combination of product count and trend relevance
-      const scoreA = a.products.length + (a.matchingTrends[0]?.relevanceScore || 0) * 10
-      const scoreB = b.products.length + (b.matchingTrends[0]?.relevanceScore || 0) * 10
-      return scoreB - scoreA
-    })
-
-  console.log(`Found ${validBundles.length} valid bundles after filtering`)
   
-  return validBundles.slice(0, 15) // Return more opportunities
+  // Sort campaigns by trend momentum and product count
+  campaigns.sort((a, b) => {
+    const scoreA = a.trend.momentum_score + a.products.length
+    const scoreB = b.trend.momentum_score + b.products.length
+    return scoreB - scoreA
+  })
+  
+  console.log(`Created ${campaigns.length} campaign opportunities`)
+  return campaigns.slice(0, 10) // Return top 10 campaigns
 }
 
 // Generate campaign using AI
-async function generateCampaignContent(bundle: any, brandInfo: any, existingCampaignNames: string[]) {
-  const productList = bundle.products.slice(0, 10).map((p: any) => 
+async function generateCampaignContent(campaign: any, brandInfo: any, existingCampaignNames: string[]) {
+  const productList = campaign.products.slice(0, 10).map((p: any) => 
     `- ${p.product_name} ($${p.current_price})`
   ).join('\n')
 
-  const trendList = bundle.matchingTrends.slice(0, 5).map((t: any) =>
-    `- ${t.trend_identifier} (${t.lifecycle_stage}, relevance: ${Math.round(t.relevanceScore * 100)}%)`
-  ).join('\n')
+  const trend = campaign.trend
+  const trendInfo = `${trend.trend_identifier} (${trend.lifecycle_stage}, momentum: ${trend.momentum_score}%)`
 
-  // Create a diverse prompt based on bundle characteristics
-  const bundleType = bundle.bundleKey.split(':')[0]
-  const bundleValue = bundle.bundleKey.split(':')[1]?.split('|')[0]
+  // Create a diverse prompt based on campaign characteristics
+  const campaignStyle = campaign.matchScore > 0.7 ? 'highly targeted' :
+                       campaign.matchScore > 0.5 ? 'well-aligned' : 'opportunity-based'
   
-  const creativityHints = {
-    category: "Focus on the product category's unique benefits and use cases",
-    price: "Emphasize value proposition and quality at this price point",
-    color: "Create a color story and mood around the palette",
-    style: "Highlight the lifestyle and personality of the target customer",
-    gender: "Speak to specific needs and preferences of this demographic",
-    season: "Capture the seasonal mood and timely relevance",
-    material: "Emphasize quality, comfort, and material benefits",
-    pattern: "Create visual storytelling around the design elements",
-    occasion: "Focus on the experience and emotions of the occasion",
-    pricepoint: "Position appropriately for the market segment"
-  }
+  const prompt = `You are a creative marketing strategist for ${brandInfo.brand_name}.
 
-  const hint = creativityHints[bundleType as keyof typeof creativityHints] || "Be creative and unique"
+Create a compelling marketing campaign based on this trending fashion movement:
 
-  const prompt = `Create a unique marketing campaign for a fashion brand. ${hint}
+TREND: ${trendInfo}
+Trend Description: ${trend.trend_description || 'No description available'}
+Target Demographics: ${trend.target_gender || 'All'} aged ${trend.target_age_min || 18}-${trend.target_age_max || 65}
+Trend Region: ${trend.trend_region || 'Global'}
 
-Brand: ${brandInfo.brand_name} (${brandInfo.category})
-Target: ${brandInfo.target_gender || 'all'} aged ${brandInfo.target_age_min || 18}-${brandInfo.target_age_max || 65}
-Income Level: ${brandInfo.target_income_level || 'medium'}
-
-Bundle Type: ${bundleType} (${bundleValue})
-Bundle Criteria: ${bundle.bundleReasons.join(', ')}
-
-Products (${bundle.products.length} total):
+PRODUCTS TO FEATURE (${campaign.products.length} total):
 ${productList}
 
-Matching Trends:
-${trendList}
+CAMPAIGN CHARACTERISTICS:
+- Style: ${campaignStyle}
+- Match Reasons: ${campaign.bundleReasons.join(', ')}
+- Brand Style: ${brandInfo.brand_style || 'Contemporary'}
+- Brand Values: ${brandInfo.brand_values || 'Quality and style'}
 
-IMPORTANT: Create a campaign name that is UNIQUE and DIFFERENT from these existing campaigns:
+EXISTING CAMPAIGNS (avoid these names):
 ${existingCampaignNames.join(', ')}
 
-Be creative with naming! Use diverse approaches like:
-- Metaphors and imagery (e.g., "Midnight Bloom Collection")
-- Action-oriented names (e.g., "Elevate Your Everyday")
-- Emotional connections (e.g., "Confidence Redefined")
-- Trend-inspired names (e.g., "Future Heritage")
-- Seasonal stories (e.g., "Solstice Dreams")
-- Material focus (e.g., "Luxe Layers")
-- Lifestyle moments (e.g., "Weekend Warriors")
+Generate a campaign with:
+1. Campaign Name: Creative, memorable, and different from existing campaigns. Should reference the trend.
+2. Campaign Description: 2-3 sentences explaining the campaign concept and how it leverages the trend
+3. Target Audience: Specific description based on the trend and products
+4. Budget Range: Realistic min-max in USD based on campaign scope
+5. Budget Reasoning: Why this budget makes sense
+6. Marketing Copy: 3-4 sentences for social media posts
+7. Hashtags: 5-7 relevant hashtags including the trend
+8. Content Suggestions: 3 specific content ideas (posts, stories, reels)
+9. Success Prediction: Brief assessment of likely performance
 
-Generate a comprehensive campaign with:
-1. Campaign name (MUST be unique and creative, avoid generic terms like "essentials" or "collection")
-2. Campaign description (2-3 sentences that tell a story)
-3. Target audience description (specific demographics, psychographics, and lifestyle)
-4. Budget recommendation with strategic reasoning
-5. Marketing copy (3-4 sentences that inspire action)
-6. Hashtags (5-8 creative and relevant ones, mix branded and trending)
-7. Content suggestions (3 specific, creative post ideas with visual concepts)
-8. Why this campaign will succeed (3 data-driven reasons)
-9. Competitive positioning (how this stands out in the market)
-
-Return as JSON:
+Format as JSON with these exact keys:
 {
-  "campaignName": "",
-  "campaignDescription": "",
-  "targetAudienceDescription": "",
-  "budgetMin": 0,
-  "budgetMax": 0,
-  "budgetReasoning": "",
-  "marketingCopy": "",
+  "campaign_name": "",
+  "campaign_description": "",
+  "target_audience": "",
+  "budget_min": 0,
+  "budget_max": 0,
+  "budget_reasoning": "",
+  "marketing_copy": "",
   "hashtags": [],
-  "contentSuggestions": [
-    { "type": "post|story|reel", "idea": "", "timing": "", "visualConcept": "" }
-  ],
-  "successReasons": [],
-  "competitivePositioning": ""
+  "content_suggestions": [],
+  "success_prediction": ""
 }`
 
   try {
-    const config = getAIConfig('creative')
-    const response = await openaiClient.chat.completions.create({
-      model: config.model,
+    const aiConfig = getAIConfig('creative')
+    const completion = await openaiClient.chat.completions.create({
+      model: aiConfig.model,
       messages: [
         {
-          role: "system",
-          content: AI_CONFIG.systemPrompts.marketingStrategist
+          role: 'system',
+          content: 'You are an expert fashion marketing strategist. Create compelling, trend-driven campaigns that resonate with target audiences and drive sales.'
         },
         {
-          role: "user",
+          role: 'user',
           content: prompt
         }
       ],
-      response_format: { type: "json_object" },
-      temperature: config.temperature,
-      max_tokens: AI_CONFIG.maxTokens.campaigns
+      temperature: aiConfig.temperature,
+      max_tokens: 1500,
+      response_format: { type: "json_object" }
     })
 
-    const content = response.choices[0]?.message?.content
-    if (!content) throw new Error('No response from AI')
+    const result = JSON.parse(completion.choices[0].message.content || '{}')
     
-    return JSON.parse(content)
+    // Ensure all required fields exist
+    return {
+      campaign_name: result.campaign_name || `${trend.trend_identifier} Collection`,
+      campaign_description: result.campaign_description || `Campaign featuring ${campaign.products.length} products aligned with ${trend.trend_identifier} trend`,
+      target_audience: result.target_audience || 'Fashion-forward consumers',
+      budget_min: result.budget_min || 5000,
+      budget_max: result.budget_max || 15000,
+      budget_reasoning: result.budget_reasoning || 'Based on campaign scope and target reach',
+      marketing_copy: result.marketing_copy || `Discover our latest collection inspired by ${trend.trend_identifier}`,
+      hashtags: result.hashtags || [trend.trend_identifier.replace(/\s+/g, ''), brandInfo.brand_name.replace(/\s+/g, ''), 'fashion'],
+      content_suggestions: result.content_suggestions || ['Instagram Reel showcasing products', 'Story series with styling tips', 'Influencer collaboration posts'],
+      success_prediction: result.success_prediction || 'High potential based on trend momentum and product selection'
+    }
   } catch (error) {
     console.error('Error generating campaign content:', error)
-    throw error
+    // Return fallback content
+    return {
+      campaign_name: `${trend.trend_identifier} Campaign`,
+      campaign_description: `Showcase our ${campaign.products.length} products that perfectly capture the ${trend.trend_identifier} trend`,
+      target_audience: `${trend.target_gender || 'Fashion-conscious'} shoppers interested in ${trend.trend_category}`,
+      budget_min: 5000,
+      budget_max: 15000,
+      budget_reasoning: 'Standard budget for multi-product campaign',
+      marketing_copy: `Be part of the ${trend.trend_identifier} movement with our curated collection`,
+      hashtags: [trend.trend_identifier.replace(/\s+/g, ''), brandInfo.brand_name.replace(/\s+/g, ''), 'trending'],
+      content_suggestions: ['Product showcase reel', 'Styling guide posts', 'Customer testimonials'],
+      success_prediction: 'Good potential based on trend alignment'
+    }
   }
 }
 
@@ -504,127 +356,132 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Fetch existing campaign names to avoid duplicates
+    const { data: existingCampaigns } = await supabase
+      .from('campaigns')
+      .select('campaign_name')
+      .eq('brand_id', brand_id)
+    
+    const existingCampaignNames = existingCampaigns?.map(c => c.campaign_name) || []
+    
+    console.log(`Found ${existingCampaignNames.length} existing campaigns`)
+
     // Find bundling opportunities
-    const bundles = await findBundlingOpportunities(products, trends)
+    const bundles = await createCampaignsFromTrends(products, trends)
     
     console.log(`Bundling complete. Found ${bundles.length} opportunities`)
     
     if (bundles.length === 0) {
-      // Log why no bundles were found
-      console.log('No bundles found. Product count:', products.length)
-      console.log('Trend count:', trends.length)
-      
       return NextResponse.json({ 
-        error: 'No campaign opportunities found',
-        message: 'Could not find suitable product bundles',
-        debug: {
-          productCount: products.length,
-          trendCount: trends.length,
-          minimumProductsPerBundle: 2
-        }
-      }, { status: 200 })
+        error: 'No suitable campaign opportunities found',
+        message: 'Try adding more products or wait for new trends'
+      }, { status: 400 })
     }
 
-    // Generate campaigns for top bundles
-    const campaigns = []
-    for (const bundle of bundles.slice(0, 5)) { // Generate up to 5 campaigns
+    // Generate campaigns
+    let campaignsCreated = 0
+    const maxCampaigns = 5
+    const createdCampaigns: any[] = []
+    
+    for (const bundle of bundles) {
+      if (campaignsCreated >= maxCampaigns) break
+      
       try {
-        const aiContent = await generateCampaignContent(bundle, brandInfo, campaigns.map(c => c.campaign_name))
+        console.log(`Generating campaign ${campaignsCreated + 1}/${maxCampaigns}`)
+        
+        // Generate AI content
+        const aiContent = await generateCampaignContent(bundle, brandInfo, existingCampaignNames)
+        
+        // Add to existing names to avoid duplicates
+        existingCampaignNames.push(aiContent.campaign_name)
         
         // Calculate campaign dates
         const startDate = new Date()
-        startDate.setDate(startDate.getDate() + 7) // Start in 1 week
-        const endDate = new Date(startDate)
-        endDate.setMonth(endDate.getMonth() + 1) // 1 month campaign
-
-        // Create campaign record
+        const endDate = new Date()
+        endDate.setMonth(endDate.getMonth() + 3)
+        
+        // Insert campaign
         const { data: campaign, error: campaignError } = await supabase
           .from('campaigns')
           .insert({
             brand_id,
-            campaign_name: aiContent.campaignName,
-            campaign_description: aiContent.campaignDescription,
+            campaign_name: aiContent.campaign_name,
+            campaign_description: aiContent.campaign_description,
             start_date: startDate.toISOString().split('T')[0],
             end_date: endDate.toISOString().split('T')[0],
             status: 'draft',
-            bundle_criteria: bundle.criteria,
+            bundle_criteria: {
+              trend: bundle.trend.trend_identifier,
+              matchScore: bundle.matchScore,
+              productCount: bundle.products.length
+            },
             bundle_reasons: bundle.bundleReasons,
             target_audience: {
-              gender: brandInfo.target_gender,
-              ageMin: brandInfo.target_age_min,
-              ageMax: brandInfo.target_age_max,
-              incomeLevel: brandInfo.target_income_level,
-              interests: brandInfo.target_interests || []
+              age_min: bundle.trend.target_age_min || 18,
+              age_max: bundle.trend.target_age_max || 65,
+              gender: bundle.trend.target_gender || 'all',
+              locations: bundle.trend.target_locations || [],
+              income_level: bundle.trend.target_income_level || 'medium',
+              interests: bundle.trend.target_interests || []
             },
-            target_audience_description: aiContent.targetAudienceDescription,
-            budget_min: aiContent.budgetMin,
-            budget_max: aiContent.budgetMax,
+            target_audience_description: aiContent.target_audience,
+            budget_min: aiContent.budget_min,
+            budget_max: aiContent.budget_max,
             budget_currency: 'USD',
-            budget_reasoning: aiContent.budgetReasoning,
-            marketing_copy: aiContent.marketingCopy,
+            budget_reasoning: aiContent.budget_reasoning,
+            marketing_copy: aiContent.marketing_copy,
             hashtags: aiContent.hashtags,
-            content_suggestions: aiContent.contentSuggestions,
-            confidence_score: 0.7 + (bundle.matchingTrends[0]?.relevanceScore || 0) * 0.3,
+            content_suggestions: aiContent.content_suggestions,
+            confidence_score: 0.7 + bundle.matchScore * 0.3,
             generation_reasons: {
               productCount: bundle.products.length,
-              trendCount: bundle.matchingTrends.length,
-              bundleCriteria: Object.keys(bundle.criteria).filter(k => bundle.criteria[k as keyof BundleCriteria]),
-              successReasons: aiContent.successReasons
-            }
+              trend: bundle.trend.trend_identifier,
+              trendMomentum: bundle.trend.momentum_score,
+              matchScore: bundle.matchScore,
+              successPrediction: aiContent.success_prediction
+            },
+            // Add the single trend reference
+            trend_id: bundle.trend.trend_id,
+            social_reach: bundle.trend.social_reach
           })
           .select()
           .single()
-
-        if (campaignError) throw campaignError
-
-        // Link products to campaign
-        const productLinks = bundle.products.map((product: any) => ({
+        
+        if (campaignError) {
+          console.error('Error creating campaign:', campaignError)
+          continue
+        }
+        
+        // Insert campaign products
+        const productInserts = bundle.products.map((product: any, index: number) => ({
           campaign_id: campaign.campaign_id,
           product_id: product.product_id,
-          inclusion_reason: `Part of ${bundle.bundleReasons.join(', ')} bundle`,
-          expected_performance: {
-            currentRevenue: product.revenue_last_30d || 0,
-            expectedLift: 20 // 20% lift expected
-          }
+          display_order: index + 1,
+          inclusion_reason: 'Trend alignment'
         }))
-
-        await supabase
+        
+        const { error: productsError } = await supabase
           .from('campaign_products')
-          .insert(productLinks)
-
-        // Link trends to campaign
-        const trendLinks = bundle.matchingTrends.map((trend: any) => ({
-          campaign_id: campaign.campaign_id,
-          trend_id: trend.trend_id,
-          relevance_score: trend.relevanceScore,
-          link_reason: trend.linkFactors.join(', '),
-          link_factors: {
-            factors: trend.linkFactors,
-            trendStage: trend.lifecycle_stage,
-            momentumScore: trend.momentum_score
-          }
-        }))
-
-        await supabase
-          .from('campaign_trends')
-          .insert(trendLinks)
-
-        campaigns.push({
-          ...campaign,
-          products: bundle.products.slice(0, 5), // Include first 5 products
-          trends: bundle.matchingTrends.slice(0, 3) // Include top 3 trends
-        })
-
+          .insert(productInserts)
+        
+        if (productsError) {
+          console.error('Error adding products to campaign:', productsError)
+        }
+        
+        campaignsCreated++
+        console.log(`Created campaign: ${aiContent.campaign_name}`)
+        createdCampaigns.push(campaign)
+        
       } catch (error) {
         console.error('Error generating campaign:', error)
-        // Continue with next bundle
+        continue
       }
     }
 
     return NextResponse.json({
       success: true,
-      campaigns_generated: campaigns.length,
-      campaigns
+      campaigns_generated: campaignsCreated,
+      campaigns: createdCampaigns
     })
 
   } catch (error: any) {

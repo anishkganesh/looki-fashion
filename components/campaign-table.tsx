@@ -68,6 +68,8 @@ import { Label } from "@/components/ui/label"
 import { useCredits, CREDIT_COSTS } from "@/components/credits-widget"
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
+import { ExportDropdown } from "@/components/ui/export-dropdown"
+import { exportCampaigns, type ExportFormat } from "@/lib/export-utils"
 
 interface Campaign {
   campaign_id: number
@@ -99,9 +101,12 @@ interface Campaign {
   applied_at: string | null
   created_at: string
   updated_at: string
-  // Related data
+  performance_metrics?: any
   products?: any[]
   trends?: any[]
+  trend_id?: number
+  trend?: any
+  social_reach?: number
 }
 
 const supabase = createClient(
@@ -196,19 +201,32 @@ function CampaignDetailSheet({
     }
   }
 
-  const handleExport = () => {
-    const exportData = {
-      campaign,
-      exportedAt: new Date().toISOString()
-    }
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `campaign-${campaign.campaign_id}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Campaign data exported')
+  const handleExport = (format: ExportFormat) => {
+    if (!campaign) return
+    
+    const exportData = [{
+      campaign_id: campaign.campaign_id,
+      campaign_name: campaign.campaign_name,
+      description: campaign.campaign_description,
+      status: campaign.status,
+      trend_name: campaign.trend?.trend_identifier || 'N/A',
+      social_reach: campaign.social_reach || campaign.trend?.social_reach || 0,
+      budget_min: campaign.budget_min,
+      budget_max: campaign.budget_max,
+      budget_reasoning: campaign.budget_reasoning,
+      target_audience: campaign.target_audience_description,
+      marketing_copy: campaign.marketing_copy,
+      hashtags: campaign.hashtags?.join(', ') || '',
+      content_suggestions: JSON.stringify(campaign.content_suggestions),
+      products: campaign.products?.map((p: any) => p.product_name).join(', ') || '',
+      product_count: campaign.products?.length || 0,
+      is_applied: campaign.is_applied ? 'Yes' : 'No',
+      created_at: campaign.created_at,
+      updated_at: campaign.updated_at
+    }]
+    
+    exportCampaigns(exportData, format)
+    toast.success('Campaign exported')
   }
 
   const handleAddToChat = () => {
@@ -251,7 +269,7 @@ function CampaignDetailSheet({
             onClick={handleApply} 
             disabled={applying}
             variant={applied ? "secondary" : "default"}
-            className="flex-1"
+            size="sm"
           >
             {applied ? (
               <>
@@ -261,7 +279,7 @@ function CampaignDetailSheet({
             ) : (
               <>
                 <CheckCircle2Icon className="h-4 w-4 mr-2" />
-                Apply Campaign
+                Apply
               </>
             )}
           </Button>
@@ -284,16 +302,7 @@ function CampaignDetailSheet({
               <TooltipContent>Generate Visual</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleExport}>
-                  <FileDownIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Export</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <ExportDropdown onExport={handleExport} size="sm" variant="outline" />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -326,6 +335,24 @@ function CampaignDetailSheet({
               </span>
             </div>
             <p className="text-sm text-muted-foreground">{campaign.budget_reasoning}</p>
+          </div>
+
+          {/* Social Reach */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Social Reach</Label>
+            <div className="flex items-center gap-2">
+              <UsersIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">
+                {campaign.social_reach && campaign.social_reach > 0 ? (
+                  campaign.social_reach > 1000000 
+                    ? `${(campaign.social_reach / 1000000).toFixed(1)}M` 
+                    : campaign.social_reach > 1000 
+                    ? `${(campaign.social_reach / 1000).toFixed(0)}K`
+                    : campaign.social_reach.toString()
+                ) : 'Not available'}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">Potential audience reach based on trend data</p>
           </div>
 
           {/* Bundle Information */}
@@ -462,7 +489,8 @@ export const CampaignTable = React.forwardRef<
     fetchCampaigns: () => void;
     generateCampaigns: () => void;
     setSearchFilter: (value: string) => void;
-    setSorting: (sorting: SortingState) => void;
+    setSorting: (sorting: any) => void;
+    getData: () => Campaign[];
   },
   { 
     brandId: number; 
@@ -609,7 +637,8 @@ export const CampaignTable = React.forwardRef<
     generateCampaigns,
     setSearchFilter: setGlobalFilter,
     setSorting: setSorting,
-  }), [fetchCampaigns, generateCampaigns, setGlobalFilter, setSorting])
+    getData: () => data
+  }), [fetchCampaigns, generateCampaigns, setGlobalFilter, setSorting, data])
 
   const handleUpdateCampaign = (updatedCampaign: Campaign) => {
     setData(prev => prev.map(c => 
@@ -697,6 +726,31 @@ export const CampaignTable = React.forwardRef<
               {trends[0]?.trend_identifier}
               {trends.length > 1 && ` +${trends.length - 1}`}
             </div>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "social_reach",
+      header: "Social Reach",
+      cell: ({ row }) => {
+        const campaign = row.original
+        const reach = campaign.social_reach || campaign.trend?.social_reach || 0
+        
+        if (reach === 0) {
+          return <span className="text-muted-foreground">—</span>
+        }
+        
+        const formatted = reach > 1000000 
+          ? `${(reach / 1000000).toFixed(1)}M` 
+          : reach > 1000 
+          ? `${(reach / 1000).toFixed(0)}K`
+          : reach.toString()
+          
+        return (
+          <div className="flex items-center gap-2">
+            <UsersIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">{formatted}</span>
           </div>
         )
       },

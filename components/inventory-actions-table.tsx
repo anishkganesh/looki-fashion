@@ -76,6 +76,8 @@ import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
 import { getTrendDisplayName } from "@/lib/format-utils"
+import { ExportDropdown } from "@/components/ui/export-dropdown"
+import { exportRecommendations, type ExportFormat } from "@/lib/export-utils"
 
 interface InventoryAction {
   recommendation_id: number
@@ -173,6 +175,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   onOpenChange: (open: boolean) => void
 }) {
   const [applied, setApplied] = React.useState(false)
+  const [applying, setApplying] = React.useState(false)
   const [generatingImage, setGeneratingImage] = React.useState(false)
   const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
   
@@ -196,6 +199,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   if (!action) return null
 
   const handleApplyRecommendation = async () => {
+    setApplying(true)
     try {
       console.log('Applying recommendation:', action.recommendation_id)
       
@@ -245,9 +249,12 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
       
       // Trigger a refresh of the recommendations table
       window.dispatchEvent(new CustomEvent('refreshRecommendations'))
+      
     } catch (error) {
       console.error('Error applying recommendation:', error)
       toast.error('Failed to apply recommendation')
+    } finally {
+      setApplying(false)
     }
   }
 
@@ -289,27 +296,25 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
     }
   }
 
-  const handleExport = () => {
-    const exportData = {
-      product: action.product,
-      trend: action.trend,
-      recommendation: {
-        action: action.recommendation_action,
-        confidence: action.confidence_score,
-        alignment_score: action.alignment_score,
-        factors: action.alignment_factors,
-        reasons: action.reasons
-      }
-    }
+  const handleExport = (format: ExportFormat) => {
+    if (!action) return
     
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `recommendation-${action.product.product_code}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Data exported')
+    const exportData = [{
+      recommendation_id: action.recommendation_id,
+      product_name: action.product?.product_name || 'Unknown',
+      product_sku: action.product?.product_code || 'N/A',
+      action: action.recommendation_action,
+      trend_matched: action.trend?.trend_identifier || 'N/A',
+      alignment_score: action.alignment_score,
+      confidence_score: (action.confidence_score * 100).toFixed(0) + '%',
+      reasons: action.reasons?.map((r: any) => r.reason_description).join('; ') || '',
+      is_applied: action.is_applied ? 'Yes' : 'No',
+      applied_at: action.applied_at || '',
+      created_at: action.created_at
+    }]
+    
+    exportRecommendations(exportData, format)
+    toast.success('Recommendation exported')
   }
 
   const handleAddToChat = () => {
@@ -347,11 +352,12 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
         </SheetHeader>
         
         {/* Action Buttons - Moved to top */}
-        <div className="flex gap-2 mt-6">
+        <div className="flex gap-2">
           <Button 
-            onClick={handleApplyRecommendation}
+            onClick={handleApplyRecommendation} 
+            disabled={applying}
             variant={applied ? "secondary" : "default"}
-            className="flex-1"
+            size="sm"
           >
             {applied ? (
               <>
@@ -361,7 +367,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
             ) : (
               <>
                 <CheckCircle2Icon className="h-4 w-4 mr-2" />
-                Apply Recommendation
+                Apply
               </>
             )}
           </Button>
@@ -384,16 +390,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
               <TooltipContent>Generate Image</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleExport}>
-                  <FileDownIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Export Data</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <ExportDropdown onExport={handleExport} size="sm" variant="outline" />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -581,6 +578,7 @@ export const InventoryActionsTable = React.forwardRef<
     fetchRecommendations: () => void;
     setSearchFilter: (value: string) => void;
     setSorting: (sorting: SortingState) => void;
+    getData: () => InventoryAction[];
   },
   { 
     brandId: number; 
@@ -1003,8 +1001,9 @@ export const InventoryActionsTable = React.forwardRef<
     },
     setSorting: (sorting: SortingState) => {
       setSorting(sorting)
-    }
-  }), [fetchRecommendations, table])
+    },
+    getData: () => data
+  }), [fetchRecommendations, table, data])
 
   if (loading) {
     return (
