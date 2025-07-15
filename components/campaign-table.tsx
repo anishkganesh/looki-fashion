@@ -269,7 +269,7 @@ function CampaignDetailSheet({
             onClick={handleApply} 
             disabled={applying}
             variant={applied ? "secondary" : "default"}
-            size="sm"
+            className="min-w-[120px]"
           >
             {applied ? (
               <>

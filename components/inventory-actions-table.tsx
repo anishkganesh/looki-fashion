@@ -357,7 +357,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
             onClick={handleApplyRecommendation} 
             disabled={applying}
             variant={applied ? "secondary" : "default"}
-            size="sm"
+            className="min-w-[120px]"
           >
             {applied ? (
               <>

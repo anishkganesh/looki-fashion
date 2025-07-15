@@ -698,11 +698,20 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend }: {
   const handleGenerateCampaign = async () => {
     setGeneratingCampaign(true)
     try {
-      // Get user's brand ID
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user?.email) {
+        toast.error('User not authenticated')
+        setGeneratingCampaign(false)
+        return
+      }
+      
+      // Get user's brand ID using email
       const { data: userData } = await supabase
         .from('usr')
         .select('brand_id')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('email', user.email)
         .single()
       
       if (!userData?.brand_id) {
