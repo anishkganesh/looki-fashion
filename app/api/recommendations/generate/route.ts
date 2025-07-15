@@ -696,7 +696,7 @@ async function findBestProductTrendPairs(
   products: any[], 
   trends: any[], 
   maxPairsPerProduct: number = 4,  // Increased to 4 to get more variety
-  minQualityThreshold: number = 35  // Lowered from 60 to 35 to include markdown items
+  minQualityThreshold: number = 25  // Lowered from 50 to 25 to be more lenient
 ): Promise<Array<{
   product: any,
   trend: any,
@@ -712,6 +712,9 @@ async function findBestProductTrendPairs(
   
   console.log(`Starting pairing process: ${products.length} products x ${trends.length} trends`)
   console.log(`Quality threshold: ${minQualityThreshold}%`)
+  
+  // Track trends that have been paired
+  const trendPairCount = new Map<string, number>()
   
   // Process each product
   for (const product of products) {
@@ -791,10 +794,48 @@ async function findBestProductTrendPairs(
         matchScore: pair.matchScore,
         matchFactors: pair.matchFactors
       })
+      
+      // Track trend usage
+      const count = trendPairCount.get(pair.trend.trend_id) || 0
+      trendPairCount.set(pair.trend.trend_id, count + 1)
+    }
+  }
+  
+  // Ensure every trend has at least one product match
+  for (const trend of trends) {
+    const pairCount = trendPairCount.get(trend.trend_id) || 0
+    if (pairCount === 0) {
+      // Find the best matching product for this trend
+      let bestMatch = null
+      let bestScore = 0
+      
+      for (const product of products.slice(0, 10)) { // Check first 10 products
+        const productCategory = detectProductCategory(product)
+        const trendCategory = detectTrendCategory(trend)
+        
+        if (areCompatible(productCategory, trendCategory, product, trend)) {
+          const matchFactors = calculateMatchScore(product, trend, productCategory, trendCategory)
+          if (matchFactors.overall_score > bestScore) {
+            bestScore = matchFactors.overall_score
+            bestMatch = {
+              product,
+              trend,
+              matchScore: matchFactors.overall_score,
+              matchFactors
+            }
+          }
+        }
+      }
+      
+      // Add the best match even if below threshold
+      if (bestMatch && bestMatch.matchScore >= 15) { // Very lenient threshold for orphan trends
+        pairs.push(bestMatch)
+      }
     }
   }
   
   console.log(`Generated ${pairs.length} pairs (above ${minQualityThreshold}% threshold)`)
+  console.log(`Trends with matches: ${trendPairCount.size}/${trends.length}`)
   
   return pairs
 }
@@ -1066,8 +1107,8 @@ export async function POST(request: NextRequest) {
     const rawPairs = await findBestProductTrendPairs(
       enrichedProducts, 
       trends, 
-      2, // Reduced from 4 to 2 pairs per product for higher quality
-      50 // Increased from 35 to 50 minimum quality threshold
+      3, // Increased from 2 to 3 pairs per product for more variety
+      25 // Lowered from 50 to 25 minimum quality threshold for more lenient matching
     )
     
     // Sort by match score and take only the best

@@ -357,7 +357,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
             onClick={handleApplyRecommendation} 
             disabled={applying}
             variant={applied ? "secondary" : "default"}
-            className="min-w-[120px]"
+            size="sm"
           >
             {applied ? (
               <>
@@ -376,7 +376,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
               <TooltipTrigger asChild>
                 <Button 
                   variant="outline" 
-                  size="icon" 
+                  size="sm"
                   onClick={handleGenerateImage}
                   disabled={generatingImage}
                 >
@@ -394,7 +394,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleAddToChat}>
+                <Button variant="outline" size="sm" onClick={handleAddToChat}>
                   <MessageSquare className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>

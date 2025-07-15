@@ -106,7 +106,7 @@ async function createCampaignsFromTrends(products: any[], trends: any[]) {
         reasons.push('High-performing product')
       }
       
-      if (matchScore >= 0.3) {
+      if (matchScore >= 0.15) { // Lowered from 0.3 to 0.15 for more lenient matching
         matchingProducts.push({ product, score: matchScore, reasons })
       }
     }

@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         reasons.push('Target audience match')
       }
       
-      if (matchScore >= 0.2) { // Lower threshold for single trend campaigns
+      if (matchScore >= 0.1) { // Lower threshold from 0.2 to 0.1 for single trend campaigns
         matchingProducts.push({ product, score: matchScore, reasons })
       }
     }
