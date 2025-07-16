@@ -338,23 +338,14 @@ Format as JSON with these exact keys:
         console.error('Error adding products to campaign:', productsError)
       }
       
-      // Generate hero image for the campaign
-      const heroImageUrl = await generateCampaignHeroImage(campaign, selectedProducts, trend)
-      if (heroImageUrl) {
-        await supabase
-          .from('campaigns')
-          .update({ hero_image_url: heroImageUrl })
-          .eq('campaign_id', campaign.campaign_id)
-        console.log('Generated hero image for campaign')
-      }
+      // Image generation removed - now done manually via UI button
       
       return NextResponse.json({
         success: true,
         campaign_name: campaign.campaign_name,
         campaign_id: campaign.campaign_id,
         product_count: selectedProducts.length,
-        trend: trend.trend_identifier,
-        hero_image_url: heroImageUrl
+        trend: trend.trend_identifier
       })
       
     } catch (error: any) {

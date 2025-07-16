@@ -1270,25 +1270,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Smart recommendation generation complete!')
     
-    // Generate images for top recommendations (limit to avoid too many API calls)
-    console.log('Generating images for top recommendations...')
-    const topRecommendations = insertedRecs.slice(0, 10) // Generate for top 10
-    
-    for (const rec of topRecommendations) {
-      const product = products.find(p => p.product_id === rec.product_id)
-      const trend = trends.find(t => t.trend_id === rec.matched_trend_id)
-      
-      if (product && trend) {
-        const imageUrl = await generateRecommendationImage(product, trend, rec.recommendation_action)
-        if (imageUrl) {
-          await supabase
-            .from('recommendations')
-            .update({ generated_image_url: imageUrl })
-            .eq('recommendation_id', rec.recommendation_id)
-          console.log(`Generated image for recommendation ${rec.recommendation_id}`)
-        }
-      }
-    }
+    // Image generation removed - now done manually via UI button
 
     return NextResponse.json({
       success: true,

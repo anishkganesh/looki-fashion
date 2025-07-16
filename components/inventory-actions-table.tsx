@@ -78,6 +78,7 @@ import { CalculationTooltip } from "@/components/ui/calculation-tooltip"
 import { getTrendDisplayName } from "@/lib/format-utils"
 import { ExportDropdown } from "@/components/ui/export-dropdown"
 import { exportRecommendations, type ExportFormat } from "@/lib/export-utils"
+import { useRouter } from "next/navigation"
 
 interface InventoryAction {
   recommendation_id: number
@@ -175,10 +176,11 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   open: boolean, 
   onOpenChange: (open: boolean) => void
 }) {
-  const [applied, setApplied] = React.useState(false)
+  const router = useRouter()
   const [applying, setApplying] = React.useState(false)
+  const [applied, setApplied] = React.useState(action?.is_applied || false)
   const [generatingImage, setGeneratingImage] = React.useState(false)
-  const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(action?.generated_image_url || null)
   
   const supabase = React.useMemo(
     () => createClient(
@@ -192,7 +194,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
   React.useEffect(() => {
     if (action) {
       setApplied(action.applied_at || action.is_applied ? true : false)
-      setGeneratedImage(null)
+      setGeneratedImage(action.generated_image_url || null)
       setGeneratingImage(false)
     }
   }, [action])
@@ -286,6 +288,17 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
       const data = await response.json()
       
       if (data.url) {
+        // Save the image URL to the database
+        const { error: updateError } = await supabase
+          .from('recommendations')
+          .update({ generated_image_url: data.url })
+          .eq('recommendation_id', action.recommendation_id)
+        
+        if (updateError) {
+          console.error('Error saving image URL:', updateError)
+          throw new Error('Failed to save image')
+        }
+        
         setGeneratedImage(data.url)
         toast.success('Image generated successfully')
       }

@@ -1508,15 +1508,7 @@ export async function POST(request: Request) {
               // Save sources for new trend
               await saveTrendSources(inserted.trend_id, sources, allTrends, trendId)
               
-              // Generate image for new trend
-              const imageUrl = await generateTrendImage(inserted)
-              if (imageUrl) {
-                await supabaseService
-                  .from('trends')
-                  .update({ generated_image_url: imageUrl })
-                  .eq('trend_id', inserted.trend_id)
-                console.log(`Generated image for trend ${trendId}`)
-              }
+              // Image generation removed - now done manually via UI button
             }
           }
         } catch (error) {

@@ -496,15 +496,7 @@ export async function POST(request: NextRequest) {
           console.error('Error adding products to campaign:', productsError)
         }
         
-        // Generate hero image for the campaign
-        const heroImageUrl = await generateCampaignHeroImage(campaign, bundle.products, bundle.trend)
-        if (heroImageUrl) {
-          await supabase
-            .from('campaigns')
-            .update({ hero_image_url: heroImageUrl })
-            .eq('campaign_id', campaign.campaign_id)
-          console.log(`Generated hero image for campaign ${campaign.campaign_id}`)
-        }
+        // Image generation removed - now done manually via UI button
         
         campaignsCreated++
         console.log(`Created campaign: ${aiContent.campaign_name}`)

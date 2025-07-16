@@ -602,10 +602,10 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBr
   selectedBrandId: number | null
 }) {
   const router = useRouter()
-  const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
   const [generatingImage, setGeneratingImage] = React.useState(false)
   const [updating, setUpdating] = React.useState(false)
   const [generatingCampaign, setGeneratingCampaign] = React.useState(false)
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(trend?.generated_image_url || null)
   const { t } = useTranslation()
   
   const supabase = React.useMemo(
@@ -654,7 +654,20 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBr
       const data = await response.json()
       
       if (data.url) {
+        // Save the image URL to the database
+        const { error: updateError } = await supabase
+          .from('trends')
+          .update({ generated_image_url: data.url })
+          .eq('trend_id', trend.trend_id)
+        
+        if (updateError) {
+          console.error('Error saving image URL:', updateError)
+          throw new Error('Failed to save image')
+        }
+        
         setGeneratedImage(data.url)
+        // Update the trend object so it persists
+        onUpdateTrend({ ...trend, generated_image_url: data.url })
         toast.success('Image generated successfully')
       }
     } catch (error: any) {
@@ -1101,8 +1114,8 @@ function ProductDetailSheet({ product, open, onOpenChange }: {
   onOpenChange: (open: boolean) => void
 }) {
   const router = useRouter()
-  const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
   const [generatingImage, setGeneratingImage] = React.useState(false)
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(product?.generated_image_url || null)
   
   // Reset generated image when product changes
   React.useEffect(() => {

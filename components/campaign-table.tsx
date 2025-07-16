@@ -70,6 +70,7 @@ import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { ExportDropdown } from "@/components/ui/export-dropdown"
 import { exportCampaigns, type ExportFormat } from "@/lib/export-utils"
+import { useRouter } from "next/navigation"
 
 interface Campaign {
   campaign_id: number
@@ -127,15 +128,16 @@ function CampaignDetailSheet({
   onUpdateCampaign: (campaign: Campaign) => void
 }) {
   const { t } = useTranslation()
+  const router = useRouter()
   const [applying, setApplying] = React.useState(false)
   const [generatingImage, setGeneratingImage] = React.useState(false)
-  const [generatedImage, setGeneratedImage] = React.useState<string | null>(null)
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(campaign?.hero_image_url || null)
   const [applied, setApplied] = React.useState(campaign?.is_applied || false)
 
   React.useEffect(() => {
     if (campaign) {
       setApplied(campaign.is_applied || false)
-      setGeneratedImage(null)
+      setGeneratedImage(campaign.hero_image_url || null)
       setGeneratingImage(false)
     }
   }, [campaign])
@@ -191,7 +193,20 @@ function CampaignDetailSheet({
       
       const data = await response.json()
       if (data.url) {
+        // Save the image URL to the database
+        const { error: updateError } = await supabase
+          .from('campaigns')
+          .update({ hero_image_url: data.url })
+          .eq('campaign_id', campaign.campaign_id)
+        
+        if (updateError) {
+          console.error('Error saving image URL:', updateError)
+          throw new Error('Failed to save image')
+        }
+        
         setGeneratedImage(data.url)
+        // Update the campaign object so it persists
+        onUpdateCampaign({ ...campaign, hero_image_url: data.url })
         toast.success('Campaign visual generated')
       }
     } catch (error: any) {
@@ -515,9 +530,10 @@ export const CampaignTable = React.forwardRef<
     onGeneratingChange?: (generating: boolean) => void;
     onProgressChange?: (progress: string) => void;
   }
->(({ brandId, session, onCampaignsGenerated, generating: parentGenerating, generationProgress: parentProgress, onGeneratingChange, onProgressChange }, ref) => {
-  const { t } = useTranslation()
-  const [data, setData] = React.useState<Campaign[]>([])
+  >(({ brandId, session, onCampaignsGenerated, generating: parentGenerating, generationProgress: parentProgress, onGeneratingChange, onProgressChange }, ref) => {
+    const { t } = useTranslation()
+    const router = useRouter()
+    const [data, setData] = React.useState<Campaign[]>([])
   const [loading, setLoading] = React.useState(true)
   const [localGenerating, setLocalGenerating] = React.useState(false)
   const [localProgress, setLocalProgress] = React.useState("")
