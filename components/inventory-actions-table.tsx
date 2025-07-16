@@ -365,8 +365,35 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
           </SheetDescription>
         </SheetHeader>
         
+        {/* Recommendation Reasons - Moved to top */}
+        {(action.recommendation_reasons || (action.reasons && action.reasons.length > 0)) && (
+          <div className="mt-4">
+            <Label className="text-xs text-muted-foreground">Recommendation Reasons</Label>
+            <div className="mt-2 space-y-1">
+              {action.recommendation_reasons ? (
+                // Display text-based reasons
+                action.recommendation_reasons.split('\n').map((reason, index) => (
+                  <p key={index} className="text-sm text-muted-foreground">
+                    {reason}
+                  </p>
+                ))
+              ) : (
+                // Fallback to structured reasons
+                action.reasons?.map((reason, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <span className="text-xs text-muted-foreground mt-0.5">•</span>
+                    <p className="text-sm text-muted-foreground">
+                      {reason.reason_description}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* Action Buttons - Moved to top */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-4">
           <Button 
             onClick={handleApplyRecommendation} 
             disabled={applying}
@@ -553,32 +580,7 @@ function ActionDetailSheet({ action, open, onOpenChange }: {
                 </div>
               </div>
               
-              {/* Recommendation Reasons */}
-              {(action.recommendation_reasons || (action.reasons && action.reasons.length > 0)) && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Recommendation Reasons</Label>
-                  <div className="mt-2 space-y-1">
-                    {action.recommendation_reasons ? (
-                      // Display text-based reasons
-                      action.recommendation_reasons.split('\n').map((reason, index) => (
-                        <p key={index} className="text-sm text-muted-foreground">
-                          {reason}
-                        </p>
-                      ))
-                    ) : (
-                      // Fallback to structured reasons
-                      action.reasons?.map((reason, index) => (
-                        <div key={index} className="flex items-start gap-2">
-                          <span className="text-xs text-muted-foreground mt-0.5">•</span>
-                          <p className="text-sm text-muted-foreground">
-                            {reason.reason_description}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
+
             </div>
           </div>
         </div>
