@@ -108,6 +108,7 @@ interface InventoryAction {
   applied_at: string | null
   status: string | null
   is_applied?: boolean
+  generated_image_url?: string
   product: {
     product_id: number
     product_name: string
@@ -734,11 +735,26 @@ export const InventoryActionsTable = React.forwardRef<
       header: "Product",
       cell: ({ row }) => {
         const product = row.original.product
+        const recommendationImage = row.original.generated_image_url
+        const productImages = product.images || []
+        const imageUrl = recommendationImage || productImages[0]
         
         return (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
-              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            <div className="w-10 h-10 bg-muted rounded overflow-hidden flex items-center justify-center flex-shrink-0">
+              {imageUrl ? (
+                <img 
+                  src={imageUrl} 
+                  alt={product.product_name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to icon on error
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <ImageIcon className={`h-5 w-5 text-muted-foreground ${imageUrl ? 'hidden' : ''}`} />
             </div>
             <div>
               <p className="font-medium">{product.product_name}</p>

@@ -691,6 +691,42 @@ function calculateMatchScore(product: any, trend: any, productCategory: ProductC
   }
 }
 
+// Helper function to generate image for a recommendation
+async function generateRecommendationImage(product: any, trend: any, action: string): Promise<string | null> {
+  try {
+    const actionPrompts: Record<string, string> = {
+      'strong_promote': 'featured prominently in store display, hero product placement',
+      'promote': 'stylish product display, attractive merchandising',
+      'hold': 'standard retail display, clean presentation',
+      'markdown': 'sale display with attractive pricing, clearance section',
+      'restock_urgent': 'popular product flying off shelves, high demand visualization',
+      'restock': 'product restocking, inventory replenishment'
+    }
+    
+    const prompt = `Fashion product photography: ${product.product_name}. ${actionPrompts[action] || 'retail display'}. Aligned with ${trend.trend_identifier.replace(/-/g, ' ')} trend. Professional fashion photography, commercial style, no text or price tags.`
+    
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/images/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt,
+        brandContext: { style: 'contemporary', price_point: 'premium' }
+      })
+    })
+    
+    if (!response.ok) {
+      console.error('Failed to generate recommendation image:', await response.text())
+      return null
+    }
+    
+    const data = await response.json()
+    return data.url || null
+  } catch (error) {
+    console.error('Error generating recommendation image:', error)
+    return null
+  }
+}
+
 // Main matching algorithm - IMPROVED VERSION
 async function findBestProductTrendPairs(
   products: any[], 
@@ -1233,6 +1269,26 @@ export async function POST(request: NextRequest) {
     if (recError) throw recError
 
     console.log('Smart recommendation generation complete!')
+    
+    // Generate images for top recommendations (limit to avoid too many API calls)
+    console.log('Generating images for top recommendations...')
+    const topRecommendations = insertedRecs.slice(0, 10) // Generate for top 10
+    
+    for (const rec of topRecommendations) {
+      const product = products.find(p => p.product_id === rec.product_id)
+      const trend = trends.find(t => t.trend_id === rec.matched_trend_id)
+      
+      if (product && trend) {
+        const imageUrl = await generateRecommendationImage(product, trend, rec.recommendation_action)
+        if (imageUrl) {
+          await supabase
+            .from('recommendations')
+            .update({ generated_image_url: imageUrl })
+            .eq('recommendation_id', rec.recommendation_id)
+          console.log(`Generated image for recommendation ${rec.recommendation_id}`)
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

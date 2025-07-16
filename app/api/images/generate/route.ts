@@ -25,7 +25,12 @@ function enhancePrompt(originalPrompt: string, brandContext?: any): string {
     'professional model photography',
     'fashion magazine quality',
     'natural color grading',
-    'authentic brand aesthetic'
+    'authentic brand aesthetic',
+    'no text',
+    'no logos',
+    'no watermarks',
+    'no captions',
+    'no typography'
   ]
   
   // Add brand-specific context if available
@@ -36,8 +41,8 @@ function enhancePrompt(originalPrompt: string, brandContext?: any): string {
     enhancedPrompt += ` ${brandStyle} ${pricePoint} fashion brand aesthetic.`
   }
   
-  // Ensure the prompt emphasizes realism
-  enhancedPrompt = `${enhancedPrompt}. ${realisticModifiers.join(', ')}. No digital art, no futuristic elements, no techno styling. Focus on authentic, wearable fashion with realistic materials and natural poses.`
+  // Ensure the prompt emphasizes realism and no text
+  enhancedPrompt = `${enhancedPrompt}. ${realisticModifiers.join(', ')}. No digital art, no futuristic elements, no techno styling, no text overlays, no written words. Focus on authentic, wearable fashion with realistic materials and natural poses.`
   
   // Limit prompt length for DALL-E 3
   return enhancedPrompt.slice(0, 1000)

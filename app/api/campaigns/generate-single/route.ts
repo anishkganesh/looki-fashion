@@ -12,6 +12,34 @@ const openaiClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!
 })
 
+// Helper function to generate campaign hero image
+async function generateCampaignHeroImage(campaign: any, products: any[], trend: any): Promise<string | null> {
+  try {
+    const productNames = products.slice(0, 3).map(p => p.product_name).join(', ')
+    const prompt = `Fashion campaign hero image featuring ${productNames}. Campaign theme: ${campaign.campaign_name}. Trend: ${trend.trend_identifier.replace(/-/g, ' ')}. Professional fashion photography, editorial layout, clean aesthetic, brand cohesion, no text or logos.`
+    
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/images/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt,
+        brandContext: { style: 'contemporary', price_point: 'premium' }
+      })
+    })
+    
+    if (!response.ok) {
+      console.error('Failed to generate campaign hero image:', await response.text())
+      return null
+    }
+    
+    const data = await response.json()
+    return data.url || null
+  } catch (error) {
+    console.error('Error generating campaign hero image:', error)
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { brand_id, trend_id } = await request.json()
@@ -310,12 +338,23 @@ Format as JSON with these exact keys:
         console.error('Error adding products to campaign:', productsError)
       }
       
+      // Generate hero image for the campaign
+      const heroImageUrl = await generateCampaignHeroImage(campaign, selectedProducts, trend)
+      if (heroImageUrl) {
+        await supabase
+          .from('campaigns')
+          .update({ hero_image_url: heroImageUrl })
+          .eq('campaign_id', campaign.campaign_id)
+        console.log('Generated hero image for campaign')
+      }
+      
       return NextResponse.json({
         success: true,
         campaign_name: campaign.campaign_name,
         campaign_id: campaign.campaign_id,
         product_count: selectedProducts.length,
-        trend: trend.trend_identifier
+        trend: trend.trend_identifier,
+        hero_image_url: heroImageUrl
       })
       
     } catch (error: any) {

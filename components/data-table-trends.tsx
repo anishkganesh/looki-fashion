@@ -148,9 +148,37 @@ interface Trend {
     extracted_at: string
     relevance_score?: number
   }>
+  generated_image_url?: string
 }
 
 const columns: ColumnDef<Trend>[] = [
+  {
+    id: "image",
+    header: "",
+    cell: ({ row }) => {
+      const imageUrl = row.original.generated_image_url
+      const trendName = getTrendDisplayName(row.original)
+      
+      return (
+        <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+          {imageUrl ? (
+            <img 
+              src={imageUrl} 
+              alt={trendName}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Fallback to placeholder on error
+                e.currentTarget.style.display = 'none'
+                e.currentTarget.nextElementSibling?.classList.remove('hidden')
+              }}
+            />
+          ) : null}
+          <TrendingUpIcon className={`h-6 w-6 text-muted-foreground ${imageUrl ? 'hidden' : ''}`} />
+        </div>
+      )
+    },
+    size: 60,
+  },
   {
     accessorKey: "trend_identifier",
     header: "Trend Name",

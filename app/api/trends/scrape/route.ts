@@ -999,6 +999,33 @@ async function saveTrendSources(trendId: number, sources: string[], allTrends: a
   }
 }
 
+// Helper function to generate image for a trend
+async function generateTrendImage(trend: any): Promise<string | null> {
+  try {
+    const prompt = `Fashion trend visualization: ${trend.trend_identifier.replace(/-/g, ' ')}. ${trend.trend_description || ''}. Show clothing, accessories, or fashion items that represent this trend. Professional fashion photography, editorial style, no text.`
+    
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/images/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt,
+        brandContext: { style: 'contemporary', price_point: 'premium' }
+      })
+    })
+    
+    if (!response.ok) {
+      console.error('Failed to generate trend image:', await response.text())
+      return null
+    }
+    
+    const data = await response.json()
+    return data.url || null
+  } catch (error) {
+    console.error('Error generating trend image:', error)
+    return null
+  }
+}
+
 export async function POST(request: Request) {
   const { stream, sendProgress, close } = createProgressStream()
   
@@ -1398,15 +1425,11 @@ export async function POST(request: Request) {
                 trendRegion = 'brazil'
               } else if (isIndianBrand) {
                 trendRegion = 'india'
-              } else {
-                trendRegion = 'global' // Fallback to global if no region detected
+              } else if (isUSBrand) {
+                trendRegion = 'usa'
               }
             }
           }
-          // Otherwise keep as 'global' (30% of trends)
-          
-          // Generate competitor adoption data
-          const competitorAdoption = generateCompetitorAdoption(trend.category, trend.description, metrics.momentum_score)
           
           const trendData = {
             trend_identifier: trendId,
@@ -1415,7 +1438,6 @@ export async function POST(request: Request) {
             trend_type: trendType,
             trend_region: trendRegion,
             source_urls: sources, // Add source URLs to the trend
-            competitor_adoption: competitorAdoption,
             ...metrics,
             last_updated: new Date().toISOString(),
             created_at: new Date().toISOString()
@@ -1479,13 +1501,21 @@ export async function POST(request: Request) {
               console.error('Trend data that failed:', JSON.stringify(trendData, null, 2))
               errorCount++
               sendProgress(`Error adding ${trend.name}: ${insertError.message}`)
-            } else {
+            } else if (inserted) {
               insertedCount++
-              sendProgress(`Added: ${trend.name}`)
+              sendProgress(`Inserted: ${trend.name}`)
               
               // Save sources for new trend
-              if (inserted?.trend_id) {
-                await saveTrendSources(inserted.trend_id, sources, allTrends, trendId)
+              await saveTrendSources(inserted.trend_id, sources, allTrends, trendId)
+              
+              // Generate image for new trend
+              const imageUrl = await generateTrendImage(inserted)
+              if (imageUrl) {
+                await supabaseService
+                  .from('trends')
+                  .update({ generated_image_url: imageUrl })
+                  .eq('trend_id', inserted.trend_id)
+                console.log(`Generated image for trend ${trendId}`)
               }
             }
           }
@@ -1552,4 +1582,4 @@ export async function GET() {
       { status: 500 }
     )
   }
-} 
+}

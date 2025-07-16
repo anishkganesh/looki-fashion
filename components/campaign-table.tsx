@@ -107,6 +107,7 @@ interface Campaign {
   trend_id?: number
   trend?: any
   social_reach?: number
+  hero_image_url?: string
 }
 
 const supabase = createClient(
@@ -316,6 +317,19 @@ function CampaignDetailSheet({
         </div>
 
         <div className="mt-6 space-y-6">
+          {/* Campaign Hero Image */}
+          {(campaign.hero_image_url || generatedImage) && (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Campaign Visual</Label>
+              <img 
+                src={generatedImage || campaign.hero_image_url} 
+                alt={campaign.campaign_name}
+                className="w-full rounded-lg border"
+                style={{ maxHeight: '300px', objectFit: 'cover' }}
+              />
+            </div>
+          )}
+          
           {/* Campaign Dates */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">Campaign Period</Label>
@@ -669,16 +683,31 @@ export const CampaignTable = React.forwardRef<
         
         return (
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              isActive ? 'bg-green-100 dark:bg-green-900/20' :
-              isPaused ? 'bg-yellow-100 dark:bg-yellow-900/20' :
-              'bg-muted'
-            }`}>
-              <RocketIcon className={`h-5 w-5 ${
-                isActive ? 'text-green-600 dark:text-green-400' :
-                isPaused ? 'text-yellow-600 dark:text-yellow-400' :
-                'text-muted-foreground'
-              }`} />
+            {/* Campaign Image */}
+            <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
+              {campaign.hero_image_url ? (
+                <img 
+                  src={campaign.hero_image_url} 
+                  alt={campaign.campaign_name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to icon on error
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <div className={`${campaign.hero_image_url ? 'hidden' : ''} p-2 rounded-lg ${
+                isActive ? 'bg-green-100 dark:bg-green-900/20' :
+                isPaused ? 'bg-yellow-100 dark:bg-yellow-900/20' :
+                'bg-muted'
+              }`}>
+                <RocketIcon className={`h-5 w-5 ${
+                  isActive ? 'text-green-600 dark:text-green-400' :
+                  isPaused ? 'text-yellow-600 dark:text-yellow-400' :
+                  'text-muted-foreground'
+                }`} />
+              </div>
             </div>
             <div>
               <p className="font-medium">{campaign.campaign_name}</p>
