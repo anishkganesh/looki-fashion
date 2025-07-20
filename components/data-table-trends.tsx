@@ -207,7 +207,7 @@ const columns: ColumnDef<Trend>[] = [
               <Badge variant="secondary" className="text-xs uppercase">
                 {row.original.trend_region === 'brazil' ? 'BR' :
                  row.original.trend_region === 'india' ? 'IN' :
-                 row.original.trend_region === 'usa' ? 'US' :
+                 row.original.trend_region === 'usa' ? 'USA' :
                  row.original.trend_region === 'europe' ? 'EU' :
                  row.original.trend_region === 'asia' ? 'AS' :
                  row.original.trend_region === 'global' ? 'GL' :
@@ -594,12 +594,13 @@ const columns: ColumnDef<Trend>[] = [
   },
 ]
 
-function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBrandId }: { 
+function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBrandId, onTabChange }: { 
   trend: any | null, 
   open: boolean, 
   onOpenChange: (open: boolean) => void,
   onUpdateTrend: (trend: any) => void,
-  selectedBrandId: number | null
+  selectedBrandId: number | null,
+  onTabChange?: (tab: 'trends' | 'catalog' | 'inventory' | 'campaigns') => void
 }) {
   const router = useRouter()
   const [generatingImage, setGeneratingImage] = React.useState(false)
@@ -806,6 +807,18 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBr
       
       // Close the sheet
       onOpenChange(false)
+      
+      // Switch to campaigns tab and open the campaign detail
+      if (onTabChange) {
+        onTabChange('campaigns')
+      }
+      
+      // Wait a bit for tab switch then open campaign detail
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('openCampaignDetail', { 
+          detail: { campaignId: result.campaign_id } 
+        }))
+      }, 300)
       
       // Refresh campaigns if the tab is active
       window.dispatchEvent(new CustomEvent('refreshCampaigns'))
@@ -2299,6 +2312,62 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                   translate="no"
                 />
               </div>
+              
+              {/* Region and Gender Filters for Trends Tab */}
+              {activeTab === 'trends' && (
+                <>
+                  <Select
+                    value={columnFilters.find(f => f.id === 'trend_region')?.value as string || 'all'}
+                    onValueChange={(value) => {
+                      if (value === 'all') {
+                        setColumnFilters(prev => prev.filter(f => f.id !== 'trend_region'))
+                      } else {
+                        setColumnFilters(prev => {
+                          const filtered = prev.filter(f => f.id !== 'trend_region')
+                          return [...filtered, { id: 'trend_region', value }]
+                        })
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Region" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Regions</SelectItem>
+                      <SelectItem value="usa">USA</SelectItem>
+                      <SelectItem value="br">Brazil</SelectItem>
+                      <SelectItem value="in">India</SelectItem>
+                      <SelectItem value="global">Global</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select
+                    value={columnFilters.find(f => f.id === 'target_gender')?.value as string || 'all'}
+                    onValueChange={(value) => {
+                      if (value === 'all') {
+                        setColumnFilters(prev => prev.filter(f => f.id !== 'target_gender'))
+                      } else {
+                        setColumnFilters(prev => {
+                          const filtered = prev.filter(f => f.id !== 'target_gender')
+                          return [...filtered, { id: 'target_gender', value }]
+                        })
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Genders</SelectItem>
+                      <SelectItem value="men">Men</SelectItem>
+                      <SelectItem value="women">Women</SelectItem>
+                      <SelectItem value="kids">Kids</SelectItem>
+                      <SelectItem value="unisex">Unisex</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+              
               {activeTab !== 'catalog' && activeTab !== 'inventory' && activeTab !== 'campaigns' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -2772,6 +2841,7 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
         onOpenChange={setSheetOpen}
         onUpdateTrend={handleUpdateTrend}
         selectedBrandId={selectedBrandId ? parseInt(selectedBrandId) : userBrandId}
+        onTabChange={handleTabChange}
       />
       </div>
     </div>

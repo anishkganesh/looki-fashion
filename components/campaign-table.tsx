@@ -666,12 +666,24 @@ export const CampaignTable = React.forwardRef<
       fetchCampaigns()
     }
     
+    // Listen for open campaign detail event
+    const handleOpenCampaignDetail = (event: CustomEvent) => {
+      const { campaignId } = event.detail
+      const campaign = data.find(c => c.campaign_id === campaignId)
+      if (campaign) {
+        setSelectedCampaign(campaign)
+        setSheetOpen(true)
+      }
+    }
+    
     window.addEventListener('refreshCampaigns', handleRefreshCampaigns)
+    window.addEventListener('openCampaignDetail', handleOpenCampaignDetail as any)
     
     return () => {
       window.removeEventListener('refreshCampaigns', handleRefreshCampaigns)
+      window.removeEventListener('openCampaignDetail', handleOpenCampaignDetail as any)
     }
-  }, [fetchCampaigns])
+  }, [fetchCampaigns, data])
 
   // Expose methods to parent
   React.useImperativeHandle(ref, () => ({

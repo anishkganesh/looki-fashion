@@ -5,6 +5,8 @@ import OpenAI from 'openai'
 import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
 import FirecrawlApp from '@mendable/firecrawl-js'
 import { supabaseService } from '@/lib/supabase-service'
+import openaiClient from '@/lib/openai'
+import { extractFromTrendText } from '@/lib/clothing-categories'
 
 // Initialize services
 const firecrawl = new FirecrawlApp({ 
@@ -686,6 +688,14 @@ For each trend, provide a JSON array with these exact fields:
 - is_forecast: true if future/upcoming, false otherwise
 - relevance: 0.5-1.0 based on brand fit (be generous)
 - confidence: 0.5-1.0 based on trend strength
+- clothing_articles: Array of specific clothing items this trend applies to. Use standardized terms:
+  - Tops: "shirts", "t-shirts", "sweaters", "hoodies", "jackets", "coats", "vests"
+  - Bottoms: "pants", "jeans", "shorts", "skirts", "leggings"
+  - Full body: "dresses", "jumpsuits"
+  - Footwear: "shoes", "boots", "sneakers", "sandals"
+  - Accessories: "bags", "belts", "jewelry", "hats", "scarves", "sunglasses"
+  - Other: "underwear", "swimwear"
+  Example: ["jeans", "shorts"] for a denim trend, ["shoes", "boots"] for footwear trend
 - specifics: Object with fields like:
   - hashtags: ["#fashion", "#trending", etc]
   - platforms: ["tiktok", "instagram", "reddit"]
@@ -1431,6 +1441,11 @@ export async function POST(request: Request) {
             }
           }
           
+          // Use AI-generated clothing articles or extract from trend name and description
+          const clothingArticles = trend.clothing_articles && trend.clothing_articles.length > 0 
+            ? trend.clothing_articles 
+            : extractFromTrendText(trend.name, trendDescription)
+          
           const trendData = {
             trend_identifier: trendId,
             trend_category: trend.category || 'general',
@@ -1438,6 +1453,7 @@ export async function POST(request: Request) {
             trend_type: trendType,
             trend_region: trendRegion,
             source_urls: sources, // Add source URLs to the trend
+            clothing_articles: clothingArticles, // Add clothing articles
             ...metrics,
             last_updated: new Date().toISOString(),
             created_at: new Date().toISOString()

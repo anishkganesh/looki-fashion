@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import openaiClient from '@/lib/openai'
 import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
+import { extractFromProductHierarchy } from '@/lib/clothing-categories'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,6 +70,20 @@ async function createCampaignsFromTrends(products: any[], trends: any[]) {
     for (const product of products) {
       let matchScore = 0
       const reasons: string[] = []
+      
+      // Check clothing article compatibility first (strict matching)
+      const productArticles = product.clothing_articles || extractFromProductHierarchy(product.category_hierarchy || '')
+      const trendArticles = trend.clothing_articles || []
+      
+      // Skip if no clothing article match
+      if (productArticles.length > 0 && trendArticles.length > 0) {
+        const hasMatch = productArticles.some((pa: string) => 
+          trendArticles.includes(pa)
+        )
+        if (!hasMatch) {
+          continue
+        }
+      }
       
       // Convert trend data to searchable keywords
       const trendKeywords = [
@@ -204,7 +219,7 @@ EXISTING CAMPAIGNS (avoid these names):
 ${existingCampaignNames.join(', ')}
 
 Generate a campaign with:
-1. Campaign Name: Creative, memorable, and different from existing campaigns. Should reference the trend.
+1. Campaign Name: Use the trend name "${trend.trend_identifier.replace(/-/g, ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}" as the campaign name
 2. Campaign Description: 2-3 sentences explaining the campaign concept and how it leverages the trend
 3. Target Audience: Specific description based on the trend and products
 4. Budget Range: Realistic min-max in USD based on campaign scope
@@ -508,6 +523,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if no campaigns were generated due to strict matching
+    if (campaignsCreated === 0) {
+      return NextResponse.json({
+        success: false,
+        campaigns_generated: 0,
+        campaigns: [],
+        message: 'No campaigns could be generated. No products match the clothing articles of the available trends.'
+      })
+    }
+    
     return NextResponse.json({
       success: true,
       campaigns_generated: campaignsCreated,

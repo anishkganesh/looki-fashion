@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import openaiClient from '@/lib/openai'
 import { AI_CONFIG, getAIConfig } from '@/lib/ai-config'
+import { extractFromProductHierarchy } from '@/lib/clothing-categories'
 
 // Verify imports are working
 if (process.env.NODE_ENV === 'development') {
@@ -768,6 +769,20 @@ async function findBestProductTrendPairs(
       // Skip if categories are incompatible
       if (!areCompatible(productCategory, trendCategory, product, trend)) {
         continue
+      }
+      
+      // Check clothing article compatibility
+      const productArticles = product.clothing_articles || extractFromProductHierarchy(product.category_hierarchy || '')
+      const trendArticles = trend.clothing_articles || []
+      
+      // Skip if no clothing article match (strict matching)
+      if (productArticles.length > 0 && trendArticles.length > 0) {
+        const hasMatch = productArticles.some((pa: string) => 
+          trendArticles.includes(pa)
+        )
+        if (!hasMatch) {
+          continue
+        }
       }
       
       // Calculate match score
