@@ -487,7 +487,8 @@ export async function POST(request: NextRequest) {
             },
             // Add the single trend reference
             trend_id: bundle.trend.trend_id,
-            social_reach: bundle.trend.social_reach
+            social_reach: bundle.trend.social_reach,
+            product_count: bundle.products.length
           })
           .select()
           .single()

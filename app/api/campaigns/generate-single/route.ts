@@ -294,7 +294,8 @@ Format as JSON with these exact keys:
           successPrediction: aiContent.success_prediction
         },
         trend_id: trend.trend_id,
-        social_reach: trend.social_reach
+        social_reach: trend.social_reach,
+        product_count: selectedProducts.length
       }
       
       console.log('Attempting to insert campaign with data:', JSON.stringify(campaignData, null, 2))

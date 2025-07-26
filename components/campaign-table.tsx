@@ -590,8 +590,12 @@ export const CampaignTable = React.forwardRef<
       }
       
       const result = await response.json()
-      console.log('Campaigns fetched:', result)
-      setData(result.campaigns || [])
+      console.log('Campaigns API response:', result)
+      console.log('First campaign:', result.campaigns?.[0])
+      
+      // Ensure we have valid campaign data
+      const campaigns = result.campaigns || []
+      setData(campaigns)
     } catch (error: any) {
       console.error('Error fetching campaigns:', error)
       toast.error(error.message || 'Failed to load campaigns')
@@ -773,12 +777,12 @@ export const CampaignTable = React.forwardRef<
               <span className="font-medium">{campaign.product_count || 0} products</span>
             </div>
             <div className="flex flex-wrap gap-1">
-              {campaign.bundle_reasons.slice(0, 2).map((reason, idx) => (
+              {campaign.bundle_reasons?.slice(0, 2).map((reason, idx) => (
                 <Badge key={idx} variant="outline" className="text-xs">
                   {reason}
                 </Badge>
-              ))}
-              {campaign.bundle_reasons.length > 2 && (
+              )) || <span className="text-xs text-muted-foreground">No bundle info</span>}
+              {campaign.bundle_reasons && campaign.bundle_reasons.length > 2 && (
                 <Badge variant="outline" className="text-xs">
                   +{campaign.bundle_reasons.length - 2}
                 </Badge>
@@ -856,8 +860,8 @@ export const CampaignTable = React.forwardRef<
       header: "Duration",
       cell: ({ row }) => {
         const campaign = row.original
-        const startDate = new Date(campaign.start_date)
-        const endDate = new Date(campaign.end_date)
+        const startDate = campaign.start_date ? new Date(campaign.start_date) : new Date()
+        const endDate = campaign.end_date ? new Date(campaign.end_date) : new Date()
         const daysLeft = Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
         
         return (

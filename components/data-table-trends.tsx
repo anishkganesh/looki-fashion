@@ -2436,7 +2436,7 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {userBrandId === 13 && ( // Only show for Marisa brand
+                  {(selectedBrandId === "13" || userBrandId === 13) && ( // Show for Marisa brand context
                     <Button
                       onClick={handleMarisaSync}
                       disabled={marisaSyncing}
