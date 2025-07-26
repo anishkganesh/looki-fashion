@@ -673,7 +673,7 @@ export const CampaignTable = React.forwardRef<
       setGenerating(false)
       setProgress("")
     }
-  }, [brandId, session, onCampaignsGenerated, fetchCampaigns, t])
+  }, [brandId, session, onCampaignsGenerated, t])
 
   React.useEffect(() => {
     fetchCampaigns()
