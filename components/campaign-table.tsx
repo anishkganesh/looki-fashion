@@ -176,10 +176,7 @@ function CampaignDetailSheet({
   const handleGenerateImage = async () => {
     setGeneratingImage(true)
     try {
-      const productNames = campaign.products?.slice(0, 3).map(p => p.product_name).join(', ') || ''
-      const trendNames = campaign.trends?.slice(0, 2).map(t => t.trend_identifier).join(', ') || ''
-      
-      const prompt = `Fashion campaign hero image featuring ${productNames}. Campaign theme: ${campaign.campaign_name}. Trends: ${trendNames}. Professional fashion photography, editorial layout, clean aesthetic, brand cohesion.`
+      const prompt = `Fashion campaign hero image for ${campaign.campaign_name}. ${campaign.campaign_description}. Professional fashion photography, editorial layout, clean aesthetic, brand cohesion.`
       
       const response = await fetch('/api/images/generate', {
         method: 'POST',
@@ -235,8 +232,8 @@ function CampaignDetailSheet({
       marketing_copy: campaign.marketing_copy,
       hashtags: campaign.hashtags?.join(', ') || '',
       content_suggestions: JSON.stringify(campaign.content_suggestions),
-      products: campaign.products?.map((p: any) => p.product_name).join(', ') || '',
-      product_count: campaign.products?.length || 0,
+      products: '',  // Products not loaded in simplified API
+      product_count: campaign.product_count || 0,
       is_applied: campaign.is_applied ? 'Yes' : 'No',
       created_at: campaign.created_at,
       updated_at: campaign.updated_at
@@ -250,8 +247,8 @@ function CampaignDetailSheet({
     const context = `Campaign: ${campaign.campaign_name}\n` +
       `Description: ${campaign.campaign_description}\n` +
       `Budget: $${campaign.budget_min}-$${campaign.budget_max}\n` +
-      `Products: ${campaign.products?.length || 0}\n` +
-      `Trends: ${campaign.trends?.map(t => t.trend_identifier).join(', ')}`
+      `Products: ${campaign.product_count || 0}\n` +
+      `Trends: ${campaign.trend_id ? `Trend ID: ${campaign.trend_id}` : 'N/A'}`
     
     // Add to chat context
     window.dispatchEvent(new CustomEvent('add-to-chat', { detail: { context } }))
@@ -428,28 +425,36 @@ function CampaignDetailSheet({
           {/* Products */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">
-              Products ({campaign.products?.length || 0})
+              Products ({campaign.product_count || 0})
             </Label>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {campaign.products?.map((product, idx) => (
+              {/* Products not loaded in simplified API - would need separate fetch */}
+              <p className="text-sm text-muted-foreground">
+                Product details available in full view
+              </p>
+              {/* {campaign.products?.map((product, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded-md">
                   <div>
                     <p className="text-sm font-medium">{product.product_name}</p>
                     <p className="text-xs text-muted-foreground">SKU: {product.variant_sku}</p>
                   </div>
-                  <span className="text-sm font-medium">${product.current_price}</span>
+                  <p className="text-sm font-medium">${product.current_price}</p>
                 </div>
-              ))}
+              ))} */}
             </div>
           </div>
 
           {/* Trends */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">
-              Associated Trends ({campaign.trends?.length || 0})
+              Associated Trends
             </Label>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {campaign.trends?.map((trend, idx) => (
+              {/* Trends not loaded in simplified API - would need separate fetch */}
+              <p className="text-sm text-muted-foreground">
+                {campaign.trend_id ? `Trend ID: ${campaign.trend_id}` : 'No trends associated'}
+              </p>
+              {/* {campaign.trends?.map((trend, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded-md">
                   <div>
                     <p className="text-sm font-medium">{trend.trend_identifier}</p>
@@ -459,7 +464,7 @@ function CampaignDetailSheet({
                     {Math.round((trend.relevance_score || 0) * 100)}% match
                   </Badge>
                 </div>
-              ))}
+              ))} */}
             </div>
           </div>
 
@@ -788,9 +793,8 @@ export const CampaignTable = React.forwardRef<
       header: "Trends",
       cell: ({ row }) => {
         const campaign = row.original
-        const trends = campaign.trends || []
         
-        if (trends.length === 0) {
+        if (!campaign.trend_id) {
           return <span className="text-muted-foreground">No trends</span>
         }
         
@@ -798,11 +802,10 @@ export const CampaignTable = React.forwardRef<
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{trends.length} trends</span>
+              <span className="font-medium">1 trend</span>
             </div>
             <div className="text-xs text-muted-foreground">
-              {trends[0]?.trend_identifier}
-              {trends.length > 1 && ` +${trends.length - 1}`}
+              Trend ID: {campaign.trend_id}
             </div>
           </div>
         )

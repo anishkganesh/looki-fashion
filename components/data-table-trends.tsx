@@ -1948,7 +1948,7 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
           'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({ 
-          brandId: userBrandId
+          brandId: 13  // Marisa brand ID
         })
       })
       
@@ -2436,11 +2436,12 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button
-                    onClick={handleMarisaSync}
-                    disabled={marisaSyncing}
-                    size="sm"
-                  >
+                  {userBrandId === 13 && ( // Only show for Marisa brand
+                    <Button
+                      onClick={handleMarisaSync}
+                      disabled={marisaSyncing}
+                      size="sm"
+                    >
                     {marisaSyncing ? (
                       <>
                         <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
@@ -2453,6 +2454,7 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                       </>
                     )}
                   </Button>
+                  )}
                 </>
               )}
               {activeTab === 'inventory' && (
