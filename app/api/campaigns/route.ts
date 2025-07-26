@@ -15,53 +15,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Brand ID required' }, { status: 400 })
     }
 
-    // Fetch campaigns with related data
-    const { data: campaigns, error } = await supabase
+    console.log('Fetching campaigns for brand_id:', brand_id)
+    
+    // Fetch campaigns with a simpler query
+    const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
-      .select(`
-        *,
-        campaign_products (
-          *,
-          product:products (
-            product_id,
-            product_name,
-            variant_sku,
-            current_price,
-            current_inventory_level,
-            images
-          )
-        ),
-        trend:trends!trend_id (
-          trend_id,
-          trend_identifier,
-          trend_category,
-          lifecycle_stage,
-          momentum_score,
-          social_reach
-        )
-      `)
+      .select('*')
       .eq('brand_id', brand_id)
       .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching campaigns:', error)
-      return NextResponse.json({ error: 'Failed to fetch campaigns' }, { status: 500 })
+    
+    if (campaignsError) {
+      console.error('Error fetching campaigns:', campaignsError)
+      return NextResponse.json({ error: campaignsError.message }, { status: 500 })
     }
-
-    // Transform the data for easier consumption
-    const transformedCampaigns = campaigns?.map(campaign => ({
-      ...campaign,
-      products: campaign.campaign_products?.map((cp: any) => ({
-        ...cp.product,
-        inclusion_reason: cp.inclusion_reason,
-        expected_performance: cp.expected_performance
-      })) || [],
-      trends: campaign.trend ? [campaign.trend] : [] // Convert single trend to array for compatibility
-    }))
-
+    
+    console.log('Found campaigns:', campaigns?.length || 0)
+    
+    // Return campaigns without complex joins for now
+    // The UI can fetch additional data as needed
     return NextResponse.json({
-      campaigns: transformedCampaigns || [],
-      total: transformedCampaigns?.length || 0
+      campaigns: campaigns || [],
+      total: campaigns?.length || 0
     })
 
   } catch (error: any) {
@@ -129,7 +103,7 @@ export async function PATCH(request: NextRequest) {
             images
           )
         ),
-        trend:trends!trend_id (
+        trend:trends (
           trend_id,
           trend_identifier,
           trend_category,

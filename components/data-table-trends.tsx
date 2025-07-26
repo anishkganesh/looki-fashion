@@ -620,7 +620,7 @@ function TrendDetailSheet({ trend, open, onOpenChange, onUpdateTrend, selectedBr
   // Reset generated image when trend changes
   React.useEffect(() => {
     if (trend) {
-      setGeneratedImage(null)
+      setGeneratedImage(trend.generated_image_url || null)
       setGeneratingImage(false)
     }
   }, [trend?.trend_id])
@@ -1935,11 +1935,27 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
 
   // Handle Marisa product sync
   const handleMarisaSync = React.useCallback(async () => {
-    if (!userBrandId || userBrandId !== 13) return // Only for Marisa brand
+    if (!userBrandId) return
     
     try {
       setMarisaSyncing(true)
-      setMarisaSyncProgress('Authenticating with Marisa API...')
+      setMarisaSyncProgress('Starting Marisa product sync...')
+      
+      const response = await fetch('/api/catalog/marisa/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ 
+          brandId: userBrandId
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to start sync')
+      }
       
       // Show progress messages
       const progressMessages = [
@@ -1957,34 +1973,13 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
         timeouts.push(timeout)
       })
       
-      const response = await fetch('/api/catalog/marisa/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({ brandId: userBrandId })
-      })
+      const result = await response.json()
       
       // Clear timeouts
       timeouts.forEach(timeout => clearTimeout(timeout))
       
-      if (!response.ok) {
-        let errorMessage = 'Sync failed'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (e) {
-          // If response is not JSON, use status text
-          errorMessage = `Sync failed: ${response.statusText}`
-        }
-        throw new Error(errorMessage)
-      }
-      
-      const result = await response.json()
-      
       if (result.success) {
-        toast.success(`Sync complete! ${result.summary.inserted} new, ${result.summary.updated} updated, ${result.summary.deleted} removed`)
+        toast.success(`Sync complete! ${result.summary.totalProducts} products synced`)
         // Refresh catalog
         await fetchCatalogProducts()
         // Update product count
@@ -2441,25 +2436,23 @@ export function DataTableTrends({ onTabChange, session, trendAgentGenerating, tr
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {userBrandId === 13 && ( // Show sync button only for Marisa brand
-                    <Button
-                      onClick={handleMarisaSync}
-                      disabled={marisaSyncing}
-                      size="sm"
-                    >
-                      {marisaSyncing ? (
-                        <>
-                          <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCwIcon className="mr-2 h-4 w-4" />
-                          Sync Products
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <Button
+                    onClick={handleMarisaSync}
+                    disabled={marisaSyncing}
+                    size="sm"
+                  >
+                    {marisaSyncing ? (
+                      <>
+                        <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCwIcon className="mr-2 h-4 w-4" />
+                        Sync Marisa Products
+                      </>
+                    )}
+                  </Button>
                 </>
               )}
               {activeTab === 'inventory' && (

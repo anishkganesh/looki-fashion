@@ -11,7 +11,9 @@
     "migrate:add-reasons": "node scripts/run-migration.js scripts/migrations/add_recommendation_reasons.sql",
     "migrate:trend-sources": "node scripts/run-trend-sources-migration.js",
     "test:recommendations": "node scripts/test-recommendations-setup.js",
-    "test:marisa-import": "node scripts/test-marisa-import.js"
+    "test:marisa-import": "node scripts/test-marisa-import.js",
+    "sync-marisa": "tsx scripts/sync-marisa-products.ts",
+    "migrate:image-columns": "node scripts/run-image-columns-migration.js"
   },
   "dependencies": {
     "@dnd-kit/core": "latest",

@@ -108,6 +108,7 @@ interface Campaign {
   trend_id?: number
   trend?: any
   social_reach?: number
+  product_count?: number
   hero_image_url?: string
 }
 
@@ -573,15 +574,23 @@ export const CampaignTable = React.forwardRef<
   const fetchCampaigns = React.useCallback(async () => {
     try {
       setLoading(true)
+      console.log('Fetching campaigns for brand:', brandId)
       
       const response = await fetch(`/api/campaigns?brand_id=${brandId}`)
-      if (!response.ok) throw new Error('Failed to fetch campaigns')
       
-      const { campaigns } = await response.json()
-      setData(campaigns || [])
-    } catch (error) {
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Campaign fetch failed:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch campaigns')
+      }
+      
+      const result = await response.json()
+      console.log('Campaigns fetched:', result)
+      setData(result.campaigns || [])
+    } catch (error: any) {
       console.error('Error fetching campaigns:', error)
-      toast.error('Failed to load campaigns')
+      toast.error(error.message || 'Failed to load campaigns')
+      setData([]) // Set empty data to show "no campaigns" message
     } finally {
       setLoading(false)
     }
@@ -756,7 +765,7 @@ export const CampaignTable = React.forwardRef<
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <PackageIcon className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{campaign.products?.length || 0} products</span>
+              <span className="font-medium">{campaign.product_count || 0} products</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {campaign.bundle_reasons.slice(0, 2).map((reason, idx) => (

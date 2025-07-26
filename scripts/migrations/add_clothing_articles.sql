@@ -29,6 +29,7 @@ CREATE OR REPLACE FUNCTION extract_trend_clothing_articles(
 DECLARE
   articles TEXT[] := '{}';
   word TEXT;
+  category TEXT;
   -- Mapping of terms to standardized categories
   category_map JSONB := '{
     "shirt": "shirts", "shirts": "shirts", "polo": "shirts", "polo-shirt": "shirts", "blouse": "shirts", "blouses": "shirts", "top": "shirts", "tops": "shirts",
@@ -65,7 +66,9 @@ BEGIN
     
     -- Check if word matches any category
     IF category_map ? word THEN
-      articles := array_append(articles, category_map->word);
+      -- Cast JSONB to TEXT before appending
+      category := category_map->word;
+      articles := array_append(articles, category::TEXT);
     END IF;
   END LOOP;
   
@@ -81,6 +84,7 @@ CREATE OR REPLACE FUNCTION extract_product_clothing_articles(
 DECLARE
   articles TEXT[] := '{}';
   part TEXT;
+  category TEXT;
   category_map JSONB := '{
     "polo shirts": "shirts", "t-shirts": "t-shirts", "shirts": "shirts", "blouses": "shirts", "tops": "shirts",
     "sweaters": "sweaters", "hoodies": "hoodies", "sweatshirts": "hoodies",
@@ -98,7 +102,9 @@ BEGIN
     
     -- Check exact matches first
     IF category_map ? part THEN
-      articles := array_append(articles, category_map->part);
+      -- Cast JSONB to TEXT before appending
+      category := category_map->part;
+      articles := array_append(articles, category::TEXT);
     ELSE
       -- Check if part contains any category
       IF part LIKE '%shirt%' THEN

@@ -71,17 +71,19 @@ async function createCampaignsFromTrends(products: any[], trends: any[]) {
       let matchScore = 0
       const reasons: string[] = []
       
-      // Check clothing article compatibility first (strict matching)
+      // Check clothing article compatibility (more lenient matching)
       const productArticles = product.clothing_articles || extractFromProductHierarchy(product.category_hierarchy || '')
       const trendArticles = trend.clothing_articles || []
       
-      // Skip if no clothing article match
+      // Only skip if both have articles AND they don't match
+      // This allows products/trends without articles to still match
       if (productArticles.length > 0 && trendArticles.length > 0) {
         const hasMatch = productArticles.some((pa: string) => 
           trendArticles.includes(pa)
         )
-        if (!hasMatch) {
-          continue
+        if (hasMatch) {
+          matchScore += 0.2
+          reasons.push('Clothing article match')
         }
       }
       
