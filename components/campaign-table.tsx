@@ -675,6 +675,12 @@ export const CampaignTable = React.forwardRef<
     }
   }, [brandId, session, onCampaignsGenerated, t])
 
+  // Create a ref to access current data
+  const dataRef = React.useRef(data)
+  React.useEffect(() => {
+    dataRef.current = data
+  }, [data])
+
   React.useEffect(() => {
     fetchCampaigns()
     
@@ -687,7 +693,7 @@ export const CampaignTable = React.forwardRef<
     // Listen for open campaign detail event
     const handleOpenCampaignDetail = (event: CustomEvent) => {
       const { campaignId } = event.detail
-      const campaign = data.find(c => c.campaign_id === campaignId)
+      const campaign = dataRef.current.find(c => c.campaign_id === campaignId)
       if (campaign) {
         setSelectedCampaign(campaign)
         setSheetOpen(true)
@@ -701,16 +707,16 @@ export const CampaignTable = React.forwardRef<
       window.removeEventListener('refreshCampaigns', handleRefreshCampaigns)
       window.removeEventListener('openCampaignDetail', handleOpenCampaignDetail as any)
     }
-  }, [fetchCampaigns, data])
+  }, [fetchCampaigns])
 
   // Expose methods to parent
   React.useImperativeHandle(ref, () => ({
     fetchCampaigns,
     generateCampaigns,
     setSearchFilter: setGlobalFilter,
-    setSorting: setSorting,
+    setSorting,
     getData: () => data
-  }), [fetchCampaigns, generateCampaigns, setGlobalFilter, setSorting, data])
+  }), [fetchCampaigns, generateCampaigns, setGlobalFilter, setSorting])
 
   const handleUpdateCampaign = (updatedCampaign: Campaign) => {
     setData(prev => prev.map(c => 
