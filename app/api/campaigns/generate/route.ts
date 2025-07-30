@@ -65,27 +65,29 @@ async function createCampaignsFromTrends(products: any[], trends: any[]) {
     // Skip low momentum trends
     if (trend.momentum_score < 40) continue
     
+    // Find matching products for this trend
     const matchingProducts: Array<{product: any, score: number, reasons: string[]}> = []
     
     for (const product of products) {
-      let matchScore = 0
-      const reasons: string[] = []
-      
-      // Check clothing article compatibility (more lenient matching)
-      const productArticles = product.clothing_articles || extractFromProductHierarchy(product.category_hierarchy || '')
+      // Check clothing article compatibility FIRST (strict matching)
+      const productArticles = product.clothing_articles || []
       const trendArticles = trend.clothing_articles || []
       
-      // Only skip if both have articles AND they don't match
-      // This allows products/trends without articles to still match
+      // Skip if no clothing article match
       if (productArticles.length > 0 && trendArticles.length > 0) {
         const hasMatch = productArticles.some((pa: string) => 
           trendArticles.includes(pa)
         )
-        if (hasMatch) {
-          matchScore += 0.2
-          reasons.push('Clothing article match')
+        if (!hasMatch) {
+          continue // Skip this product entirely
         }
+      } else if (productArticles.length === 0 || trendArticles.length === 0) {
+        // Skip if either has no clothing articles defined
+        continue
       }
+      
+      let matchScore = 0
+      const reasons: string[] = []
       
       // Convert trend data to searchable keywords
       const trendKeywords = [

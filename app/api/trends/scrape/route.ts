@@ -1036,6 +1036,43 @@ async function generateTrendImage(trend: any): Promise<string | null> {
   }
 }
 
+// Function to validate if a trend is actually fashion-related
+function isFashionTrend(trendName: string, trendDescription: string): boolean {
+  const text = `${trendName} ${trendDescription}`.toLowerCase()
+  
+  // Non-fashion keywords that indicate this is not a fashion trend
+  const nonFashionKeywords = [
+    'retail strategy', 'omnichannel', 'marketing strategy', 'business model',
+    'technology platform', 'digital transformation', 'sales channel',
+    'customer journey', 'supply chain', 'inventory management',
+    'e-commerce platform', 'social media strategy', 'influencer marketing',
+    'data analytics', 'customer experience', 'retail technology',
+    'relatable fashion style', // Too vague
+    'affordable athleisure wear', // Too generic
+    'beach to street attire', // Too generic
+    'social media influencer' // Not fashion specific
+  ]
+  
+  // Check if it contains non-fashion keywords
+  const hasNonFashionKeywords = nonFashionKeywords.some(keyword => text.includes(keyword))
+  
+  // Check if it's too vague
+  const isVague = trendName.match(/^(relatable|general|basic|simple|modern|contemporary)\s+(fashion|style|trend)$/i)
+  
+  // Must have some fashion-related keywords to be valid
+  const fashionKeywords = [
+    'dress', 'shirt', 'pants', 'jeans', 'skirt', 'jacket', 'coat', 'blouse',
+    'top', 'bottom', 'shoe', 'bag', 'accessory', 'jewelry', 'hat', 'scarf',
+    'sweater', 'cardigan', 'hoodie', 'legging', 'shorts', 'suit', 'gown',
+    'print', 'pattern', 'color', 'fabric', 'material', 'style', 'design',
+    'collection', 'runway', 'fashion week', 'designer', 'brand', 'trend'
+  ]
+  
+  const hasFashionKeywords = fashionKeywords.some(keyword => text.includes(keyword))
+  
+  return !hasNonFashionKeywords && !isVague && hasFashionKeywords
+}
+
 export async function POST(request: Request) {
   const { stream, sendProgress, close } = createProgressStream()
   
@@ -1368,7 +1405,15 @@ export async function POST(request: Request) {
             ? 'forecast' : 'signal'
           
           // Store the properly formatted name in the description
-          let trendDescription = trend.description || `${trend.name} is trending`
+          let trendDescription = trend.description || `${trend.name}: A trending fashion style`
+          
+          // Validate that this is actually a fashion trend
+          if (!isFashionTrend(trend.name, trendDescription)) {
+            console.log(`Skipping non-fashion trend: ${trend.name}`)
+            sendProgress(`Skipped non-fashion: ${trend.name}`)
+            continue
+          }
+          
           // Prepend the formatted name if not already included
           if (!trendDescription.toLowerCase().includes(trend.name.toLowerCase())) {
             trendDescription = `${trend.trend_name || trend.name}: ${trendDescription}`

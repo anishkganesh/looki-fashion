@@ -104,10 +104,27 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Find products that match this trend
-    const matchingProducts: any[] = []
+    // Find matching products for this trend
+    const matchingProducts: Array<{product: any, score: number, reasons: string[]}> = []
     
     for (const product of products) {
+      // Check clothing article compatibility FIRST (strict matching)
+      const productArticles = product.clothing_articles || []
+      const trendArticles = trend.clothing_articles || []
+      
+      // Skip if no clothing article match
+      if (productArticles.length > 0 && trendArticles.length > 0) {
+        const hasMatch = productArticles.some((pa: string) => 
+          trendArticles.includes(pa)
+        )
+        if (!hasMatch) {
+          continue // Skip this product entirely
+        }
+      } else if (productArticles.length === 0 || trendArticles.length === 0) {
+        // Skip if either has no clothing articles defined
+        continue
+      }
+      
       let matchScore = 0
       const reasons: string[] = []
       
