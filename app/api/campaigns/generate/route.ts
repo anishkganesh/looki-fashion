@@ -39,25 +39,25 @@ async function generateCampaignHeroImage(campaign: any, products: any[], trend: 
 
 // Helper function to check if clothing articles are similar
 function areArticlesSimilar(article1: string, article2: string): boolean {
+  // VERY STRICT similarity mapping - only allow very close matches
   const similarityMap: Record<string, string[]> = {
-    'jeans': ['denim', 'jeans'],
-    'denim': ['jeans', 'denim'],
-    'shirts': ['blouses', 'tops', 't-shirts', 'shirts'],
-    'blouses': ['shirts', 'tops', 'blouses'],
-    'tops': ['shirts', 'blouses', 't-shirts', 'tops'],
-    't-shirts': ['shirts', 'tops', 't-shirts'],
-    'pants': ['trousers', 'bottoms', 'pants'],
-    'trousers': ['pants', 'bottoms', 'trousers'],
-    'bottoms': ['pants', 'trousers', 'bottoms'],
-    'shoes': ['footwear', 'sneakers', 'shoes'],
-    'sneakers': ['shoes', 'footwear', 'sneakers'],
-    'footwear': ['shoes', 'sneakers', 'footwear']
+    // Only jeans and denim are interchangeable
+    'jeans': ['denim'],
+    'denim': ['jeans'],
+    // Only pants and trousers are interchangeable
+    'pants': ['trousers'],
+    'trousers': ['pants'],
+    // Only shoes and footwear are interchangeable
+    'shoes': ['footwear'],
+    'footwear': ['shoes']
+    // Removed overly broad mappings like shirts/blouses/tops
+    // Each clothing type should match its exact category
   }
   
   // Direct match
   if (article1 === article2) return true
   
-  // Check similarity map
+  // Check very restrictive similarity map
   const similar = similarityMap[article1.toLowerCase()]
   return similar ? similar.includes(article2.toLowerCase()) : false
 }
@@ -98,18 +98,20 @@ async function createCampaignsFromTrends(products: any[], trends: any[]) {
       const productArticles = product.clothing_articles || []
       const trendArticles = trend.clothing_articles || []
       
-      // Skip if no clothing article match (strict matching with similarity)
-      if (productArticles.length > 0 && trendArticles.length > 0) {
-        const hasMatch = productArticles.some((pa: string) => 
-          trendArticles.some((ta: string) => 
-            pa === ta || areArticlesSimilar(pa, ta)
-          )
+      // STRICT clothing article matching - both must have articles and they must match
+      if (productArticles.length === 0 || trendArticles.length === 0) {
+        // Skip if either product or trend has no clothing articles
+        continue
+      }
+      
+      const hasMatch = productArticles.some((pa: string) => 
+        trendArticles.some((ta: string) => 
+          pa === ta || areArticlesSimilar(pa, ta)
         )
-        if (!hasMatch) {
-          continue // Skip this product entirely
-        }
-      } else if (productArticles.length === 0 || trendArticles.length === 0) {
-        // Skip if either has no clothing articles defined
+      )
+      
+      if (!hasMatch) {
+        // Skip if no clothing article match found
         continue
       }
       
