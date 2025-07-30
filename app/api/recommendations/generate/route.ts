@@ -728,6 +728,31 @@ async function generateRecommendationImage(product: any, trend: any, action: str
   }
 }
 
+// Helper function to check if clothing articles are similar
+function areArticlesSimilar(article1: string, article2: string): boolean {
+  const similarityMap: Record<string, string[]> = {
+    'jeans': ['denim', 'jeans'],
+    'denim': ['jeans', 'denim'],
+    'shirts': ['blouses', 'tops', 't-shirts', 'shirts'],
+    'blouses': ['shirts', 'tops', 'blouses'],
+    'tops': ['shirts', 'blouses', 't-shirts', 'tops'],
+    't-shirts': ['shirts', 'tops', 't-shirts'],
+    'pants': ['trousers', 'bottoms', 'pants'],
+    'trousers': ['pants', 'bottoms', 'trousers'],
+    'bottoms': ['pants', 'trousers', 'bottoms'],
+    'shoes': ['footwear', 'sneakers', 'shoes'],
+    'sneakers': ['shoes', 'footwear', 'sneakers'],
+    'footwear': ['shoes', 'sneakers', 'footwear']
+  }
+  
+  // Direct match
+  if (article1 === article2) return true
+  
+  // Check similarity map
+  const similar = similarityMap[article1.toLowerCase()]
+  return similar ? similar.includes(article2.toLowerCase()) : false
+}
+
 // Main matching algorithm - IMPROVED VERSION
 async function findBestProductTrendPairs(
   products: any[], 
@@ -775,10 +800,12 @@ async function findBestProductTrendPairs(
       const productArticles = product.clothing_articles || extractFromProductHierarchy(product.category_hierarchy || '')
       const trendArticles = trend.clothing_articles || []
       
-      // Skip if no clothing article match (strict matching)
+      // Skip if no clothing article match (strict matching with similarity)
       if (productArticles.length > 0 && trendArticles.length > 0) {
         const hasMatch = productArticles.some((pa: string) => 
-          trendArticles.includes(pa)
+          trendArticles.some((ta: string) => 
+            pa === ta || areArticlesSimilar(pa, ta)
+          )
         )
         if (!hasMatch) {
           continue
@@ -1177,19 +1204,40 @@ export async function POST(request: NextRequest) {
       }, { status: 200 })
     }
 
-    // Clear existing recommendations
-    await supabase
+    // Get existing recommendations to avoid duplicates
+    const { data: existingRecs } = await supabase
       .from('recommendations')
-      .delete()
+      .select('product_id, matched_trend_id')
       .eq('brand_id', brand_id)
+      .eq('is_active', true)
+    
+    // Create a set of existing product-trend pairs
+    const existingPairs = new Set(
+      (existingRecs || []).map(r => `${r.product_id}-${r.matched_trend_id}`)
+    )
+    
+    // Filter out pairs that already exist
+    const newPairs = pairs.filter(pair => 
+      !existingPairs.has(`${pair.product.product_id}-${pair.trend.trend_id}`)
+    )
+    
+    console.log(`Found ${newPairs.length} new recommendations to create (${existingPairs.size} already exist)`)
+    
+    if (newPairs.length === 0) {
+      return NextResponse.json({ 
+        message: 'No new recommendations to create. All possible matches already exist.',
+        existing_count: existingPairs.size,
+        recommendations_count: existingPairs.size
+      }, { status: 200 })
+    }
 
     // Process recommendations in batches
     const BATCH_SIZE = 20
     const recommendations: any[] = []
     
-    for (let i = 0; i < pairs.length; i += BATCH_SIZE) {
-      const batch = pairs.slice(i, i + BATCH_SIZE)
-      console.log(`Processing recommendation batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(pairs.length/BATCH_SIZE)}`)
+    for (let i = 0; i < newPairs.length; i += BATCH_SIZE) {
+      const batch = newPairs.slice(i, i + BATCH_SIZE)
+      console.log(`Processing recommendation batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(newPairs.length/BATCH_SIZE)}`)
       
       const batchPromises = batch.map(async (pair: {
         product: any,

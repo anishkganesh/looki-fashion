@@ -40,6 +40,31 @@ async function generateCampaignHeroImage(campaign: any, products: any[], trend: 
   }
 }
 
+// Helper function to check if clothing articles are similar
+function areArticlesSimilar(article1: string, article2: string): boolean {
+  const similarityMap: Record<string, string[]> = {
+    'jeans': ['denim', 'jeans'],
+    'denim': ['jeans', 'denim'],
+    'shirts': ['blouses', 'tops', 't-shirts', 'shirts'],
+    'blouses': ['shirts', 'tops', 'blouses'],
+    'tops': ['shirts', 'blouses', 't-shirts', 'tops'],
+    't-shirts': ['shirts', 'tops', 't-shirts'],
+    'pants': ['trousers', 'bottoms', 'pants'],
+    'trousers': ['pants', 'bottoms', 'trousers'],
+    'bottoms': ['pants', 'trousers', 'bottoms'],
+    'shoes': ['footwear', 'sneakers', 'shoes'],
+    'sneakers': ['shoes', 'footwear', 'sneakers'],
+    'footwear': ['shoes', 'sneakers', 'footwear']
+  }
+  
+  // Direct match
+  if (article1 === article2) return true
+  
+  // Check similarity map
+  const similar = similarityMap[article1.toLowerCase()]
+  return similar ? similar.includes(article2.toLowerCase()) : false
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { brand_id, trend_id } = await request.json()
@@ -112,10 +137,12 @@ export async function POST(request: NextRequest) {
       const productArticles = product.clothing_articles || []
       const trendArticles = trend.clothing_articles || []
       
-      // Skip if no clothing article match
+      // Skip if no clothing article match (strict matching with similarity)
       if (productArticles.length > 0 && trendArticles.length > 0) {
         const hasMatch = productArticles.some((pa: string) => 
-          trendArticles.includes(pa)
+          trendArticles.some((ta: string) => 
+            pa === ta || areArticlesSimilar(pa, ta)
+          )
         )
         if (!hasMatch) {
           continue // Skip this product entirely

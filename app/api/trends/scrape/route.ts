@@ -1059,18 +1059,9 @@ function isFashionTrend(trendName: string, trendDescription: string): boolean {
   // Check if it's too vague
   const isVague = trendName.match(/^(relatable|general|basic|simple|modern|contemporary)\s+(fashion|style|trend)$/i)
   
-  // Must have some fashion-related keywords to be valid
-  const fashionKeywords = [
-    'dress', 'shirt', 'pants', 'jeans', 'skirt', 'jacket', 'coat', 'blouse',
-    'top', 'bottom', 'shoe', 'bag', 'accessory', 'jewelry', 'hat', 'scarf',
-    'sweater', 'cardigan', 'hoodie', 'legging', 'shorts', 'suit', 'gown',
-    'print', 'pattern', 'color', 'fabric', 'material', 'style', 'design',
-    'collection', 'runway', 'fashion week', 'designer', 'brand', 'trend'
-  ]
-  
-  const hasFashionKeywords = fashionKeywords.some(keyword => text.includes(keyword))
-  
-  return !hasNonFashionKeywords && !isVague && hasFashionKeywords
+  // Only filter out if it has non-fashion keywords or is too vague
+  // No longer requiring positive fashion keywords
+  return !hasNonFashionKeywords && !isVague
 }
 
 export async function POST(request: Request) {
