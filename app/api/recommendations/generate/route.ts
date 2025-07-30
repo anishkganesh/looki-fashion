@@ -728,29 +728,56 @@ async function generateRecommendationImage(product: any, trend: any, action: str
   }
 }
 
-// Helper function to check if clothing articles are similar
+// Helper function to check if clothing articles are similar (STRICT MATCHING)
 function areArticlesSimilar(article1: string, article2: string): boolean {
-  // VERY STRICT similarity mapping - only allow very close matches
-  const similarityMap: Record<string, string[]> = {
-    // Only jeans and denim are interchangeable
-    'jeans': ['denim'],
-    'denim': ['jeans'],
-    // Only pants and trousers are interchangeable
-    'pants': ['trousers'],
-    'trousers': ['pants'],
-    // Only shoes and footwear are interchangeable
-    'shoes': ['footwear'],
-    'footwear': ['shoes']
-    // Removed overly broad mappings like shirts/blouses/tops
-    // Each clothing type should match its exact category
-  }
-  
-  // Direct match
+  // Direct match is always allowed
   if (article1 === article2) return true
   
-  // Check very restrictive similarity map
-  const similar = similarityMap[article1.toLowerCase()]
-  return similar ? similar.includes(article2.toLowerCase()) : false
+  // Define VERY strict similarity groups - only truly similar items
+  const strictSimilarityGroups = [
+    // Denim/Jeans group
+    ['jeans', 'denim'],
+    
+    // Basic tops group (shirts, blouses, but NOT jackets)
+    ['shirts', 'blouses'],
+    
+    // T-shirts and casual tops
+    ['t-shirts', 'tees', 'tanks'],
+    
+    // Bottom pants group
+    ['pants', 'trousers'],
+    
+    // Footwear group
+    ['shoes', 'sneakers', 'footwear'],
+    
+    // Shorts group
+    ['shorts', 'bermudas'],
+    
+    // Skirts group
+    ['skirts', 'mini-skirts', 'maxi-skirts'],
+    
+    // Dresses group
+    ['dresses', 'gowns'],
+    
+    // Underwear group
+    ['underwear', 'lingerie', 'bras', 'panties'],
+    
+    // Socks group
+    ['socks', 'hosiery'],
+    
+    // Accessories group
+    ['accessories', 'jewelry', 'bags', 'belts']
+  ]
+  
+  // Check if both articles belong to the same strict group
+  for (const group of strictSimilarityGroups) {
+    if (group.includes(article1.toLowerCase()) && group.includes(article2.toLowerCase())) {
+      return true
+    }
+  }
+  
+  // No match found - these are different clothing categories
+  return false
 }
 
 // Main matching algorithm - IMPROVED VERSION
@@ -800,21 +827,16 @@ async function findBestProductTrendPairs(
       const productArticles = product.clothing_articles || extractFromProductHierarchy(product.category_hierarchy || '')
       const trendArticles = trend.clothing_articles || []
       
-      // STRICT clothing article matching - both must have articles and they must match
-      if (productArticles.length === 0 || trendArticles.length === 0) {
-        // Skip if either product or trend has no clothing articles
-        continue
-      }
-      
-      const hasMatch = productArticles.some((pa: string) => 
-        trendArticles.some((ta: string) => 
-          pa === ta || areArticlesSimilar(pa, ta)
+      // Skip if no clothing article match (strict matching with similarity)
+      if (productArticles.length > 0 && trendArticles.length > 0) {
+        const hasMatch = productArticles.some((pa: string) => 
+          trendArticles.some((ta: string) => 
+            pa === ta || areArticlesSimilar(pa, ta)
+          )
         )
-      )
-      
-      if (!hasMatch) {
-        // Skip if no clothing article match found
-        continue
+        if (!hasMatch) {
+          continue
+        }
       }
       
       // Calculate match score
